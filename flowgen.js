@@ -118,7 +118,7 @@ function renderUrl(base, path, params, choice) {
   const query = params.filter(p => p.in === 'query').map(function (param, i) {
     const value = choice[param.name];
     return (i ? '&' : '?') + param.name + '=' +
-      (value === undefined ? '' : encodeURIComponent(value));
+      (value === undefined ? '{' + param.name + '}' : encodeURIComponent(value));
   }).join('');
   return base + rendered + query;
 }
@@ -138,9 +138,12 @@ function multipartPayload(schema, resolve, sample) {
 }
 
 function unresolved(path, params) {
-  const items = params.filter(p => p.in === 'path' && !p.values.length)
-    .filter(p => path.indexOf('{' + p.name + '}') !== -1)
-    .map(p => ({ name: p.name, type: p.type || null }));
+  const items = [];
+  for (const p of params) {
+    if (p.values.length) continue;
+    if (p.in === 'path' && path.indexOf('{' + p.name + '}') === -1) continue;
+    items.push({ name: p.name, type: p.type || null });
+  }
   for (const token of String(path).match(/\{[^}]+\}/g) || []) {
     const name = token.slice(1, -1);
     if (!params.some(p => p.name === name)) items.push({ name: name, type: null });
