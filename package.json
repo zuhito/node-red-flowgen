@@ -3,6 +3,7 @@
   "version": "1.10.2",
   "description": "Generate Node-RED flows and function-node code from OpenAPI 3 / Swagger 2 documents",
   "main": "flowgen.js",
+  "scripts": {},
   "license": "Apache-2.0",
   "bin": {
     "node-red-flowgen": "flowgen.js"
@@ -29,6 +30,5 @@
     "node-red",
     "openapi",
     "swagger"
-  ],
-  "scripts": {}
+  ]
 }
