@@ -64,6 +64,8 @@ jobs:
         with:
           node-version: '20.x'
       - run: npm install
+      - name: Diagnose the Petstore responses
+        run: node diag.js
       - name: Call the real Petstore API through Node-RED
         run: node test-live.js
 
