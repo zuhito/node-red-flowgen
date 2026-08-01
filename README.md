@@ -184,6 +184,10 @@ The suites live in `tests/` and are not shipped in the package. They fetch the P
 from their upstream repositories on demand, caching them under the system temp directory, so no
 specs are stored here.
 
+## Requirements
+
+Node 22.9 or newer, matching what Node-RED 5 and the test tooling require.
+
 ## License
 
 Apache-2.0

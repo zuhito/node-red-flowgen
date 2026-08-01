@@ -1,6 +1,6 @@
 {
   "name": "node-red-flowgen",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Generate Node-RED flows and function-node code from OpenAPI 3 / Swagger 2 documents",
   "main": "flowgen.js",
   "scripts": {
@@ -22,7 +22,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=22.9"
   },
   "dependencies": {
     "js-yaml": "5.2.3"
