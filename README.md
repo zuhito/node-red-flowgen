@@ -91,17 +91,41 @@ flowgen.buildFlow(doc, 'get', '/pet/{petId}');    // array of Node-RED nodes
 `detectFormat`. The two are deliberately independent so that another document format can be added
 without disturbing the existing ones.
 
+## Node-RED editor plugin
+
+Installing the module into a Node-RED instance adds an **API Spec** tab to the import dialog,
+alongside Clipboard, Local and Examples:
+
+```bash
+cd ~/.node-red
+npm install node-red-flowgen
+```
+
+Restart Node-RED, then choose *Import* from the menu and select the **API Spec** tab. Upload a
+document or paste one into the text area, pick an endpoint from the list and press
+*Import selected endpoint*. The inject, function, http request and debug nodes are added to the
+current flow, or to a new one if *new flow* is selected.
+
+The plugin is frontend only: it loads the same `flowgen.js` used by the command line, so the
+generated code is identical either way. The runtime half of the plugin does nothing but serve
+`flowgen.js` and the js-yaml browser build to the editor.
+
 ## Tests
 
 ```bash
 npm test              # unit tests plus every Petstore v2 and v3 operation
 npm run test:nodered  # loads generated flows into an embedded Node-RED instance
+npm run test:plugin   # packs the module, installs it and checks the plugin loads
 npm run test:all
 ```
 
 The integration suite starts Node-RED in-process, points the generated code at a local recording
 server and asserts on the request that actually arrives — method, path, query string, headers,
 cookies and body.
+
+The plugin suite runs `npm pack`, installs the resulting tarball into a temporary Node-RED
+instance and checks that the plugin markup reaches the editor, that `flowgen.js` is served
+unchanged and that it still works when evaluated as browser code.
 
 ## License
 

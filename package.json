@@ -6,14 +6,17 @@
   "scripts": {
     "test": "node --test test.js",
     "test:nodered": "node --test test-nodered.js",
-    "test:all": "node --test test.js test-nodered.js"
+    "test:all": "node --test test.js test-nodered.js test-plugin.js",
+    "test:plugin": "node --test test-plugin.js"
   },
   "license": "MIT",
   "bin": {
     "flowgen": "flowgen.js"
   },
   "files": [
-    "flowgen.js"
+    "flowgen.js",
+    "plugin/",
+    "spec/"
   ],
   "engines": {
     "node": ">=18"
@@ -24,5 +27,16 @@
   "devDependencies": {
     "express": "^4.19.2",
     "node-red": "^4.0.0"
-  }
+  },
+  "node-red": {
+    "version": ">=3.0.0",
+    "plugins": {
+      "flowgen": "plugin/flowgen-plugin.js"
+    }
+  },
+  "keywords": [
+    "node-red",
+    "openapi",
+    "swagger"
+  ]
 }

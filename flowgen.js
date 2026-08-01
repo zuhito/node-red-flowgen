@@ -1,7 +1,11 @@
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory(require('js-yaml'));
+  } else {
+    root.flowgen = factory(root.jsyaml);
+  }
+}(typeof self !== 'undefined' ? self : this, function (yaml) {
 'use strict';
-
-const fs = require('fs');
-const yaml = require('js-yaml');
 
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
 const BODYLESS = new Set(['get', 'head']);
@@ -443,12 +447,17 @@ function formatList(result) {
   return rows.map(r => r.args + ' '.repeat(width - r.args.length) + (r.note ? '  # ' + r.note : '')).join('\n');
 }
 
-module.exports = {
+return {
   parseDocument, detectFormat, generate, generateOpenApi3, generateSwagger2,
-  listOperations, buildFlow
+  listOperations, buildFlow, formatList
 };
+}));
 
-if (require.main === module) {
+if (typeof module === 'object' && module.exports && require.main === module) {
+  const fs = require('fs');
+  const {
+    parseDocument, generate, listOperations, buildFlow, formatList
+  } = module.exports;
   const args = process.argv.slice(2);
   const listMode = args.some(a => a === '--list' || a === '-l');
   const flowMode = args.some(a => a === '--flow' || a === '-f');

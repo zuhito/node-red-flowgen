@@ -1,0 +1,213 @@
+<style>
+#red-ui-clipboard-dialog-import-tab-apispec {
+  display: none;
+  height: 100%;
+  overflow: auto;
+  padding: 8px;
+  box-sizing: border-box;
+}
+#flowgen-spec-text {
+  width: 100%;
+  height: 90px;
+  resize: none;
+  font-family: monospace;
+}
+#flowgen-op-list {
+  border: 1px solid var(--red-ui-secondary-border-color, #ccc);
+  max-height: 180px;
+  overflow: auto;
+  margin-top: 6px;
+}
+#flowgen-op-list .flowgen-op {
+  padding: 3px 6px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--red-ui-tertiary-border-color, #eee);
+  font-family: monospace;
+  font-size: 12px;
+}
+#flowgen-op-list .flowgen-op.selected {
+  background: var(--red-ui-list-item-background-selected, #efefef);
+}
+#flowgen-op-list .flowgen-op .flowgen-method {
+  display: inline-block;
+  width: 62px;
+  font-weight: bold;
+}
+#flowgen-op-list .flowgen-op .flowgen-summary {
+  color: var(--red-ui-secondary-text-color, #999);
+  margin-left: 8px;
+}
+#flowgen-status { margin-top: 6px; min-height: 18px; font-size: 12px; }
+#flowgen-status.flowgen-error { color: var(--red-ui-text-color-error, #a33); }
+</style>
+
+<script type="text/javascript">
+(function () {
+  var TAB_ID = 'red-ui-clipboard-dialog-import-tab-apispec';
+  var loading = null;
+  var doc = null;
+  var selected = null;
+
+  function load() {
+    if (loading) { return loading; }
+    var root = (RED.settings.apiRootUrl || '');
+    if (root && !/\/$/.test(root)) { root += '/'; }
+    loading = $.getScript(root + 'flowgen/js-yaml.min.js').then(function () {
+      return $.getScript(root + 'flowgen/flowgen.js');
+    });
+    return loading;
+  }
+
+  function status(text, isError) {
+    $('#flowgen-status').text(text || '').toggleClass('flowgen-error', !!isError);
+  }
+
+  function render() {
+    var list = $('#flowgen-op-list').empty();
+    selected = null;
+    if (!doc) { return; }
+    var result;
+    try {
+      result = flowgen.listOperations(doc);
+    } catch (err) {
+      status(err.message, true);
+      return;
+    }
+    status(result.format + ', ' + result.count + ' operations');
+    result.operations.forEach(function (op) {
+      $('<div>').addClass('flowgen-op')
+        .append($('<span>').addClass('flowgen-method').text(op.method.toUpperCase()))
+        .append($('<span>').text(op.path))
+        .append($('<span>').addClass('flowgen-summary').text(op.summary || ''))
+        .on('click', function () {
+          $('#flowgen-op-list .flowgen-op').removeClass('selected');
+          $(this).addClass('selected');
+          selected = op;
+          $('#flowgen-import-btn').prop('disabled', false);
+        })
+        .appendTo(list);
+    });
+    $('#flowgen-import-btn').prop('disabled', true);
+  }
+
+  function parse(text) {
+    doc = null;
+    if (!text || !text.trim()) { $('#flowgen-op-list').empty(); status(''); return; }
+    try {
+      doc = flowgen.parseDocument(text);
+      render();
+    } catch (err) {
+      $('#flowgen-op-list').empty();
+      status(err.message, true);
+    }
+  }
+
+  function content() {
+    var el = $('<div>').attr('id', TAB_ID);
+
+    $('<div>').addClass('form-row')
+      .append($('<span>').text('Paste an OpenAPI 3 or Swagger 2 document, or '))
+      .append($('<a>').addClass('red-ui-button').attr('id', 'flowgen-file-btn')
+        .append('<i class="fa fa-upload"></i> ')
+        .append($('<span>').text('select a file')))
+      .append($('<input>').attr({ type: 'file', id: 'flowgen-file', accept: '.json,.yaml,.yml' })
+        .css('display', 'none'))
+      .appendTo(el);
+
+    $('<div>').addClass('form-row')
+      .append($('<textarea>').attr('id', 'flowgen-spec-text'))
+      .appendTo(el);
+
+    $('<div>').attr('id', 'flowgen-op-list').appendTo(el);
+    $('<div>').attr('id', 'flowgen-status').appendTo(el);
+
+    $('<div>').addClass('form-row').css('margin-top', '8px')
+      .append($('<button>').attr({ id: 'flowgen-import-btn', disabled: true })
+        .addClass('red-ui-button primary').text('Import selected endpoint'))
+      .appendTo(el);
+
+    el.find('#flowgen-file-btn').on('click', function (ev) {
+      ev.preventDefault();
+      el.find('#flowgen-file').val('').trigger('click');
+    });
+    el.find('#flowgen-file').on('change', function () {
+      var file = this.files && this.files[0];
+      if (!file) { return; }
+      var reader = new FileReader();
+      reader.onload = function (ev) {
+        $('#flowgen-spec-text').val(ev.target.result);
+        parse(ev.target.result);
+      };
+      reader.readAsText(file);
+    });
+    el.find('#flowgen-spec-text').on('change paste keyup', function () {
+      var text = $(this).val();
+      clearTimeout(el.data('timer'));
+      el.data('timer', setTimeout(function () { parse(text); }, 250));
+    });
+    el.find('#flowgen-import-btn').on('click', function () {
+      if (!doc || !selected) { return; }
+      var nodes;
+      try {
+        nodes = flowgen.buildFlow(doc, selected.method, selected.path);
+      } catch (err) {
+        status(err.message, true);
+        return;
+      }
+      var newFlow = $('#red-ui-clipboard-dialog-import-opt > a.selected')
+        .attr('id') === 'red-ui-clipboard-dialog-import-opt-new';
+      RED.view.importNodes(nodes, { generateIds: true, addFlow: newFlow });
+      $('#red-ui-clipboard-dialog').dialog('close');
+      RED.view.focus();
+    });
+
+    return el;
+  }
+
+  function activate(on) {
+    $('#red-ui-clipboard-dialog-import-tabs-content')
+      .children().not('#' + TAB_ID).toggle(!on);
+    $('#' + TAB_ID).toggle(on);
+    $('#red-ui-clipboard-dialog-ok').toggle(!on);
+  }
+
+  function install() {
+    var tabs = $('#red-ui-clipboard-dialog-import-tabs');
+    if (!tabs.length || tabs.find('#flowgen-tab-link').length) { return; }
+
+    var li = $('<li>').addClass('red-ui-tab')
+      .append($('<a>').attr({ id: 'flowgen-tab-link', href: '#' })
+        .addClass('red-ui-tab-label').text('API Spec'))
+      .appendTo(tabs);
+
+    content().appendTo('#red-ui-clipboard-dialog-import-tabs-content');
+
+    li.on('click', function (ev) {
+      ev.preventDefault();
+      tabs.find('li').removeClass('active');
+      li.addClass('active');
+      activate(true);
+      load().then(function () {
+        parse($('#flowgen-spec-text').val());
+      }).catch(function (err) {
+        status('failed to load flowgen: ' + err, true);
+      });
+    });
+
+    tabs.find('li').not(li).on('click', function () {
+      li.removeClass('active');
+      activate(false);
+    });
+  }
+
+  RED.plugins.registerPlugin('node-red-flowgen', {
+    onadd: function () {
+      $(document).on('dialogopen', function (ev) {
+        if (ev.target && ev.target.id === 'red-ui-clipboard-dialog') {
+          setTimeout(install, 0);
+        }
+      });
+    }
+  });
+})();
+</script>
