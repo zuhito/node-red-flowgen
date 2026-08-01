@@ -74,7 +74,14 @@ msg.url = 'https://petstore3.swagger.io/api/v3/pet/findByStatus?status=available
 // msg.url = 'https://petstore3.swagger.io/api/v3/pet/findByStatus?status=sold';
 ```
 
-Everything the spec does not pin down is left blank for you to fill in:
+Everything the spec does not pin down is left blank for you to fill in, and each such line is
+preceded by a comment saying what to edit:
+
+```js
+// Replace {petId} in the URL below with a real value.
+msg.url = 'https://petstore.swagger.io/v2/pet/{petId}/uploadImage';
+```
+
 
 - **Path parameters** keep their `{name}` form when the spec suggests no value.
 - **Query parameters** are appended in the order declared, empty when there is no candidate.
@@ -179,4 +186,4 @@ specs are stored here.
 
 ## License
 
-MIT
+Apache-2.0

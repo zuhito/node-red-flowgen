@@ -2,8 +2,10 @@
 #red-ui-clipboard-dialog-import-tab-apispec {
   display: none;
   height: 100%;
-  padding: 8px;
+  max-height: 100%;
+  padding: 8px 8px 0 8px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 #red-ui-clipboard-dialog-import-tab-apispec.flowgen-shown { display: flex; flex-direction: column; }
 #flowgen-paste-view, #flowgen-select-view {
@@ -13,15 +15,23 @@
   flex-direction: column;
 }
 #flowgen-paste-view.flowgen-on, #flowgen-select-view.flowgen-on { display: flex; }
-.flowgen-grow { flex: 1 1 auto; min-height: 0; display: flex; }
-.flowgen-actions { flex: 0 0 auto; text-align: right; margin-top: 6px; }
+.flowgen-grow { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
+.flowgen-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.flowgen-bar .flowgen-spacer { flex: 1 1 auto; }
 #flowgen-select-btn, #flowgen-back-btn {
-  background: var(--red-ui-button-background, #fff);
-  color: var(--red-ui-text-color-error, #a33);
-  border-color: var(--red-ui-text-color-error, #a33);
+  background: var(--red-ui-workspace-button-background-active, #ad1625);
+  border-color: var(--red-ui-workspace-button-background-active, #ad1625);
+  color: #fff;
 }
 #flowgen-select-btn:hover, #flowgen-back-btn:hover {
-  background: var(--red-ui-text-color-error, #a33);
+  background: var(--red-ui-workspace-button-background-hover, #6e1018);
+  border-color: var(--red-ui-workspace-button-background-hover, #6e1018);
   color: #fff;
 }
 #flowgen-spec-text {
@@ -33,7 +43,8 @@
 #flowgen-op-list {
   width: 100%;
   border: 1px solid var(--red-ui-secondary-border-color, #ccc);
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 #flowgen-op-list .flowgen-op {
   padding: 3px 6px;
@@ -54,8 +65,8 @@
   color: var(--red-ui-secondary-text-color, #999);
   margin-left: 8px;
 }
-#flowgen-status { flex: 0 0 auto; margin-top: 6px; min-height: 18px; font-size: 12px; }
-#flowgen-prompt { flex: 0 0 auto; }
+#flowgen-status { flex: 0 0 auto; margin: 4px 0; min-height: 16px; font-size: 12px; }
+#flowgen-prompt { flex: 0 0 auto; margin: 0; }
 #flowgen-status.flowgen-error { color: var(--red-ui-text-color-error, #a33); }
 </style>
 
@@ -186,13 +197,16 @@
 
     var paste = $('<div>').attr('id', 'flowgen-paste-view').addClass('flowgen-on').appendTo(el);
 
-    $('<div>').addClass('form-row').attr('id', 'flowgen-prompt')
+    $('<div>').addClass('flowgen-bar').attr('id', 'flowgen-prompt')
       .append($('<span>').text('Paste an API Specification or its URL, or '))
       .append($('<a>').addClass('red-ui-button').attr('id', 'flowgen-file-btn')
         .append('<i class="fa fa-upload"></i> ')
         .append($('<span>').text('select a file')))
       .append($('<input>').attr({ type: 'file', id: 'flowgen-file', accept: '.json,.yaml,.yml' })
         .css('display', 'none'))
+      .append($('<span>').addClass('flowgen-spacer'))
+      .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-select-btn', href: '#' })
+        .text('Select endpoint').hide())
       .on('keydown', function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); } })
       .appendTo(paste);
 
@@ -200,21 +214,18 @@
       .append($('<textarea>').attr({ id: 'flowgen-spec-text', placeholder: PLACEHOLDER }))
       .appendTo(paste);
 
-    $('<div>').addClass('flowgen-actions')
-      .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-select-btn', href: '#' })
-        .text('Select endpoint').hide())
-      .appendTo(paste);
-
     var select = $('<div>').attr('id', 'flowgen-select-view').appendTo(el);
 
-    $('<div>').addClass('flowgen-grow')
-      .append($('<div>').attr('id', 'flowgen-op-list'))
-      .appendTo(select);
-
-    $('<div>').addClass('flowgen-actions')
+    $('<div>').addClass('flowgen-bar')
+      .append($('<span>').text('Choose the endpoint to import.'))
+      .append($('<span>').addClass('flowgen-spacer'))
       .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-back-btn', href: '#' })
         .append('<i class="fa fa-chevron-left"></i> ')
         .append($('<span>').text('Back')))
+      .appendTo(select);
+
+    $('<div>').addClass('flowgen-grow')
+      .append($('<div>').attr('id', 'flowgen-op-list'))
       .appendTo(select);
 
     $('<div>').attr('id', 'flowgen-status').appendTo(el);

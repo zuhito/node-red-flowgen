@@ -3,3 +3,4 @@ flows.json
 *.log
 .DS_Store
 *.tgz
+package-lock.json

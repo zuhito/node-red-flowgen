@@ -532,3 +532,61 @@ test('isUrl recognises http and https sources only', () => {
   assert.strictEqual(flowgen.isUrl(''), false);
   assert.strictEqual(flowgen.isUrl(undefined), false);
 });
+
+function commentsOf(code) {
+  return code.split('\n').filter(l => l.startsWith('// ') && !/msg\.url = /.test(l));
+}
+
+test('an unresolved path parameter is called out above the url', () => {
+  const doc = v3({ '/pet/{petId}/uploadImage': { post: {
+    parameters: [{ name: 'petId', in: 'path' }] } } });
+  const code = flowgen.generate(doc, 'post', '/pet/{petId}/uploadImage');
+  const lines = code.split('\n');
+  const at = lines.findIndex(l => l.startsWith('msg.url = '));
+  assert.strictEqual(lines[at - 1], '// Replace {petId} in the URL below with a real value.');
+});
+
+test('several unresolved path parameters are listed together', () => {
+  const doc = v3({ '/a/{x}/b/{y}/c/{z}': { get: {} } });
+  assert.ok(commentsOf(flowgen.generate(doc, 'get', '/a/{x}/b/{y}/c/{z}'))
+    .includes('// Replace {x}, {y} and {z} in the URL below with real values.'));
+});
+
+test('a filled path parameter needs no comment', () => {
+  const doc = v3({ '/pet/{petId}': { get: {
+    parameters: [{ name: 'petId', in: 'path', schema: { example: 7 } }] } } });
+  assert.deepStrictEqual(commentsOf(flowgen.generate(doc, 'get', '/pet/{petId}')), []);
+});
+
+test('empty headers and cookies are called out above their assignment', () => {
+  const doc = v3({ '/x': { get: {
+    parameters: [{ name: 'X-Key', in: 'header' }, { name: 'sid', in: 'cookie' }],
+    responses: { 200: { content: { 'application/json': {} } } } } } });
+  const lines = flowgen.generate(doc, 'get', '/x').split('\n');
+  const headerAt = lines.findIndex(l => l.startsWith('msg.headers = '));
+  const cookieAt = lines.findIndex(l => l.startsWith('msg.cookies = '));
+  assert.strictEqual(lines[headerAt - 1], "// Fill in 'X-Key' below.");
+  assert.strictEqual(lines[cookieAt - 1], "// Fill in 'sid' below.");
+});
+
+test('an authorization header awaiting a token is called out', () => {
+  const doc = v3({ '/x': { get: { security: [{ b: [] }] } } }, {
+    components: { securitySchemes: { b: { type: 'http', scheme: 'bearer' } } }
+  });
+  assert.ok(commentsOf(flowgen.generate(doc, 'get', '/x'))
+    .includes("// Fill in 'authorization' below."));
+});
+
+test('headers that are fully determined get no comment', () => {
+  const doc = v3({ '/x': { get: {
+    responses: { 200: { content: { 'application/json': {} } } } } } });
+  assert.deepStrictEqual(commentsOf(flowgen.generate(doc, 'get', '/x')), []);
+});
+
+test('a request body is called out above the payload', () => {
+  const doc = v3({ '/x': { post: { requestBody: {
+    content: { 'application/json': { schema: { type: 'object' } } } } } } });
+  const lines = flowgen.generate(doc, 'post', '/x').split('\n');
+  const at = lines.findIndex(l => l.startsWith('msg.payload = '));
+  assert.strictEqual(lines[at - 1], '// Adjust the request body below to suit the call.');
+});

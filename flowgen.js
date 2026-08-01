@@ -112,6 +112,16 @@ function renderUrl(base, path, params, choice) {
   return base + rendered + query;
 }
 
+function unresolved(path, params) {
+  return params.filter(p => p.in === 'path' && !p.values.length)
+    .map(p => p.name)
+    .filter(name => path.indexOf('{' + name + '}') !== -1)
+    .concat((String(path).match(/\{[^}]+\}/g) || [])
+      .map(token => token.slice(1, -1))
+      .filter(name => !params.some(p => p.name === name)))
+    .filter((name, i, all) => all.indexOf(name) === i);
+}
+
 function urlLines(base, path, params) {
   const primary = {};
   for (const param of params) {
@@ -129,15 +139,47 @@ function urlLines(base, path, params) {
   return urls;
 }
 
+function listPhrase(names) {
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return names[0] + ' and ' + names[1];
+  return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+}
+
+function blanks(pairs) {
+  return pairs.filter(entry => String(entry[1]) === '' || /\s$/.test(String(entry[1])))
+    .map(entry => entry[0]);
+}
+
 function assemble(parts) {
   const lines = [];
   lines.push('msg.method = ' + quote(parts.method.toUpperCase()) + ';');
+
+  if (parts.todo.length) {
+    lines.push('// Replace ' + listPhrase(parts.todo.map(name => '{' + name + '}')) +
+      ' in the URL below with ' + (parts.todo.length === 1 ? 'a real value' : 'real values') + '.');
+  }
   parts.urls.forEach(function (url, i) {
     lines.push((i ? '// ' : '') + 'msg.url = ' + quote(url) + ';');
   });
-  if (parts.headers.length) lines.push('msg.headers = ' + pairsLiteral(parts.headers) + ';');
-  if (parts.cookies.length) lines.push('msg.cookies = ' + pairsLiteral(parts.cookies) + ';');
-  if (parts.hasBody) lines.push('msg.payload = ' + literal(parts.payload, 0) + ';');
+
+  if (parts.headers.length) {
+    const empty = blanks(parts.headers);
+    if (empty.length) {
+      lines.push('// Fill in ' + listPhrase(empty.map(quote)) + ' below.');
+    }
+    lines.push('msg.headers = ' + pairsLiteral(parts.headers) + ';');
+  }
+  if (parts.cookies.length) {
+    const empty = blanks(parts.cookies);
+    if (empty.length) {
+      lines.push('// Fill in ' + listPhrase(empty.map(quote)) + ' below.');
+    }
+    lines.push('msg.cookies = ' + pairsLiteral(parts.cookies) + ';');
+  }
+  if (parts.hasBody) {
+    lines.push('// Adjust the request body below to suit the call.');
+    lines.push('msg.payload = ' + literal(parts.payload, 0) + ';');
+  }
   lines.push('return msg;');
   return lines.join('\n');
 }
@@ -293,6 +335,7 @@ function generateOpenApi3(doc, rawMethod, target) {
   return assemble({
     method: method,
     urls: urlLines(base, path, urlParams),
+    todo: unresolved(path, urlParams),
     headers: dedupeHeaders(headers),
     cookies: cookies,
     hasBody: hasBody,
@@ -424,6 +467,7 @@ function generateSwagger2(doc, rawMethod, target) {
   return assemble({
     method: method,
     urls: urlLines(base, path, urlParams),
+    todo: unresolved(path, urlParams),
     headers: dedupeHeaders(headers),
     cookies: [],
     hasBody: hasBody,

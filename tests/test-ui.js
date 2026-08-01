@@ -409,18 +409,62 @@ test('no operation count is reported once a document parses', async () => {
   assert.strictEqual($('#flowgen-status').text(), '');
 });
 
-test('the action buttons sit right aligned in the same place', async () => {
+test('the action buttons sit at the top right of each view', async () => {
   await openSpecTab(SPEC_V3);
+
   const selectRow = $('#flowgen-select-btn').parent();
-  assert.ok(selectRow.hasClass('flowgen-actions'));
+  assert.ok(selectRow.hasClass('flowgen-bar'));
   assert.strictEqual(selectRow.parent().attr('id'), 'flowgen-paste-view');
-  assert.strictEqual(selectRow.next().length, 0, 'the button row is last in the paste view');
+  assert.strictEqual(selectRow.prev().length, 0, 'the bar is first in the paste view');
+  assert.strictEqual($('#flowgen-select-btn').prev().attr('class'), 'flowgen-spacer');
+  assert.strictEqual($('#flowgen-file-btn').parent().attr('id'), 'flowgen-prompt',
+    'Select endpoint shares the bar with the file button');
 
   $('#flowgen-select-btn').trigger('click');
   const backRow = $('#flowgen-back-btn').parent();
-  assert.ok(backRow.hasClass('flowgen-actions'));
+  assert.ok(backRow.hasClass('flowgen-bar'));
   assert.strictEqual(backRow.parent().attr('id'), 'flowgen-select-view');
-  assert.strictEqual(backRow.next().length, 0, 'the button row is last in the select view');
+  assert.strictEqual(backRow.prev().length, 0, 'the bar is first in the select view');
+  assert.strictEqual($('#flowgen-back-btn').prev().attr('class'), 'flowgen-spacer');
+});
+
+test('the endpoint list scrolls instead of overflowing the dialog', async () => {
+  await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
+
+  const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
+  const rule = name => {
+    const match = styles.match(new RegExp('#' + name + '\\s*\\{([^}]*)\\}'));
+    return match ? match[1] : '';
+  };
+  assert.match(rule('flowgen-op-list'), /overflow-y:\s*auto/);
+  assert.match(styles, /\.flowgen-grow\s*\{[^}]*min-height:\s*0/);
+  assert.match(styles, /\.flowgen-grow\s*\{[^}]*overflow:\s*hidden/);
+  assert.match(rule('red-ui-clipboard-dialog-import-tab-apispec'), /max-height:\s*100%/);
+  assert.match(rule('red-ui-clipboard-dialog-import-tab-apispec'), /overflow:\s*hidden/);
+});
+
+test('the text area is the growing element of the paste view', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  const grow = $('#flowgen-spec-text').parent();
+  assert.ok(grow.hasClass('flowgen-grow'));
+  assert.strictEqual(grow.next().length, 0, 'nothing sits below the text area');
+  assert.strictEqual(grow.prev().attr('id'), 'flowgen-prompt');
+
+  const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
+  assert.match(styles, /#flowgen-spec-text\s*\{[^}]*height:\s*100%/);
+  assert.match(styles, /\.flowgen-grow\s*\{[^}]*flex:\s*1 1 auto/);
+});
+
+test('Select endpoint is styled like the enabled Import button', async () => {
+  await openSpecTab(SPEC_V3);
+  const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
+  const rule = styles.match(/#flowgen-select-btn,\s*#flowgen-back-btn\s*\{([^}]*)\}/)[1];
+  assert.match(rule, /background:\s*var\(--red-ui-workspace-button-background-active/);
+  assert.match(rule, /color:\s*#fff/);
+  assert.ok(!/background:\s*var\(--red-ui-button-background/.test(rule),
+    'the button must not be white inside');
 });
 
 test('the panel and its views are laid out to fill the height', async () => {

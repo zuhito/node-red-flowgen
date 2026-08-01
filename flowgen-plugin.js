@@ -1,10 +1,24 @@
 module.exports = function (RED) {
+  const fs = require('fs');
   const path = require('path');
+
+  function browserYaml() {
+    const root = path.dirname(require.resolve('js-yaml/package.json'));
+    const candidates = [
+      ['dist', 'browser', 'js-yaml.umd.min.js'],
+      ['dist', 'js-yaml.min.js'],
+      ['dist', 'js-yaml.js']
+    ];
+    for (const parts of candidates) {
+      const file = path.join.apply(path, [root].concat(parts));
+      if (fs.existsSync(file)) { return file; }
+    }
+    throw new Error('no browser build of js-yaml found');
+  }
 
   const assets = {
     'flowgen.js': path.join(__dirname, 'flowgen.js'),
-    'js-yaml.min.js': path.join(
-      path.dirname(require.resolve('js-yaml/package.json')), 'dist', 'js-yaml.min.js')
+    'js-yaml.min.js': browserYaml()
   };
 
   RED.plugins.registerPlugin('node-red-flowgen', {
