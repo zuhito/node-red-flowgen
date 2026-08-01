@@ -19,7 +19,7 @@ The only runtime dependency is `js-yaml`, so JSON and YAML documents are both ac
 List the operations in a document. A local path or a URL both work:
 
 ```bash
-node flowgen.js spec/petstore-v3.yaml --list
+node flowgen.js petstore.yaml --list
 node flowgen.js https://petstore.swagger.io/v2/swagger.json --list
 ```
 
@@ -36,7 +36,7 @@ Generate the function-node code for one operation. The first two columns of the 
 arguments, so a line can be pasted as-is:
 
 ```bash
-node flowgen.js spec/petstore-v3.yaml get '/pet/{petId}'
+node flowgen.js petstore.yaml get '/pet/{petId}'
 ```
 
 ```js
@@ -53,7 +53,7 @@ return msg;
 Generate a complete flow — inject, function, http request and debug — for import into Node-RED:
 
 ```bash
-node flowgen.js spec/petstore-v3.yaml get '/pet/{petId}' --flow > flows.json
+node flowgen.js petstore.yaml get '/pet/{petId}' --flow > flows.json
 ```
 
 Every node except the function node keeps its default properties. The http request node uses
@@ -91,7 +91,7 @@ Everything the spec does not pin down is left blank for you to fill in:
 ```js
 const flowgen = require('./flowgen');
 
-const doc = flowgen.parseDocument(fs.readFileSync('spec/petstore-v3.yaml', 'utf8'));
+const doc = flowgen.parseDocument(fs.readFileSync('petstore.yaml', 'utf8'));
 
 flowgen.detectFormat(doc);                        // 'openapi3' | 'swagger2'
 flowgen.listOperations(doc);                      // { format, count, operations: [...] }
@@ -172,6 +172,10 @@ Import button.
 The plugin suite runs `npm pack`, installs the resulting tarball into a temporary Node-RED
 instance and checks that the plugin markup reaches the editor, that `flowgen.js` is served
 unchanged and that it still works when evaluated as browser code.
+
+The suites live in `tests/` and are not shipped in the package. They fetch the Petstore documents
+from their upstream repositories on demand, caching them under the system temp directory, so no
+specs are stored here.
 
 ## License
 

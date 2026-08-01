@@ -452,20 +452,20 @@ function buildFlow(doc, method, target, options) {
       name: String(method).toUpperCase() + ' ' + target,
       func: code, outputs: 1, timeout: 0, noerr: 0,
       initialize: '', finalize: '', libs: [],
-      x: 300, y: 100, wires: [['flowgen-request']]
+      x: 360, y: 100, wires: [['flowgen-request']]
     },
     {
       id: 'flowgen-request', type: 'http request', z: tab, name: '',
       method: 'use', ret: 'obj', paytoqs: 'ignore', url: '', tls: '',
       persist: false, proxy: '', insecureHTTPParser: false,
       authType: '', senderr: false, headers: [],
-      x: 460, y: 100, wires: [['flowgen-debug']]
+      x: 570, y: 100, wires: [['flowgen-debug']]
     },
     {
       id: 'flowgen-debug', type: 'debug', z: tab, name: '',
       active: true, tosidebar: true, console: false, tostatus: false,
       complete: 'payload', targetType: 'msg', statusVal: '', statusType: 'auto',
-      x: 620, y: 100, wires: []
+      x: 750, y: 100, wires: []
     }
   ];
   if (withTab) { return nodes; }

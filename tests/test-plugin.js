@@ -28,7 +28,7 @@ before(async () => {
   userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nr-plugin-'));
 
   const packed = execFileSync('npm', ['pack', '--pack-destination', userDir], {
-    cwd: __dirname, encoding: 'utf8'
+    cwd: path.join(__dirname, '..'), encoding: 'utf8'
   }).trim().split('\n').pop();
   const tgz = path.join(userDir, packed);
   assert.ok(fs.existsSync(tgz), 'npm pack did not produce ' + tgz);
@@ -61,8 +61,8 @@ after(async () => {
 test('the packed module installs into Node-RED', () => {
   const installed = path.join(userDir, 'node_modules', 'node-red-flowgen');
   assert.ok(fs.existsSync(path.join(installed, 'flowgen.js')));
-  assert.ok(fs.existsSync(path.join(installed, 'plugin', 'flowgen-plugin.js')));
-  assert.ok(fs.existsSync(path.join(installed, 'plugin', 'flowgen-plugin.html')));
+  assert.ok(fs.existsSync(path.join(installed, 'flowgen-plugin.js')));
+  assert.ok(fs.existsSync(path.join(installed, 'flowgen-plugin.html')));
 });
 
 test('the plugin runtime is loaded by Node-RED', async () => {
@@ -83,7 +83,8 @@ test('the shared flowgen.js is served to the browser', async () => {
   const res = await get('/flowgen/flowgen.js');
   assert.strictEqual(res.status, 200);
   assert.ok(res.body.startsWith('(function (root'), 'not the UMD build');
-  assert.strictEqual(res.body, fs.readFileSync(path.join(__dirname, 'flowgen.js'), 'utf8'));
+  assert.strictEqual(res.body,
+    fs.readFileSync(path.join(__dirname, '..', 'flowgen.js'), 'utf8'));
 });
 
 test('js-yaml is served for browser side parsing', async () => {
@@ -103,8 +104,7 @@ test('the served flowgen.js works when evaluated as browser code', async () => {
   self.self = self;
   vm.runInNewContext(source, self);
 
-  const spec = fs.readFileSync(path.join(__dirname, 'spec', 'petstore-v3.yaml'), 'utf8');
-  const doc = self.flowgen.parseDocument(spec);
+  const doc = self.flowgen.parseDocument(await require('./specs').spec('v3'));
   assert.strictEqual(self.flowgen.detectFormat(doc), 'openapi3');
 
   const list = self.flowgen.listOperations(doc);

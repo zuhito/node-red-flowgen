@@ -4,12 +4,8 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const flowgen = require('./flowgen');
-
-const SPECS = {
-  v2: path.join(__dirname, 'spec', 'petstore-v2.yaml'),
-  v3: path.join(__dirname, 'spec', 'petstore-v3.yaml')
-};
+const flowgen = require('../flowgen');
+const specs = require('./specs');
 
 
 function run(code) {
@@ -347,9 +343,9 @@ test('quoting survives hostile strings', () => {
   assert.strictEqual(msg.url, "https://api.test/v1/it's?q=a'b%5Cc");
 });
 
-for (const [label, file] of Object.entries(SPECS)) {
-  test('petstore ' + label + ': every operation compiles to a usable msg', () => {
-    const doc = flowgen.parseDocument(fs.readFileSync(file, 'utf8'));
+for (const label of ['v2', 'v3']) {
+  test('petstore ' + label + ': every operation compiles to a usable msg', async () => {
+    const doc = flowgen.parseDocument(await specs.spec(label));
     const list = flowgen.listOperations(doc);
     assert.strictEqual(list.format, label === 'v2' ? 'swagger2' : 'openapi3');
     assert.ok(list.count > 0);
@@ -367,8 +363,8 @@ for (const [label, file] of Object.entries(SPECS)) {
     }
   });
 
-  test('petstore ' + label + ': every operation builds a valid flow', () => {
-    const doc = flowgen.parseDocument(fs.readFileSync(file, 'utf8'));
+  test('petstore ' + label + ': every operation builds a valid flow', async () => {
+    const doc = flowgen.parseDocument(await specs.spec(label));
     for (const entry of flowgen.listOperations(doc).operations) {
       const flow = JSON.parse(JSON.stringify(flowgen.buildFlow(doc, entry.method, entry.path)));
       assert.deepStrictEqual(flow.map(n => n.type),
@@ -382,16 +378,16 @@ for (const [label, file] of Object.entries(SPECS)) {
   });
 }
 
-test('petstore v3 known operation', () => {
-  const doc = flowgen.parseDocument(fs.readFileSync(SPECS.v3, 'utf8'));
+test('petstore v3 known operation', async () => {
+  const doc = flowgen.parseDocument(await specs.spec('v3'));
   const msg = run(flowgen.generate(doc, 'get', '/pet/{petId}'));
   assert.strictEqual(msg.url, 'https://petstore3.swagger.io/api/v3/pet/{petId}');
   assert.strictEqual(msg.headers.api_key, '');
   assert.strictEqual(msg.headers.accept, 'application/json');
 });
 
-test('petstore v2 known operation', () => {
-  const doc = flowgen.parseDocument(fs.readFileSync(SPECS.v2, 'utf8'));
+test('petstore v2 known operation', async () => {
+  const doc = flowgen.parseDocument(await specs.spec('v2'));
   const msg = run(flowgen.generate(doc, 'post', '/pet'));
   assert.strictEqual(msg.url, 'http://petstore.swagger.io/v2/pet');
   assert.strictEqual(msg.headers['content-type'], 'application/json');
@@ -515,7 +511,7 @@ test('an api key in the query stays empty', () => {
 test('nodes are laid out with the tighter spacing', () => {
   const doc = v3({ '/x': { get: {} } });
   const nodes = flowgen.buildFlow(doc, 'get', '/x', { tab: false });
-  assert.deepStrictEqual(nodes.map(n => n.x), [160, 300, 460, 620]);
+  assert.deepStrictEqual(nodes.map(n => n.x), [160, 360, 570, 750]);
   assert.deepStrictEqual(nodes.map(n => n.y), [100, 100, 100, 100]);
 });
 

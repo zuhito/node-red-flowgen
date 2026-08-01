@@ -39,7 +39,9 @@ jobs:
       - name: Generate function code for every Petstore operation
         run: |
           set -e
-          for spec in spec/petstore-v2.yaml spec/petstore-v3.yaml; do
+          V2=https://raw.githubusercontent.com/openapitools/openapi-generator/master/modules/openapi-generator/src/test/resources/2_0/petstore.yaml
+          V3=https://raw.githubusercontent.com/swagger-api/swagger-petstore/master/src/main/resources/openapi.yaml
+          for spec in "$V2" "$V3"; do
             echo "== $spec"
             node flowgen.js "$spec" --list
             node flowgen.js "$spec" --list | sed 's/ *#.*//' | while read -r method path; do
@@ -67,7 +69,7 @@ jobs:
           node-version: '20.x'
       - run: npm install
       - name: Call the real Petstore API through Node-RED
-        run: node test-live.js
+        run: npm run test:live
 
   package:
     runs-on: ubuntu-latest

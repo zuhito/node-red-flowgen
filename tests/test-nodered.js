@@ -8,10 +8,10 @@ const path = require('path');
 const http = require('http');
 const express = require('express');
 const RED = require('node-red');
-const flowgen = require('./flowgen');
+const flowgen = require('../flowgen');
+const specs = require('./specs');
 
-const SPEC = process.env.SPEC || path.join(__dirname, 'spec', 'petstore-v3.yaml');
-const doc = flowgen.parseDocument(fs.readFileSync(SPEC, 'utf8'));
+let doc;
 
 let target;
 let targetPort;
@@ -85,6 +85,8 @@ async function runFlow(code) {
 }
 
 before(async () => {
+  doc = flowgen.parseDocument(await specs.spec('v3'));
+
   const app = express();
   app.use((req, res) => {
     const chunks = [];

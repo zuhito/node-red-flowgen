@@ -6,9 +6,10 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
 
-const PLUGIN_HTML = fs.readFileSync(path.join(__dirname, 'plugin', 'flowgen-plugin.html'), 'utf8');
-const SPEC_V3 = fs.readFileSync(path.join(__dirname, 'spec', 'petstore-v3.yaml'), 'utf8');
-const SPEC_V2 = fs.readFileSync(path.join(__dirname, 'spec', 'petstore-v2.yaml'), 'utf8');
+const specs = require('./specs');
+
+const PLUGIN_HTML = fs.readFileSync(path.join(__dirname, '..', 'flowgen-plugin.html'), 'utf8');
+let SPEC_V3, SPEC_V2;
 const CONTENT = '#red-ui-clipboard-dialog-import-tabs-content';
 
 const DIALOG = `
@@ -54,7 +55,7 @@ async function boot() {
     { runScripts: 'outside-only', url: 'http://localhost:1880/' });
   win = dom.window;
 
-  win.eval(fs.readFileSync(path.join(__dirname, 'node_modules', 'jquery', 'dist', 'jquery.js'), 'utf8'));
+  win.eval(fs.readFileSync(path.join(__dirname, '..', 'node_modules', 'jquery', 'dist', 'jquery.js'), 'utf8'));
   $ = win.jQuery;
 
   imported = [];
@@ -99,7 +100,7 @@ async function boot() {
     win.eval('var module = undefined;');
     win.jsyaml = jsyaml;
     win.self = win;
-    win.eval(fs.readFileSync(path.join(__dirname, 'flowgen.js'), 'utf8'));
+    win.eval(fs.readFileSync(path.join(__dirname, '..', 'flowgen.js'), 'utf8'));
     return Promise.resolve();
   };
 
@@ -132,7 +133,10 @@ const ONE_OP = JSON.stringify({
   paths: { '/only': { get: { responses: { 200: {} } } } }
 });
 
-beforeEach(async () => { await boot(); });
+beforeEach(async () => {
+  if (!SPEC_V3) { SPEC_V3 = await specs.spec('v3'); SPEC_V2 = await specs.spec('v2'); }
+  await boot();
+});
 
 test('the API Spec tab is appended after the built-in tabs', () => {
   const labels = $('#red-ui-clipboard-dialog-import-tabs li a').map((i, el) => $(el).text()).get();
@@ -184,7 +188,7 @@ test('pasting a spec lists its endpoints', async () => {
   $('#flowgen-select-btn').trigger('click');
   const rows = $('#flowgen-op-list .flowgen-op');
   assert.ok(rows.length > 0);
-  assert.match($('#flowgen-status').text(), /openapi3, \d+ operations/);
+
   const first = rows.first().text();
   assert.match(first, /PUT/);
   assert.match(first, /\/pet/);
@@ -192,7 +196,9 @@ test('pasting a spec lists its endpoints', async () => {
 
 test('a swagger 2 document is accepted too', async () => {
   await openSpecTab(SPEC_V2);
-  assert.match($('#flowgen-status').text(), /swagger2, \d+ operations/);
+  assert.notStrictEqual($('#flowgen-select-btn').css('display'), 'none');
+  $('#flowgen-select-btn').trigger('click');
+  assert.ok($('#flowgen-op-list .flowgen-op').length > 1);
 });
 
 test('an invalid document reports an error and lists nothing', async () => {
@@ -236,7 +242,7 @@ test('a document with one endpoint enables Import without a select step', async 
   assert.strictEqual(shown(), 'paste');
   assert.strictEqual($('#flowgen-select-btn').css('display'), 'none');
   assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
-  assert.match($('#flowgen-status').text(), /1 operation$/);
+
 
   clickOk();
   assert.strictEqual(imported.length, 1);
@@ -267,7 +273,6 @@ test('a pasted url is fetched and replaces the text area', async () => {
 
   assert.strictEqual(requested, 'https://petstore.swagger.io/v2/swagger.json');
   assert.strictEqual($('#flowgen-spec-text').val(), SPEC_V2);
-  assert.match($('#flowgen-status').text(), /swagger2, \d+ operations/);
   assert.notStrictEqual($('#flowgen-select-btn').css('display'), 'none');
 });
 
@@ -379,4 +384,75 @@ test('the imported nodes carry the generated code and stay wired', async () => {
     }
   }
   assert.match(nodes.find(n => n.type === 'function').func, /store\/inventory/);
+});
+
+test('the placeholder shows a multi line example and the url on its own line', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  const placeholder = $('#flowgen-spec-text').attr('placeholder');
+  assert.ok(placeholder.split('\n').length > 5, 'the example must span several lines');
+  assert.match(placeholder, /^openapi: /);
+  assert.match(placeholder, /paths:/);
+  assert.match(placeholder, /\nor\nhttps:\/\/petstore\.swagger\.io\/v2\/swagger\.json$/);
+});
+
+test('the prompt asks for an API Specification', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  assert.match($('#flowgen-prompt').text(), /^Paste an API Specification or its URL, or/);
+});
+
+test('no operation count is reported once a document parses', async () => {
+  await openSpecTab(SPEC_V2);
+  assert.strictEqual($('#flowgen-status').text(), '');
+  await openSpecTab(SPEC_V3);
+  assert.strictEqual($('#flowgen-status').text(), '');
+});
+
+test('the action buttons sit right aligned in the same place', async () => {
+  await openSpecTab(SPEC_V3);
+  const selectRow = $('#flowgen-select-btn').parent();
+  assert.ok(selectRow.hasClass('flowgen-actions'));
+  assert.strictEqual(selectRow.parent().attr('id'), 'flowgen-paste-view');
+  assert.strictEqual(selectRow.next().length, 0, 'the button row is last in the paste view');
+
+  $('#flowgen-select-btn').trigger('click');
+  const backRow = $('#flowgen-back-btn').parent();
+  assert.ok(backRow.hasClass('flowgen-actions'));
+  assert.strictEqual(backRow.parent().attr('id'), 'flowgen-select-view');
+  assert.strictEqual(backRow.next().length, 0, 'the button row is last in the select view');
+});
+
+test('the panel and its views are laid out to fill the height', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  assert.ok($('#' + 'red-ui-clipboard-dialog-import-tab-apispec').hasClass('flowgen-shown'));
+  assert.strictEqual($('#flowgen-spec-text').parent().hasClass('flowgen-grow'), true);
+  assert.strictEqual($('#flowgen-op-list').parent().hasClass('flowgen-grow'), true);
+});
+
+test('a fetched JSON document is re-indented', async () => {
+  specTab().trigger('click');
+  await wait(20);
+
+  const compact = '{"openapi":"3.0.0","info":{"title":"T","version":"1"},'
+    + '"servers":[{"url":"https://t.test"}],"paths":{"/a":{"get":{}}}}';
+  win.fetch = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(compact) });
+
+  $('#flowgen-spec-text').val('https://example.test/spec.json').trigger('keyup');
+  await wait(400);
+
+  const shownText = $('#flowgen-spec-text').val();
+  assert.ok(shownText.split('\n').length > 5, 'the JSON must be pretty printed');
+  assert.strictEqual(shownText, JSON.stringify(JSON.parse(compact), null, 2));
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
+});
+
+test('a fetched YAML document is left untouched', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  win.fetch = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(SPEC_V3) });
+  $('#flowgen-spec-text').val('https://example.test/spec.yaml').trigger('keyup');
+  await wait(400);
+  assert.strictEqual($('#flowgen-spec-text').val(), SPEC_V3);
 });

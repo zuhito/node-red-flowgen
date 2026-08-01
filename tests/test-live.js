@@ -6,10 +6,8 @@ const os = require('os');
 const http = require('http');
 const express = require('express');
 const RED = require('node-red');
-const flowgen = require('./flowgen');
-
-const SPEC = path.join(__dirname, 'spec', 'petstore-v3.yaml');
-const doc = flowgen.parseDocument(fs.readFileSync(SPEC, 'utf8'));
+const flowgen = require('../flowgen');
+const specs = require('./specs');
 
 const BASE = process.env.PETSTORE_BASE || '';
 
@@ -38,6 +36,7 @@ function note(level, text) {
 }
 
 async function main() {
+  const doc = flowgen.parseDocument(await specs.spec('v3'));
   const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nr-live-'));
   const app = express();
   const server = http.createServer(app);

@@ -6,16 +6,16 @@ const http = require('http');
 const path = require('path');
 const yaml = require('js-yaml');
 const { execFile } = require('child_process');
+const specs = require('./specs');
 
 let server, base;
 
 const run = args => new Promise(resolve =>
-  execFile('node', [path.join(__dirname, 'flowgen.js')].concat(args),
+  execFile('node', [path.join(__dirname, '..', 'flowgen.js')].concat(args),
     (err, stdout, stderr) => resolve({ code: err ? err.code : 0, stdout, stderr })));
 
 before(async () => {
-  const spec = JSON.stringify(yaml.load(
-    fs.readFileSync(path.join(__dirname, 'spec', 'petstore-v2.yaml'), 'utf8')));
+  const spec = JSON.stringify(yaml.load(await specs.spec('v2')));
   server = http.createServer((req, res) => {
     if (req.url === '/redirect') {
       res.writeHead(302, { location: '/swagger.json' });

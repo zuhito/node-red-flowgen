@@ -2,7 +2,7 @@ module.exports = function (RED) {
   const path = require('path');
 
   const assets = {
-    'flowgen.js': path.join(__dirname, '..', 'flowgen.js'),
+    'flowgen.js': path.join(__dirname, 'flowgen.js'),
     'js-yaml.min.js': path.join(
       path.dirname(require.resolve('js-yaml/package.json')), 'dist', 'js-yaml.min.js')
   };

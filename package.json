@@ -1,15 +1,15 @@
 {
   "name": "node-red-flowgen",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Generate Node-RED flows and function-node code from OpenAPI 3 / Swagger 2 documents",
   "main": "flowgen.js",
   "scripts": {
-    "test": "node --test test.js test-cli.js",
-    "test:nodered": "node --test test-nodered.js",
-    "test:all": "node --test test.js test-cli.js test-ui.js test-nodered.js test-plugin.js",
-    "test:plugin": "node --test test-plugin.js",
-    "test:live": "node test-live.js",
-    "test:ui": "node --test test-ui.js"
+    "test": "node --test tests/test.js tests/test-cli.js",
+    "test:ui": "node --test tests/test-ui.js",
+    "test:nodered": "node --test tests/test-nodered.js",
+    "test:plugin": "node --test tests/test-plugin.js",
+    "test:live": "node tests/test-live.js",
+    "test:all": "node --test tests/test.js tests/test-cli.js tests/test-ui.js tests/test-nodered.js tests/test-plugin.js"
   },
   "license": "MIT",
   "bin": {
@@ -17,8 +17,8 @@
   },
   "files": [
     "flowgen.js",
-    "plugin/",
-    "spec/"
+    "flowgen-plugin.js",
+    "flowgen-plugin.html"
   ],
   "engines": {
     "node": ">=18"
@@ -35,7 +35,7 @@
   "node-red": {
     "version": ">=3.0.0",
     "plugins": {
-      "flowgen": "plugin/flowgen-plugin.js"
+      "flowgen": "flowgen-plugin.js"
     }
   },
   "keywords": [

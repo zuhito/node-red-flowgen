@@ -2,23 +2,38 @@
 #red-ui-clipboard-dialog-import-tab-apispec {
   display: none;
   height: 100%;
-  overflow: auto;
   padding: 8px;
   box-sizing: border-box;
 }
+#red-ui-clipboard-dialog-import-tab-apispec.flowgen-shown { display: flex; flex-direction: column; }
+#flowgen-paste-view, #flowgen-select-view {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+#flowgen-paste-view.flowgen-on, #flowgen-select-view.flowgen-on { display: flex; }
+.flowgen-grow { flex: 1 1 auto; min-height: 0; display: flex; }
+.flowgen-actions { flex: 0 0 auto; text-align: right; margin-top: 6px; }
+#flowgen-select-btn, #flowgen-back-btn {
+  background: var(--red-ui-button-background, #fff);
+  color: var(--red-ui-text-color-error, #a33);
+  border-color: var(--red-ui-text-color-error, #a33);
+}
+#flowgen-select-btn:hover, #flowgen-back-btn:hover {
+  background: var(--red-ui-text-color-error, #a33);
+  color: #fff;
+}
 #flowgen-spec-text {
   width: 100%;
+  height: 100%;
   resize: none;
   font-family: monospace;
 }
-#flowgen-paste-view, #flowgen-select-view { display: none; }
-#flowgen-paste-view.flowgen-on, #flowgen-select-view.flowgen-on { display: block; }
-#flowgen-spec-text { height: 200px; }
 #flowgen-op-list {
+  width: 100%;
   border: 1px solid var(--red-ui-secondary-border-color, #ccc);
-  max-height: 260px;
   overflow: auto;
-  margin-top: 6px;
 }
 #flowgen-op-list .flowgen-op {
   padding: 3px 6px;
@@ -39,7 +54,8 @@
   color: var(--red-ui-secondary-text-color, #999);
   margin-left: 8px;
 }
-#flowgen-status { margin-top: 6px; min-height: 18px; font-size: 12px; }
+#flowgen-status { flex: 0 0 auto; margin-top: 6px; min-height: 18px; font-size: 12px; }
+#flowgen-prompt { flex: 0 0 auto; }
 #flowgen-status.flowgen-error { color: var(--red-ui-text-color-error, #a33); }
 </style>
 
@@ -51,6 +67,25 @@
   var selected = null;
   var isActive = false;
   var fetching = null;
+
+  var PLACEHOLDER = [
+    'openapi: 3.0.4',
+    'info:',
+    '  title: Swagger Petstore',
+    '  version: 1.0.0',
+    'servers:',
+    '  - url: https://petstore3.swagger.io/api/v3',
+    'paths:',
+    '  /pet/{petId}:',
+    '    get:',
+    '      parameters:',
+    '        - name: petId',
+    '          in: path',
+    '          required: true',
+    '',
+    'or',
+    'https://petstore.swagger.io/v2/swagger.json'
+  ].join('\n');
 
   function load() {
     if (loading) { return loading; }
@@ -80,11 +115,10 @@
       return;
     }
     if (!result.count) {
-      status(result.format + ', no operations found', true);
+      status('no operations found in this document', true);
       return;
     }
-    status(result.format + ', ' + result.count +
-      (result.count === 1 ? ' operation' : ' operations'));
+    status('');
     result.operations.forEach(function (op) {
       $('<div>').addClass('flowgen-op')
         .append($('<span>').addClass('flowgen-method').text(op.method.toUpperCase()))
@@ -137,8 +171,10 @@
       return res.text();
     }).then(function (text) {
       fetching = null;
-      $('#flowgen-spec-text').val(text);
-      parse(text);
+      var pretty = text;
+      try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (err) { pretty = text; }
+      $('#flowgen-spec-text').val(pretty);
+      parse(pretty);
     }).catch(function (err) {
       fetching = null;
       status('could not fetch the document: ' + err.message, true);
@@ -150,8 +186,8 @@
 
     var paste = $('<div>').attr('id', 'flowgen-paste-view').addClass('flowgen-on').appendTo(el);
 
-    $('<div>').addClass('form-row')
-      .append($('<span>').text('Paste an OpenAPI 3 or Swagger 2 document or its URL, or '))
+    $('<div>').addClass('form-row').attr('id', 'flowgen-prompt')
+      .append($('<span>').text('Paste an API Specification or its URL, or '))
       .append($('<a>').addClass('red-ui-button').attr('id', 'flowgen-file-btn')
         .append('<i class="fa fa-upload"></i> ')
         .append($('<span>').text('select a file')))
@@ -160,25 +196,26 @@
       .on('keydown', function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); } })
       .appendTo(paste);
 
-    $('<div>').addClass('form-row')
-      .append($('<textarea>').attr({ id: 'flowgen-spec-text', placeholder:
-        'openapi: 3.0.0\n...\n\nor https://petstore.swagger.io/v2/swagger.json' }))
+    $('<div>').addClass('flowgen-grow')
+      .append($('<textarea>').attr({ id: 'flowgen-spec-text', placeholder: PLACEHOLDER }))
       .appendTo(paste);
 
-    $('<div>').addClass('form-row')
+    $('<div>').addClass('flowgen-actions')
       .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-select-btn', href: '#' })
         .text('Select endpoint').hide())
       .appendTo(paste);
 
     var select = $('<div>').attr('id', 'flowgen-select-view').appendTo(el);
 
-    $('<div>').addClass('form-row')
+    $('<div>').addClass('flowgen-grow')
+      .append($('<div>').attr('id', 'flowgen-op-list'))
+      .appendTo(select);
+
+    $('<div>').addClass('flowgen-actions')
       .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-back-btn', href: '#' })
         .append('<i class="fa fa-chevron-left"></i> ')
         .append($('<span>').text('Back')))
       .appendTo(select);
-
-    $('<div>').attr('id', 'flowgen-op-list').appendTo(select);
 
     $('<div>').attr('id', 'flowgen-status').appendTo(el);
 
@@ -234,13 +271,13 @@
 
   function show() {
     $('#red-ui-clipboard-dialog-import-tabs-content').children().hide();
-    $('#' + TAB_ID).show();
+    $('#' + TAB_ID).show().addClass('flowgen-shown');
     isActive = true;
   }
 
   function hide(targetContentId) {
     isActive = false;
-    $('#' + TAB_ID).hide();
+    $('#' + TAB_ID).hide().removeClass('flowgen-shown');
     if (targetContentId) { $('#' + targetContentId).show(); }
     okButton(false);
     $('#red-ui-clipboard-dialog-import-text').trigger('keyup');
