@@ -123,6 +123,15 @@ async function openSpecTab(spec) {
   await wait(400);
 }
 
+const shown = () => ['paste', 'select']
+  .filter(name => $('#flowgen-' + name + '-view').hasClass('flowgen-on')).join(',');
+
+const ONE_OP = JSON.stringify({
+  openapi: '3.0.3', info: { title: 'One', version: '1' },
+  servers: [{ url: 'https://one.test' }],
+  paths: { '/only': { get: { responses: { 200: {} } } } }
+});
+
 beforeEach(async () => { await boot(); });
 
 test('the API Spec tab is appended after the built-in tabs', () => {
@@ -172,6 +181,7 @@ test('there is no separate import button in the panel', async () => {
 
 test('pasting a spec lists its endpoints', async () => {
   await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
   const rows = $('#flowgen-op-list .flowgen-op');
   assert.ok(rows.length > 0);
   assert.match($('#flowgen-status').text(), /openapi3, \d+ operations/);
@@ -195,12 +205,85 @@ test('an invalid document reports an error and lists nothing', async () => {
 test('the Import button is disabled until an endpoint is picked', async () => {
   await openSpecTab(SPEC_V3);
   assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true);
+  $('#flowgen-select-btn').trigger('click');
   $('#flowgen-op-list .flowgen-op').first().trigger('click');
   assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
 });
 
+test('only the paste view is shown to start with', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  assert.strictEqual(shown(), 'paste');
+  assert.strictEqual($('#flowgen-select-btn').css('display'), 'none');
+});
+
+test('a document with several endpoints offers the select step', async () => {
+  await openSpecTab(SPEC_V3);
+  assert.strictEqual(shown(), 'paste', 'the list must not appear straight away');
+  assert.notStrictEqual($('#flowgen-select-btn').css('display'), 'none');
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true);
+
+  $('#flowgen-select-btn').trigger('click');
+  assert.strictEqual(shown(), 'select');
+  assert.ok($('#flowgen-op-list .flowgen-op').length > 1);
+
+  $('#flowgen-back-btn').trigger('click');
+  assert.strictEqual(shown(), 'paste');
+});
+
+test('a document with one endpoint enables Import without a select step', async () => {
+  await openSpecTab(ONE_OP);
+  assert.strictEqual(shown(), 'paste');
+  assert.strictEqual($('#flowgen-select-btn').css('display'), 'none');
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
+  assert.match($('#flowgen-status').text(), /1 operation$/);
+
+  clickOk();
+  assert.strictEqual(imported.length, 1);
+  assert.match(imported[0].nodes.find(n => n.type === 'function').func, /one\.test\/only/);
+});
+
+test('replacing the document clears the previous selection', async () => {
+  await openSpecTab(ONE_OP);
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
+  $('#flowgen-spec-text').val('').trigger('keyup');
+  await wait(400);
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true);
+  assert.strictEqual($('#flowgen-op-list .flowgen-op').length, 0);
+});
+
+test('a pasted url is fetched and replaces the text area', async () => {
+  specTab().trigger('click');
+  await wait(20);
+
+  let requested = null;
+  win.fetch = url => {
+    requested = url;
+    return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(SPEC_V2) });
+  };
+
+  $('#flowgen-spec-text').val('https://petstore.swagger.io/v2/swagger.json').trigger('keyup');
+  await wait(400);
+
+  assert.strictEqual(requested, 'https://petstore.swagger.io/v2/swagger.json');
+  assert.strictEqual($('#flowgen-spec-text').val(), SPEC_V2);
+  assert.match($('#flowgen-status').text(), /swagger2, \d+ operations/);
+  assert.notStrictEqual($('#flowgen-select-btn').css('display'), 'none');
+});
+
+test('a failed fetch reports an error', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  win.fetch = () => Promise.resolve({ ok: false, status: 404 });
+  $('#flowgen-spec-text').val('https://example.test/missing.json').trigger('keyup');
+  await wait(400);
+  assert.ok($('#flowgen-status').hasClass('flowgen-error'));
+  assert.match($('#flowgen-status').text(), /HTTP 404/);
+});
+
 test('the Import button imports the selected endpoint as a flow', async () => {
   await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
   const row = $('#flowgen-op-list .flowgen-op')
     .filter((i, el) => $(el).text().indexOf('/pet/{petId}') !== -1).first();
   row.trigger('click');
@@ -226,6 +309,7 @@ test('the new flow option is honoured', async () => {
   await openSpecTab(SPEC_V3);
   $('#red-ui-clipboard-dialog-import-opt-current').removeClass('selected');
   $('#red-ui-clipboard-dialog-import-opt-new').addClass('selected');
+  $('#flowgen-select-btn').trigger('click');
   $('#flowgen-op-list .flowgen-op').first().trigger('click');
   clickOk();
   assert.strictEqual(imported[0].opts.addFlow, true);
@@ -233,6 +317,7 @@ test('the new flow option is honoured', async () => {
 
 test('the built-in import still runs when another tab is active', async () => {
   await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
   $('#flowgen-op-list .flowgen-op').first().trigger('click');
   $('#red-ui-tab-red-ui-clipboard-dialog-import-tab-clipboard').trigger('click');
   await wait(20);
@@ -258,10 +343,12 @@ test('an uploaded file populates the text area and the list', async () => {
 
   assert.strictEqual($('#flowgen-spec-text').val(), SPEC_V3);
   assert.ok($('#flowgen-op-list .flowgen-op').length > 0);
+  assert.strictEqual(shown(), 'paste');
 });
 
 test('importing never submits the dialog form', async () => {
   await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
   $('#flowgen-op-list .flowgen-op').first().trigger('click');
   clickOk();
   assert.strictEqual(imported.length, 1);
@@ -279,6 +366,7 @@ test('pressing enter in the panel does not submit the form', async () => {
 
 test('the imported nodes carry the generated code and stay wired', async () => {
   await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
   $('#flowgen-op-list .flowgen-op')
     .filter((i, el) => $(el).text().indexOf('/store/inventory') !== -1).first().trigger('click');
   clickOk();

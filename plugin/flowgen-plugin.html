@@ -8,13 +8,15 @@
 }
 #flowgen-spec-text {
   width: 100%;
-  height: 90px;
   resize: none;
   font-family: monospace;
 }
+#flowgen-paste-view, #flowgen-select-view { display: none; }
+#flowgen-paste-view.flowgen-on, #flowgen-select-view.flowgen-on { display: block; }
+#flowgen-spec-text { height: 200px; }
 #flowgen-op-list {
   border: 1px solid var(--red-ui-secondary-border-color, #ccc);
-  max-height: 180px;
+  max-height: 260px;
   overflow: auto;
   margin-top: 6px;
 }
@@ -48,6 +50,7 @@
   var doc = null;
   var selected = null;
   var isActive = false;
+  var fetching = null;
 
   function load() {
     if (loading) { return loading; }
@@ -66,6 +69,8 @@
   function render() {
     var list = $('#flowgen-op-list').empty();
     selected = null;
+    $('#flowgen-select-btn').hide();
+    okButton(false);
     if (!doc) { return; }
     var result;
     try {
@@ -74,7 +79,12 @@
       status(err.message, true);
       return;
     }
-    status(result.format + ', ' + result.count + ' operations');
+    if (!result.count) {
+      status(result.format + ', no operations found', true);
+      return;
+    }
+    status(result.format + ', ' + result.count +
+      (result.count === 1 ? ' operation' : ' operations'));
     result.operations.forEach(function (op) {
       $('<div>').addClass('flowgen-op')
         .append($('<span>').addClass('flowgen-method').text(op.method.toUpperCase()))
@@ -88,40 +98,98 @@
         })
         .appendTo(list);
     });
+
+    if (result.count === 1) {
+      selected = result.operations[0];
+      $('#flowgen-op-list .flowgen-op').addClass('selected');
+      okButton(true);
+    } else {
+      $('#flowgen-select-btn').show();
+    }
+  }
+
+  function reset() {
+    doc = null;
+    selected = null;
+    $('#flowgen-op-list').empty();
+    $('#flowgen-select-btn').hide();
     okButton(false);
   }
 
   function parse(text) {
-    doc = null;
-    if (!text || !text.trim()) { $('#flowgen-op-list').empty(); status(''); return; }
+    reset();
+    if (!text || !text.trim()) { status(''); return; }
+    if (flowgen.isUrl(text)) { return fetchSpec(text.trim()); }
     try {
       doc = flowgen.parseDocument(text);
       render();
     } catch (err) {
-      $('#flowgen-op-list').empty();
       status(err.message, true);
     }
+  }
+
+  function fetchSpec(url) {
+    if (fetching === url) { return; }
+    fetching = url;
+    status('fetching ' + url);
+    fetch(url).then(function (res) {
+      if (!res.ok) { throw new Error('HTTP ' + res.status + ' from ' + url); }
+      return res.text();
+    }).then(function (text) {
+      fetching = null;
+      $('#flowgen-spec-text').val(text);
+      parse(text);
+    }).catch(function (err) {
+      fetching = null;
+      status('could not fetch the document: ' + err.message, true);
+    });
   }
 
   function content() {
     var el = $('<div>').attr('id', TAB_ID);
 
+    var paste = $('<div>').attr('id', 'flowgen-paste-view').addClass('flowgen-on').appendTo(el);
+
     $('<div>').addClass('form-row')
-      .append($('<span>').text('Paste an OpenAPI 3 or Swagger 2 document, or '))
+      .append($('<span>').text('Paste an OpenAPI 3 or Swagger 2 document or its URL, or '))
       .append($('<a>').addClass('red-ui-button').attr('id', 'flowgen-file-btn')
         .append('<i class="fa fa-upload"></i> ')
         .append($('<span>').text('select a file')))
       .append($('<input>').attr({ type: 'file', id: 'flowgen-file', accept: '.json,.yaml,.yml' })
         .css('display', 'none'))
       .on('keydown', function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); } })
-      .appendTo(el);
+      .appendTo(paste);
 
     $('<div>').addClass('form-row')
-      .append($('<textarea>').attr('id', 'flowgen-spec-text'))
-      .appendTo(el);
+      .append($('<textarea>').attr({ id: 'flowgen-spec-text', placeholder:
+        'openapi: 3.0.0\n...\n\nor https://petstore.swagger.io/v2/swagger.json' }))
+      .appendTo(paste);
 
-    $('<div>').attr('id', 'flowgen-op-list').appendTo(el);
+    $('<div>').addClass('form-row')
+      .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-select-btn', href: '#' })
+        .text('Select endpoint').hide())
+      .appendTo(paste);
+
+    var select = $('<div>').attr('id', 'flowgen-select-view').appendTo(el);
+
+    $('<div>').addClass('form-row')
+      .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-back-btn', href: '#' })
+        .append('<i class="fa fa-chevron-left"></i> ')
+        .append($('<span>').text('Back')))
+      .appendTo(select);
+
+    $('<div>').attr('id', 'flowgen-op-list').appendTo(select);
+
     $('<div>').attr('id', 'flowgen-status').appendTo(el);
+
+    el.find('#flowgen-select-btn').on('click', function (ev) {
+      ev.preventDefault();
+      view('select');
+    });
+    el.find('#flowgen-back-btn').on('click', function (ev) {
+      ev.preventDefault();
+      view('paste');
+    });
 
     el.find('#flowgen-file-btn').on('click', function (ev) {
       ev.preventDefault();
@@ -142,7 +210,13 @@
       clearTimeout(el.data('timer'));
       el.data('timer', setTimeout(function () { parse(text); }, 250));
     });
+
     return el;
+  }
+
+  function view(name) {
+    $('#flowgen-paste-view').toggleClass('flowgen-on', name === 'paste');
+    $('#flowgen-select-view').toggleClass('flowgen-on', name === 'select');
   }
 
   function active() {
@@ -225,6 +299,7 @@
       tabs.find('li').removeClass('active');
       li.addClass('active');
       show();
+      view(selected || !doc ? 'paste' : 'select');
       okButton(!!selected);
       load().then(function () {
         parse($('#flowgen-spec-text').val());

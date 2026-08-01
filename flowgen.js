@@ -18,6 +18,10 @@ function parseDocument(text) {
   return doc;
 }
 
+function isUrl(text) {
+  return /^https?:\/\/\S+$/i.test(String(text || '').trim());
+}
+
 function detectFormat(doc) {
   if (typeof doc.swagger === 'string' && doc.swagger.startsWith('2.')) return 'swagger2';
   if (typeof doc.openapi === 'string' && doc.openapi.startsWith('3.')) return 'openapi3';
@@ -448,20 +452,20 @@ function buildFlow(doc, method, target, options) {
       name: String(method).toUpperCase() + ' ' + target,
       func: code, outputs: 1, timeout: 0, noerr: 0,
       initialize: '', finalize: '', libs: [],
-      x: 380, y: 100, wires: [['flowgen-request']]
+      x: 300, y: 100, wires: [['flowgen-request']]
     },
     {
       id: 'flowgen-request', type: 'http request', z: tab, name: '',
-      method: 'use', ret: 'txt', paytoqs: 'ignore', url: '', tls: '',
+      method: 'use', ret: 'obj', paytoqs: 'ignore', url: '', tls: '',
       persist: false, proxy: '', insecureHTTPParser: false,
       authType: '', senderr: false, headers: [],
-      x: 620, y: 100, wires: [['flowgen-debug']]
+      x: 460, y: 100, wires: [['flowgen-debug']]
     },
     {
       id: 'flowgen-debug', type: 'debug', z: tab, name: '',
       active: true, tosidebar: true, console: false, tostatus: false,
       complete: 'payload', targetType: 'msg', statusVal: '', statusType: 'auto',
-      x: 860, y: 100, wires: []
+      x: 620, y: 100, wires: []
     }
   ];
   if (withTab) { return nodes; }
@@ -509,15 +513,36 @@ function formatList(result) {
 
 return {
   parseDocument, detectFormat, generate, generateOpenApi3, generateSwagger2,
-  listOperations, buildFlow, formatList
+  listOperations, buildFlow, formatList, isUrl
 };
 }));
 
 if (typeof module === 'object' && module.exports && require.main === module) {
   const fs = require('fs');
   const {
-    parseDocument, generate, listOperations, buildFlow, formatList
+    parseDocument, generate, listOperations, buildFlow, formatList, isUrl
   } = module.exports;
+
+  const read = source => new Promise((resolve, reject) => {
+    if (!isUrl(source)) { return resolve(fs.readFileSync(source, 'utf8')); }
+    const get = (url, redirects) => {
+      require(url.startsWith('https:') ? 'https' : 'http').get(url, res => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          if (redirects <= 0) { return reject(new Error('too many redirects')); }
+          res.resume();
+          return get(new URL(res.headers.location, url).toString(), redirects - 1);
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          return reject(new Error('HTTP ' + res.statusCode + ' from ' + url));
+        }
+        const chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      }).on('error', reject);
+    };
+    get(String(source).trim(), 5);
+  });
   const args = process.argv.slice(2);
   const listMode = args.some(a => a === '--list' || a === '-l');
   const flowMode = args.some(a => a === '--flow' || a === '-f');
@@ -526,17 +551,18 @@ if (typeof module === 'object' && module.exports && require.main === module) {
   if (!file) {
     process.stderr.write(
       'usage:\n' +
-      '  node flowgen.js <spec.json|spec.yaml> --list\n' +
-      '  node flowgen.js <spec.json|spec.yaml> <method> <path>\n' +
-      '  node flowgen.js <spec.json|spec.yaml> <method> <path> --flow\n' +
+      '  node flowgen.js <spec.json|spec.yaml|url> --list\n' +
+      '  node flowgen.js <spec.json|spec.yaml|url> <method> <path>\n' +
+      '  node flowgen.js <spec.json|spec.yaml|url> <method> <path> --flow\n' +
       'example:\n' +
       '  node flowgen.js petstore.yaml --list\n' +
       '  node flowgen.js petstore.yaml post /pet\n' +
-      '  node flowgen.js petstore.yaml get /pet/{petId} --flow\n');
+      '  node flowgen.js petstore.yaml get /pet/{petId} --flow\n' +
+      '  node flowgen.js https://petstore.swagger.io/v2/swagger.json --list\n');
     process.exit(1);
   }
-  try {
-    const doc = parseDocument(fs.readFileSync(file, 'utf8'));
+  read(file).then(text => {
+    const doc = parseDocument(text);
     if (listMode || !method) {
       process.stdout.write(formatList(listOperations(doc)) + '\n');
     } else if (flowMode) {
@@ -544,8 +570,8 @@ if (typeof module === 'object' && module.exports && require.main === module) {
     } else {
       process.stdout.write(generate(doc, method, target) + '\n');
     }
-  } catch (err) {
+  }).catch(err => {
     process.stderr.write(err.message + '\n');
     process.exit(1);
-  }
+  });
 }

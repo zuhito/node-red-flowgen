@@ -1,12 +1,12 @@
 {
   "name": "node-red-flowgen",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Generate Node-RED flows and function-node code from OpenAPI 3 / Swagger 2 documents",
   "main": "flowgen.js",
   "scripts": {
-    "test": "node --test test.js",
+    "test": "node --test test.js test-cli.js",
     "test:nodered": "node --test test-nodered.js",
-    "test:all": "node --test test.js test-ui.js test-nodered.js test-plugin.js",
+    "test:all": "node --test test.js test-cli.js test-ui.js test-nodered.js test-plugin.js",
     "test:plugin": "node --test test-plugin.js",
     "test:live": "node test-live.js",
     "test:ui": "node --test test-ui.js"

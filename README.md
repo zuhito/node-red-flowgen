@@ -16,10 +16,11 @@ The only runtime dependency is `js-yaml`, so JSON and YAML documents are both ac
 
 ## Usage
 
-List the operations in a document:
+List the operations in a document. A local path or a URL both work:
 
 ```bash
 node flowgen.js spec/petstore-v3.yaml --list
+node flowgen.js https://petstore.swagger.io/v2/swagger.json --list
 ```
 
 ```
@@ -114,8 +115,12 @@ npm install node-red-flowgen
 ```
 
 Restart Node-RED, then choose *Import* from the menu and select the **API Spec** tab. Upload a
-document or paste one into the text area, pick an endpoint from the list and press the dialog's
-usual **Import** button. The four nodes are added to the flow you are already on — no extra tab is
+document, paste one into the text area, or paste the URL of one — a URL is fetched and the text
+area is replaced with what comes back.
+
+If the document describes a single endpoint, **Import** lights up straight away. If it describes
+several, a **Select endpoint** button appears and leads to the list; picking one there enables
+**Import**. The four nodes are added to the flow you are already on — no extra tab is
 created — and the editor is never reloaded. The inject, function, http request and debug nodes are added to the
 current flow, or to a new one if *new flow* is selected.
 

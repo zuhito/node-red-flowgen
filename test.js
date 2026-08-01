@@ -511,3 +511,28 @@ test('an api key in the query stays empty', () => {
   });
   assert.strictEqual(run(flowgen.generate(doc, 'get', '/x')).url, 'https://api.test/v1/x?key=');
 });
+
+test('nodes are laid out with the tighter spacing', () => {
+  const doc = v3({ '/x': { get: {} } });
+  const nodes = flowgen.buildFlow(doc, 'get', '/x', { tab: false });
+  assert.deepStrictEqual(nodes.map(n => n.x), [160, 300, 460, 620]);
+  assert.deepStrictEqual(nodes.map(n => n.y), [100, 100, 100, 100]);
+});
+
+test('the http request node returns a parsed JSON object', () => {
+  const doc = v3({ '/x': { get: {} } });
+  const request = flowgen.buildFlow(doc, 'get', '/x').find(n => n.type === 'http request');
+  assert.strictEqual(request.ret, 'obj');
+  assert.strictEqual(request.method, 'use');
+});
+
+test('isUrl recognises http and https sources only', () => {
+  assert.strictEqual(flowgen.isUrl('https://petstore.swagger.io/v2/swagger.json'), true);
+  assert.strictEqual(flowgen.isUrl('http://example.test/a.yaml'), true);
+  assert.strictEqual(flowgen.isUrl('  https://example.test/a.yaml  '), true);
+  assert.strictEqual(flowgen.isUrl('spec/petstore-v3.yaml'), false);
+  assert.strictEqual(flowgen.isUrl('openapi: 3.0.0'), false);
+  assert.strictEqual(flowgen.isUrl('ftp://example.test/a.yaml'), false);
+  assert.strictEqual(flowgen.isUrl(''), false);
+  assert.strictEqual(flowgen.isUrl(undefined), false);
+});
