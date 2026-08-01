@@ -264,14 +264,18 @@ test('a pasted url is fetched and replaces the text area', async () => {
 
   let requested = null;
   win.fetch = url => {
-    requested = url;
-    return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(SPEC_V2) });
+    requested = String(url);
+    return Promise.resolve({ ok: true, status: 200,
+      json: () => Promise.resolve({ text: SPEC_V2 }) });
   };
 
   $('#flowgen-spec-text').val('https://petstore.swagger.io/v2/swagger.json').trigger('keyup');
   await wait(400);
 
-  assert.strictEqual(requested, 'https://petstore.swagger.io/v2/swagger.json');
+  assert.match(requested, /flowgen\/collection\?url=/,
+    'the fetch goes through the runtime, avoiding CORS');
+  assert.strictEqual(decodeURIComponent(requested.split('url=')[1]),
+    'https://petstore.swagger.io/v2/swagger.json');
   assert.strictEqual($('#flowgen-spec-text').val(), SPEC_V2);
   assert.notStrictEqual($('#flowgen-select-btn').css('display'), 'none');
 });
@@ -279,7 +283,8 @@ test('a pasted url is fetched and replaces the text area', async () => {
 test('a failed fetch reports an error', async () => {
   specTab().trigger('click');
   await wait(20);
-  win.fetch = () => Promise.resolve({ ok: false, status: 404 });
+  win.fetch = () => Promise.resolve({ ok: false, status: 502,
+    json: () => Promise.resolve({ error: 'HTTP 404 from https://example.test/missing.json' }) });
   $('#flowgen-spec-text').val('https://example.test/missing.json').trigger('keyup');
   await wait(400);
   assert.ok($('#flowgen-status').hasClass('flowgen-error'));
@@ -599,7 +604,8 @@ test('a fetched JSON document is re-indented', async () => {
 
   const compact = '{"openapi":"3.0.0","info":{"title":"T","version":"1"},'
     + '"servers":[{"url":"https://t.test"}],"paths":{"/a":{"get":{}}}}';
-  win.fetch = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(compact) });
+  win.fetch = () => Promise.resolve({ ok: true, status: 200,
+    json: () => Promise.resolve({ text: compact }) });
 
   $('#flowgen-spec-text').val('https://example.test/spec.json').trigger('keyup');
   await wait(400);
@@ -613,7 +619,8 @@ test('a fetched JSON document is re-indented', async () => {
 test('a fetched YAML document is left untouched', async () => {
   specTab().trigger('click');
   await wait(20);
-  win.fetch = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(SPEC_V3) });
+  win.fetch = () => Promise.resolve({ ok: true, status: 200,
+    json: () => Promise.resolve({ text: SPEC_V3 }) });
   $('#flowgen-spec-text').val('https://example.test/spec.yaml').trigger('keyup');
   await wait(400);
   assert.strictEqual($('#flowgen-spec-text').val(), SPEC_V3);

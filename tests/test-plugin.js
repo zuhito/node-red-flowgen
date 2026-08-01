@@ -150,17 +150,58 @@ test('the collection endpoint clones a git url and returns its files', async () 
   execFileSync('git', ['-C', repo, 'add', '-A']);
   execFileSync('git', ['-C', repo, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'x']);
 
-  const res = await get('/flowgen/collection?url=' + encodeURIComponent(repo + '/.git'));
+  execFileSync('git', ['-C', repo, 'update-server-info']);
+  const statics = express();
+  statics.use(express.static(repo, { dotfiles: 'allow' }));
+  const gitServer = http.createServer(statics);
+  await new Promise(resolve => gitServer.listen(0, '127.0.0.1', resolve));
+  const gitUrl = 'http://127.0.0.1:' + gitServer.address().port + '/.git';
+
+  const res = await get('/flowgen/collection?url=' + encodeURIComponent(gitUrl));
+  await new Promise(resolve => gitServer.close(resolve));
   fs.rmSync(repo, { recursive: true, force: true });
   assert.strictEqual(res.status, 200, res.body);
   const files = JSON.parse(res.body).files;
   assert.ok(files.some(f => f.path === 'get-user.yml'));
 });
 
-test('the collection endpoint rejects non git urls', async () => {
-  const res = await get('/flowgen/collection?url=https%3A%2F%2Fexample.test%2Fspec.yaml');
-  assert.strictEqual(res.status, 400);
-  assert.match(JSON.parse(res.body).error, /\.git/);
+test('the collection endpoint rejects non http sources', async () => {
+  for (const bad of ['file:///etc/passwd', 'notaurl', '']) {
+    const res = await get('/flowgen/collection?url=' + encodeURIComponent(bad));
+    assert.strictEqual(res.status, 400, bad);
+    assert.match(JSON.parse(res.body).error, /http/);
+  }
+});
+
+test('the collection endpoint proxies plain spec urls, following redirects', async () => {
+  const upstream = http.createServer((req, res) => {
+    if (req.url === '/redirect') {
+      res.writeHead(302, { location: '/spec.yaml' });
+      return res.end();
+    }
+    if (req.url === '/spec.yaml') {
+      res.writeHead(200, { 'content-type': 'text/yaml' });
+      return res.end('openapi: 3.0.0\n');
+    }
+    res.writeHead(404);
+    res.end('nope');
+  });
+  await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve));
+  const base = 'http://127.0.0.1:' + upstream.address().port;
+
+  const direct = await get('/flowgen/collection?url=' + encodeURIComponent(base + '/spec.yaml'));
+  assert.strictEqual(direct.status, 200, direct.body);
+  assert.strictEqual(JSON.parse(direct.body).text, 'openapi: 3.0.0\n');
+
+  const redirected = await get('/flowgen/collection?url=' + encodeURIComponent(base + '/redirect'));
+  assert.strictEqual(redirected.status, 200, redirected.body);
+  assert.strictEqual(JSON.parse(redirected.body).text, 'openapi: 3.0.0\n');
+
+  const missing = await get('/flowgen/collection?url=' + encodeURIComponent(base + '/nope'));
+  assert.strictEqual(missing.status, 502);
+  assert.match(JSON.parse(missing.body).error, /HTTP 404/);
+
+  await new Promise(resolve => upstream.close(resolve));
 });
 
 test('the collection endpoint unpacks an uploaded zip', async () => {

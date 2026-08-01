@@ -282,12 +282,12 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     if (fetching === url) { return; }
     fetching = url;
     status('fetching ' + url);
-    fetch(url).then(function (res) {
-      if (!res.ok) { throw new Error('HTTP ' + res.status + ' from ' + url); }
-      return res.text();
-    }).then(function (text) {
+    fetch(apiRoot() + 'flowgen/collection?url=' + encodeURIComponent(url))
+      .then(function (res) { return res.json().then(function (data) { return { res: res, data: data }; }); })
+      .then(function (got) {
       fetching = null;
-      var formatted = pretty(text);
+      if (!got.res.ok) { throw new Error(got.data.error || 'HTTP ' + got.res.status); }
+      var formatted = pretty(got.data.text);
       $('#flowgen-spec-text').val(formatted);
       parse(formatted);
     }).catch(function (err) {

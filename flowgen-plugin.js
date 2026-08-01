@@ -43,25 +43,63 @@ module.exports = function (RED) {
     return files;
   }
 
-  RED.httpAdmin.get('/flowgen/collection', function (req, res) {
-    const os = require('os');
-    const { execFile } = require('child_process');
-    const url = String(req.query.url || '').trim();
-    if (!/\.git$/.test(url)) {
-      return res.status(400).json({ error: 'only git repository URLs ending in .git are accepted' });
-    }
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-git-'));
-    execFile('git', ['clone', '--quiet', '--depth', '1', url, tmp],
-      { timeout: 60000 }, function (err, stdout, stderr) {
-      try {
-        if (err) {
-          return res.status(502).json({ error: 'git clone failed: ' +
-            String(stderr || err.message).trim().split('\n')[0] });
-        }
-        res.json({ files: gather(tmp) });
-      } finally {
-        fs.rm(tmp, { recursive: true, force: true }, function () {});
+  function fetchText(url, redirects, done) {
+    let mod;
+    try { mod = require(url.startsWith('https:') ? 'https' : 'http'); }
+    catch (err) { return done(err); }
+    const request = mod.get(url, { timeout: 30000 }, function (res) {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        if (redirects <= 0) { return done(new Error('too many redirects')); }
+        return fetchText(new URL(res.headers.location, url).toString(), redirects - 1, done);
       }
+      if (res.statusCode !== 200) {
+        res.resume();
+        return done(new Error('HTTP ' + res.statusCode + ' from ' + url));
+      }
+      const chunks = [];
+      res.on('data', function (c) { chunks.push(c); });
+      res.on('end', function () { done(null, Buffer.concat(chunks).toString('utf8')); });
+    });
+    request.on('timeout', function () { request.destroy(new Error('timed out')); });
+    request.on('error', done);
+  }
+
+  RED.httpAdmin.get('/flowgen/collection', function (req, res) {
+    const url = String(req.query.url || '').trim();
+    if (!/^https?:\/\/\S+$/i.test(url)) {
+      return res.status(400).json({ error: 'only http(s) URLs are accepted' });
+    }
+    if (/\.git$/.test(url)) {
+      const os = require('os');
+      const { execFile } = require('child_process');
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-git-'));
+      const finish = function (err) {
+        try {
+          if (err) {
+            return res.status(502).json({ error: 'git clone failed: ' +
+              String(err).trim().split('\n')[0] });
+          }
+          res.json({ files: gather(tmp) });
+        } finally {
+          fs.rm(tmp, { recursive: true, force: true }, function () {});
+        }
+      };
+      return execFile('git', ['clone', '--quiet', '--depth', '1', url, tmp],
+        { timeout: 60000 }, function (err, stdout, stderr) {
+        if (!err) { return finish(null); }
+        if (!/shallow/i.test(String(stderr))) { return finish(stderr || err.message); }
+        fs.rmSync(tmp, { recursive: true, force: true });
+        fs.mkdirSync(tmp, { recursive: true });
+        execFile('git', ['clone', '--quiet', url, tmp], { timeout: 60000 },
+          function (err2, stdout2, stderr2) {
+          finish(err2 ? (stderr2 || err2.message) : null);
+        });
+      });
+    }
+    fetchText(url, 5, function (err, text) {
+      if (err) { return res.status(502).json({ error: err.message }); }
+      res.json({ text: text });
     });
   });
 
