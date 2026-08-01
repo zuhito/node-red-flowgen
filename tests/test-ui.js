@@ -457,13 +457,28 @@ test('the text area is the growing element of the paste view', async () => {
   assert.match(styles, /\.flowgen-grow\s*\{[^}]*flex:\s*1 1 auto/);
 });
 
-test('Select endpoint is filled solid red like the enabled Import button', async () => {
+test('Select endpoint and Back are both solid red, overriding the theme', async () => {
   await openSpecTab(SPEC_V3);
   const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
-  const rule = styles.match(/#flowgen-select-btn,\s*#flowgen-back-btn\s*\{([^}]*)\}/)[1];
-  assert.match(rule, /background:\s*#ad1625/, 'solid Node-RED red, no grey variable fallback');
+  const rule = styles.match(
+    /a#flowgen-select-btn\.red-ui-button,\s*a#flowgen-back-btn\.red-ui-button\s*\{([^}]*)\}/)[1];
+  assert.match(rule, /background:\s*#ad1625\s*!important/,
+    'background needs !important to beat the theme button rules');
+  assert.match(rule, /border:\s*1px solid #ad1625\s*!important/);
   assert.match(rule, /color:\s*#fff\s*!important/);
   assert.ok(!/var\(/.test(rule), 'no CSS variables that can fall back to grey');
+
+  assert.match(styles,
+    /a#flowgen-select-btn\.red-ui-button:hover,[\s\S]*?\{[^}]*background:\s*#6e1018\s*!important/,
+    'hover state stays red too');
+  assert.match(styles,
+    /a#flowgen-select-btn\.red-ui-button i,[\s\S]*?\{[^}]*color:\s*#fff\s*!important/,
+    'the icon and label inherit white explicitly');
+
+  $('#flowgen-select-btn').trigger('click');
+  assert.strictEqual($('#flowgen-back-btn').attr('id'), 'flowgen-back-btn');
+  assert.ok($('#flowgen-back-btn').hasClass('red-ui-button'),
+    'the selector only matches if the class is on the anchor');
 });
 
 test('Select endpoint shows a forward chevron', async () => {
@@ -657,4 +672,46 @@ test('the panel and text area use the Clipboard tab paddings', async () => {
   assert.match(textRule, /line-height:\s*1\.3em/);
   assert.match(textRule, /font-size:\s*13px/);
   assert.match(textRule, /box-sizing:\s*border-box/);
+});
+
+test('pasting and importing work with no network access at all', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  delete win.fetch;
+  win.fetch = undefined;
+
+  $('#flowgen-spec-text').val(SPEC_V3).trigger('keyup');
+  await wait(400);
+  $('#flowgen-select-btn').trigger('click');
+  assert.ok($('#flowgen-op-list .flowgen-op').length > 1,
+    'parsing a pasted document must not touch the network');
+
+  $('#flowgen-op-list .flowgen-op').first().trigger('click');
+  clickOk();
+  assert.strictEqual(imported.length, 1, 'import must work offline');
+});
+
+test('pasting a url while offline reports an error instead of crashing', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  win.fetch = () => Promise.reject(new Error('network is unreachable'));
+
+  $('#flowgen-spec-text').val('https://example.test/spec.json').trigger('keyup');
+  await wait(400);
+  assert.ok($('#flowgen-status').hasClass('flowgen-error'));
+  assert.match($('#flowgen-status').text(), /network is unreachable/);
+
+  $('#flowgen-spec-text').val(SPEC_V2).trigger('keyup');
+  await wait(400);
+  assert.notStrictEqual($('#flowgen-select-btn').css('display'), 'none',
+    'the panel recovers once a document is pasted');
+});
+
+test('the plugin markup references no external resources', () => {
+  assert.ok(!/\bsrc\s*=\s*["']https?:/.test(PLUGIN_HTML), 'no external scripts');
+  assert.ok(!/\bhref\s*=\s*["']https?:/.test(PLUGIN_HTML), 'no external stylesheets');
+  assert.ok(!/@import/.test(PLUGIN_HTML), 'no CSS imports');
+  assert.ok(!/url\(\s*["']?https?:/.test(PLUGIN_HTML), 'no external CSS assets');
+  assert.ok(!/\$\.getScript\(\s*["']https?:/.test(PLUGIN_HTML),
+    'scripts are only loaded from the local admin server');
 });

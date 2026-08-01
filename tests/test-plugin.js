@@ -115,3 +115,27 @@ test('the served flowgen.js works when evaluated as browser code', async () => {
     'tab,inject,function,http request,debug');
   assert.match(flow.find(n => n.type === 'function').func, /msg\.url = /);
 });
+
+test('the editor payload pulls nothing from the internet', async () => {
+  const res = await get('/plugins');
+  assert.ok(!/src\s*=\s*["']https?:/.test(res.body), 'no external scripts');
+  assert.ok(!/href\s*=\s*["']https?:/.test(res.body), 'no external stylesheets');
+  assert.ok(!/@import\s+url\(\s*["']?https?:/.test(res.body), 'no external CSS imports');
+});
+
+test('everything the browser loads is served by the local admin server', async () => {
+  for (const asset of ['flowgen.js', 'js-yaml.min.js']) {
+    const res = await get('/flowgen/' + asset);
+    assert.strictEqual(res.status, 200, asset + ' must come from the local server');
+    assert.ok(res.body.length > 1000);
+  }
+});
+
+test('the installed package resolves js-yaml from its own node_modules', () => {
+  const installed = path.join(userDir, 'node_modules', 'node-red-flowgen');
+  const pkg = JSON.parse(fs.readFileSync(path.join(installed, 'package.json'), 'utf8'));
+  assert.deepStrictEqual(Object.keys(pkg.dependencies), ['js-yaml'],
+    'js-yaml is the only runtime dependency and ships at install time');
+  const plugin = fs.readFileSync(path.join(installed, 'flowgen-plugin.js'), 'utf8');
+  assert.ok(!/https?:\/\//.test(plugin), 'the runtime never references a remote URL');
+});

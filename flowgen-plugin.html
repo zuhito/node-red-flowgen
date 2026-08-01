@@ -29,14 +29,20 @@
 }
 .flowgen-bar > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .flowgen-bar .flowgen-spacer { flex: 1 1 auto; }
-#flowgen-select-btn, #flowgen-back-btn {
-  background: #ad1625;
-  border: 1px solid #ad1625;
+a#flowgen-select-btn.red-ui-button, a#flowgen-back-btn.red-ui-button {
+  background: #ad1625 !important;
+  border: 1px solid #ad1625 !important;
   color: #fff !important;
 }
-#flowgen-select-btn:hover, #flowgen-back-btn:hover {
-  background: #6e1018;
-  border-color: #6e1018;
+a#flowgen-select-btn.red-ui-button:hover, a#flowgen-back-btn.red-ui-button:hover,
+a#flowgen-select-btn.red-ui-button:focus, a#flowgen-back-btn.red-ui-button:focus,
+a#flowgen-select-btn.red-ui-button:active, a#flowgen-back-btn.red-ui-button:active {
+  background: #6e1018 !important;
+  border-color: #6e1018 !important;
+  color: #fff !important;
+}
+a#flowgen-select-btn.red-ui-button i, a#flowgen-back-btn.red-ui-button i,
+a#flowgen-select-btn.red-ui-button span, a#flowgen-back-btn.red-ui-button span {
   color: #fff !important;
 }
 #flowgen-spec-text {
