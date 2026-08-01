@@ -101,7 +101,8 @@ jobs:
           npm install node-red --no-audit --no-fund
           npm install "$GITHUB_WORKSPACE/node-red-flowgen.tgz" --no-audit --no-fund
           test -f node_modules/node-red-flowgen/flowgen.js
-          test -f node_modules/node-red-flowgen/plugin/flowgen-plugin.html
+          test -f node_modules/node-red-flowgen/flowgen-plugin.html
+          test -f node_modules/node-red-flowgen/flowgen-plugin.js
 
       - uses: actions/upload-artifact@v4
         with:
