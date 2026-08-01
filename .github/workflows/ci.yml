@@ -27,6 +27,9 @@ jobs:
       - name: Unit and Petstore tests
         run: npm test
 
+      - name: Editor UI tests
+        run: npm run test:ui
+
       - name: Node-RED integration tests
         run: npm run test:nodered
 

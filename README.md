@@ -102,8 +102,8 @@ npm install node-red-flowgen
 ```
 
 Restart Node-RED, then choose *Import* from the menu and select the **API Spec** tab. Upload a
-document or paste one into the text area, pick an endpoint from the list and press
-*Import selected endpoint*. The inject, function, http request and debug nodes are added to the
+document or paste one into the text area, pick an endpoint from the list and press the dialog's
+usual **Import** button. The inject, function, http request and debug nodes are added to the
 current flow, or to a new one if *new flow* is selected.
 
 The plugin is frontend only: it loads the same `flowgen.js` used by the command line, so the
@@ -130,6 +130,7 @@ again: it contains the source only, never the tarball.
 
 ```bash
 npm test              # unit tests plus every Petstore v2 and v3 operation
+npm run test:ui       # drives the import dialog in jsdom
 npm run test:nodered  # loads generated flows into an embedded Node-RED instance
 npm run test:plugin   # packs the module, installs it and checks the plugin loads
 npm run test:live     # calls the real Petstore API through Node-RED (needs internet)
@@ -144,6 +145,11 @@ cookies and body.
 would mean the generated request was malformed, and reports a 5xx as an upstream fault — the
 demo server currently returns 500 for `/store/inventory` and `/pet/findByStatus` even for a bare
 request with no headers at all, so those responses say nothing about the generated code.
+
+`npm run test:ui` builds the real import-dialog markup in jsdom, loads the plugin exactly as the
+editor does and drives it: switching between all four tabs and asserting that exactly one panel is
+ever visible, pasting both spec versions, selecting an endpoint, and pressing the dialog's own
+Import button.
 
 The plugin suite runs `npm pack`, installs the resulting tarball into a temporary Node-RED
 instance and checks that the plugin markup reaches the editor, that `flowgen.js` is served
