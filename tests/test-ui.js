@@ -595,3 +595,66 @@ test('a fetched YAML document is left untouched', async () => {
   await wait(400);
   assert.strictEqual($('#flowgen-spec-text').val(), SPEC_V3);
 });
+
+test('showing the tab keeps the flex layout instead of forcing block', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  const panel = win.document.getElementById('red-ui-clipboard-dialog-import-tab-apispec');
+  assert.notStrictEqual(panel.style.display, 'block',
+    'jQuery show() must not override the flex layout with display:block');
+  assert.strictEqual(panel.style.display, 'flex');
+  assert.ok($(panel).hasClass('flowgen-shown'));
+
+  const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
+  assert.match(styles, /\.flowgen-shown\s*\{[^}]*display:\s*flex\s*!important/,
+    'the class rule must win even if an inline display leaks in');
+});
+
+test('the flex layout survives leaving and returning to the tab', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  $('#red-ui-tab-red-ui-clipboard-dialog-import-tab-local').trigger('click');
+  await wait(20);
+  specTab().trigger('click');
+  await wait(20);
+  const panel = win.document.getElementById('red-ui-clipboard-dialog-import-tab-apispec');
+  assert.strictEqual(panel.style.display, 'flex');
+});
+
+test('the Back button is present and visible above the endpoint list', async () => {
+  await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
+  await wait(20);
+
+  const back = $('#flowgen-back-btn');
+  assert.strictEqual(back.length, 1, 'the Back button must exist');
+  assert.notStrictEqual(back.css('display'), 'none');
+  assert.match(back.text(), /Back/);
+  assert.strictEqual(back.find('i.fa-chevron-left').length, 1);
+
+  const bar = back.parent();
+  assert.ok(bar.hasClass('flowgen-bar'));
+  assert.strictEqual(bar.parent().attr('id'), 'flowgen-select-view');
+  assert.strictEqual(bar.index(), 0, 'the bar sits above the list');
+  assert.strictEqual(bar.next().find('#flowgen-op-list').length, 1);
+
+  back.trigger('click');
+  assert.strictEqual(shown(), 'paste', 'Back returns to the paste view');
+});
+
+test('the panel and text area use the Clipboard tab paddings', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
+  const panelRule = styles.match(
+    /#red-ui-clipboard-dialog-import-tab-apispec\s*\{([^}]*)\}/)[1];
+  assert.match(panelRule, /padding:\s*10px/,
+    'the Clipboard tab uses padding:10px on its panel');
+  const textRule = styles.match(/#flowgen-spec-text\s*\{([^}]*)\}/)[1];
+  assert.match(textRule, /padding:\s*6px 10px/,
+    'the Clipboard textarea uses padding:6px 10px');
+  assert.match(textRule, /height:\s*100%/);
+  assert.match(textRule, /line-height:\s*1\.3em/);
+  assert.match(textRule, /font-size:\s*13px/);
+  assert.match(textRule, /box-sizing:\s*border-box/);
+});

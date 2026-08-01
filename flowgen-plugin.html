@@ -3,10 +3,14 @@
   display: none;
   height: 100%;
   max-height: 100%;
+  padding: 10px;
   box-sizing: border-box;
   overflow: hidden;
 }
-#red-ui-clipboard-dialog-import-tab-apispec.flowgen-shown { display: flex; flex-direction: column; }
+#red-ui-clipboard-dialog-import-tab-apispec.flowgen-shown {
+  display: flex !important;
+  flex-direction: column;
+}
 #flowgen-paste-view, #flowgen-select-view {
   display: none;
   flex: 1 1 auto;
@@ -18,10 +22,12 @@
 .flowgen-bar {
   flex: 0 0 auto;
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
 }
+.flowgen-bar > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .flowgen-bar .flowgen-spacer { flex: 1 1 auto; }
 #flowgen-select-btn, #flowgen-back-btn {
   background: #ad1625;
@@ -39,6 +45,8 @@
   resize: none;
   font-family: var(--red-ui-monospace-font, monospace);
   font-size: 13px;
+  line-height: 1.3em;
+  padding: 6px 10px;
   box-sizing: border-box;
 }
 #flowgen-op-list {
@@ -352,7 +360,7 @@
 
   function show() {
     $('#red-ui-clipboard-dialog-import-tabs-content').children().hide();
-    $('#' + TAB_ID).show().addClass('flowgen-shown');
+    $('#' + TAB_ID).css('display', 'flex').addClass('flowgen-shown');
     isActive = true;
   }
 
