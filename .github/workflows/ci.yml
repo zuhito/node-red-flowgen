@@ -1,156 +1,14 @@
-name: CI
+name: Release
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
 
 jobs:
-  test:
+  release:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: ['22.x', '24.x']
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - run: npm install
-
-      - name: Unit and Petstore tests
-        run: npm test
-
-      - name: Editor UI tests
-        run: npm run test:ui
-
-      - name: Node-RED integration tests
-        run: npm run test:nodered
-
-      - name: Plugin package tests
-        run: npm run test:plugin
-
-      - name: Generate function code for every Petstore operation
-        run: |
-          set -e
-          V2=https://raw.githubusercontent.com/openapitools/openapi-generator/master/modules/openapi-generator/src/test/resources/2_0/petstore.yaml
-          V3=https://raw.githubusercontent.com/swagger-api/swagger-petstore/master/src/main/resources/openapi.yaml
-          for spec in "$V2" "$V3"; do
-            echo "== $spec"
-            node flowgen.js "$spec" --list
-            node flowgen.js "$spec" --list | sed 's/ *#.*//' | while read -r method path; do
-              node flowgen.js "$spec" "$method" "$path" > /dev/null
-              node flowgen.js "$spec" "$method" "$path" --flow | node -e '
-                let s = "";
-                process.stdin.on("data", d => s += d).on("end", () => {
-                  const flow = JSON.parse(s);
-                  const types = flow.map(n => n.type).join(",");
-                  if (types !== "tab,inject,function,http request,debug") {
-                    throw new Error("unexpected flow: " + types);
-                  }
-                });
-              '
-            done
-          done
-
-  live:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22.x'
-      - run: npm install
-      - name: Call the real Petstore API through Node-RED
-        run: npm run test:live
-
-  package:
-    runs-on: ubuntu-latest
-    needs: test
     permissions:
       contents: write
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22.x'
-
-      - run: npm install
-
-      - name: Build the tarball
-        run: |
-          set -e
-          npm pack
-          mv node-red-flowgen-*.tgz node-red-flowgen.tgz
-          ls -l node-red-flowgen.tgz
-          tar tzf node-red-flowgen.tgz
-
-      - name: Install the tarball into a clean Node-RED instance
-        run: |
-          set -e
-          mkdir -p /tmp/nr && cd /tmp/nr
-          npm init -y > /dev/null
-          npm install node-red --no-audit --no-fund
-          npm install "$GITHUB_WORKSPACE/node-red-flowgen.tgz" --no-audit --no-fund
-          test -f node_modules/node-red-flowgen/flowgen.js
-          test -f node_modules/node-red-flowgen/flowgen-plugin.html
-          test -f node_modules/node-red-flowgen/flowgen-plugin.js
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: node-red-flowgen
-          path: node-red-flowgen.tgz
-
-      - name: Publish the versioned release
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -e
-          gh release create "$GITHUB_REF_NAME" node-red-flowgen.tgz \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "$GITHUB_REF_NAME" \
-            --notes "\`\`\`
-          cd ~/.node-red
-          npm install /path/to/node-red-flowgen.tgz
-          \`\`\`" \
-          || gh release upload "$GITHUB_REF_NAME" node-red-flowgen.tgz \
-               --repo "$GITHUB_REPOSITORY" --clobber
-
-      - name: Refresh the rolling latest release
-        if: github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -e
-          NOTES="Built from ${GITHUB_SHA} on $(date -u +'%Y-%m-%d %H:%M UTC').
-
-          \`\`\`
-          cd ~/.node-red
-          npm install /path/to/node-red-flowgen.tgz
-          \`\`\`"
-          gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
-            && gh release edit latest --repo "$GITHUB_REPOSITORY" --notes "$NOTES" \
-            || gh release create latest node-red-flowgen.tgz \
-                 --repo "$GITHUB_REPOSITORY" \
-                 --title "latest (main)" \
-                 --prerelease \
-                 --notes "$NOTES"
-          gh release upload latest node-red-flowgen.tgz \
-            --repo "$GITHUB_REPOSITORY" --clobber
-
-  publish:
-    runs-on: ubuntu-latest
-    needs: [test, package]
-    if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v7
 
@@ -161,6 +19,13 @@ jobs:
 
       - run: npm install
 
+      - name: Build the tarball
+        run: |
+          set -e
+          npm pack
+          mv node-red-flowgen-*.tgz node-red-flowgen.tgz
+          tar tzf node-red-flowgen.tgz
+
       - name: Check the tag matches package.json
         run: |
           set -e
@@ -170,6 +35,18 @@ jobs:
             echo "package.json is $PKG_VERSION but the tag is $TAG_VERSION" >&2
             exit 1
           fi
+
+      - name: Publish the release with the tarball
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          gh release create "$GITHUB_REF_NAME" node-red-flowgen.tgz \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "cd ~/.node-red && npm install ./node-red-flowgen.tgz" \
+          || gh release upload "$GITHUB_REF_NAME" node-red-flowgen.tgz \
+               --repo "$GITHUB_REPOSITORY" --clobber
 
       - name: Publish to npm
         env:

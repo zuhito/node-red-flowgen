@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(require('js-yaml'));
@@ -700,14 +701,14 @@ if (typeof module === 'object' && module.exports && require.main === module) {
   if (!file) {
     process.stderr.write(
       'usage:\n' +
-      '  node flowgen.js <spec.json|spec.yaml|url> --list\n' +
-      '  node flowgen.js <spec.json|spec.yaml|url> <method> <path>\n' +
-      '  node flowgen.js <spec.json|spec.yaml|url> <method> <path> --flow\n' +
+      '  node-red-flowgen <spec.json|spec.yaml|url> --list\n' +
+      '  node-red-flowgen <spec.json|spec.yaml|url> <method> <path>\n' +
+      '  node-red-flowgen <spec.json|spec.yaml|url> <method> <path> --flow\n' +
       'example:\n' +
-      '  node flowgen.js petstore.yaml --list\n' +
-      '  node flowgen.js petstore.yaml post /pet\n' +
-      '  node flowgen.js petstore.yaml get /pet/{petId} --flow\n' +
-      '  node flowgen.js https://petstore.swagger.io/v2/swagger.json --list\n');
+      '  node-red-flowgen petstore.yaml --list\n' +
+      '  node-red-flowgen petstore.yaml post /pet\n' +
+      '  node-red-flowgen petstore.yaml get /pet/{petId} --flow\n' +
+      '  node-red-flowgen https://petstore.swagger.io/v2/swagger.json --list\n');
     process.exit(1);
   }
   read(file).then(text => {

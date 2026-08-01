@@ -29,16 +29,18 @@ Open *Import* in the editor and switch to the **API Spec** tab:
 
 ## CLI
 
+Installing the package puts a `node-red-flowgen` command on the path:
+
 ```bash
-node flowgen.js <spec.json|spec.yaml|url> --list            # list endpoints
-node flowgen.js <spec> <method> <path>                      # function-node code
-node flowgen.js <spec> <method> <path> --flow > flows.json  # complete importable flow
+node-red-flowgen <spec.json|spec.yaml|url> --list            # list endpoints
+node-red-flowgen <spec> <method> <path>                      # function-node code
+node-red-flowgen <spec> <method> <path> --flow > flows.json  # complete importable flow
 ```
 
 Example:
 
 ```bash
-$ node flowgen.js petstore.yaml get /pet/findByStatus
+$ node-red-flowgen petstore.yaml get /pet/findByStatus
 msg.method = 'GET';
 msg.url = 'http://petstore.swagger.io/v2/pet/findByStatus?status=available';
 // msg.url = 'http://petstore.swagger.io/v2/pet/findByStatus?status=pending';
@@ -76,20 +78,6 @@ flowgen.generate(doc, 'get', '/pet/{petId}');  // function-node source
 flowgen.buildFlow(doc, 'get', '/pet/{petId}'); // nodes wrapped in a tab
 flowgen.buildFlow(doc, 'get', '/pet/{petId}', { tab: false }); // nodes only
 ```
-
-## Tests
-
-```bash
-npm test              # generation + CLI
-npm run test:ui       # drives the import dialog in jsdom
-npm run test:nodered  # runs generated flows in an embedded Node-RED
-npm run test:plugin   # packs, installs and checks the plugin end to end
-npm run test:all
-```
-
-The suites live in `tests/` and are not shipped in the package. Petstore documents are
-fetched on demand and cached in the system temp directory. CI also calls the public
-Petstore API through Node-RED and publishes `node-red-flowgen.tgz` on every release.
 
 ## Requirements
 
