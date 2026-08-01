@@ -11,6 +11,8 @@ const flowgen = require('./flowgen');
 const SPEC = path.join(__dirname, 'spec', 'petstore-v3.yaml');
 const doc = flowgen.parseDocument(fs.readFileSync(SPEC, 'utf8'));
 
+const BASE = process.env.PETSTORE_BASE || '';
+
 const CASES = [
   { method: 'get', path: '/store/inventory', fill: {} },
   { method: 'get', path: '/pet/findByStatus', fill: { status: 'available' } },
@@ -19,6 +21,11 @@ const CASES = [
 
 function fill(code, values) {
   let out = code;
+  if (BASE) {
+    out = out.replace(/'https?:\/\/[^']*'/, function (match) {
+      return "'" + BASE + match.slice(1, -1).replace(/^https?:\/\/[^/]+/, '') + "'";
+    });
+  }
   for (const [key, value] of Object.entries(values)) {
     out = out.split('{' + key + '}').join(value);
     out = out.split(key + '=').join(key + '=' + value);
@@ -56,30 +63,32 @@ async function main() {
       if (node.type === 'http request') { node.ret = 'obj'; node.senderr = true; }
     }
 
-    const result = await new Promise(resolve => {
-      const done = value => { RED.events.removeListener('flowgen:result', handler); resolve(value); };
-      const handler = value => done(value);
-      RED.events.once('flowgen:result', handler);
+    const hook = nodes.find(n => n.type === 'debug');
+    hook.type = 'function';
+    hook.name = 'probe';
+    hook.outputs = 1;
+    hook.wires = [[]];
+    hook.func = "global.set('flowgenResult', { status: msg.statusCode, payload: msg.payload });\nreturn msg;";
 
-      const debugNode = nodes.find(n => n.type === 'debug');
-      nodes.splice(nodes.indexOf(debugNode), 1);
-      const hook = {
-        id: 'flowgen-probe', type: 'function', z: nodes[0].id,
-        name: 'probe', outputs: 1, wires: [[]],
-        func: 'return msg;', x: 860, y: 100
-      };
-      nodes.push(hook);
-      nodes.find(n => n.type === 'http request').wires = [[hook.id]];
+    fs.writeFileSync(path.join(userDir, 'flows.json'), JSON.stringify(nodes));
+    await RED.nodes.loadFlows(true);
 
-      fs.writeFileSync(path.join(userDir, 'flows.json'), JSON.stringify(nodes));
-      RED.nodes.loadFlows(true).then(() => {
-        const node = RED.nodes.getNode(hook.id);
-        if (node) {
-          node.on('input', msg => done({ status: msg.statusCode, payload: msg.payload }));
-        }
-        setTimeout(() => done({ status: null, payload: 'timeout' }), 25000);
-      });
-    });
+    let probe = null;
+    for (let i = 0; i < 50 && !probe; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      probe = RED.nodes.getNode(hook.id);
+    }
+    if (!probe) { note('error', label + ' -> probe node never started'); failures++; continue; }
+    const context = probe.context().global;
+    context.set('flowgenResult', null);
+
+    const started = Date.now();
+    let result = null;
+    while (!result && Date.now() - started < 30000) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      result = context.get('flowgenResult');
+    }
+    result = result || { status: null, payload: 'timeout' };
 
     if (result.status && result.status >= 200 && result.status < 400) {
       note('notice', label + ' -> HTTP ' + result.status);
