@@ -457,14 +457,109 @@ test('the text area is the growing element of the paste view', async () => {
   assert.match(styles, /\.flowgen-grow\s*\{[^}]*flex:\s*1 1 auto/);
 });
 
-test('Select endpoint is styled like the enabled Import button', async () => {
+test('Select endpoint is filled solid red like the enabled Import button', async () => {
   await openSpecTab(SPEC_V3);
   const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
   const rule = styles.match(/#flowgen-select-btn,\s*#flowgen-back-btn\s*\{([^}]*)\}/)[1];
-  assert.match(rule, /background:\s*var\(--red-ui-workspace-button-background-active/);
-  assert.match(rule, /color:\s*#fff/);
-  assert.ok(!/background:\s*var\(--red-ui-button-background/.test(rule),
-    'the button must not be white inside');
+  assert.match(rule, /background:\s*#ad1625/, 'solid Node-RED red, no grey variable fallback');
+  assert.match(rule, /color:\s*#fff\s*!important/);
+  assert.ok(!/var\(/.test(rule), 'no CSS variables that can fall back to grey');
+});
+
+test('Select endpoint shows a forward chevron', async () => {
+  await openSpecTab(SPEC_V3);
+  assert.strictEqual($('#flowgen-select-btn i.fa-chevron-right').length, 1);
+  assert.match($('#flowgen-select-btn').text(), /Select endpoint/);
+  $('#flowgen-select-btn').trigger('click');
+  assert.strictEqual($('#flowgen-back-btn i.fa-chevron-left').length, 1);
+});
+
+test('the endpoint rows carry Swagger UI method colours and typography', async () => {
+  await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
+
+  const rows = $('#flowgen-op-list .flowgen-op');
+  assert.ok(rows.filter('.flowgen-get').length > 0);
+  assert.ok(rows.filter('.flowgen-post').length > 0);
+  assert.ok(rows.filter('.flowgen-delete').length > 0);
+  const first = rows.first();
+  assert.strictEqual(first.find('.flowgen-method').length, 1);
+  assert.strictEqual(first.find('.flowgen-path').length, 1);
+
+  const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
+  assert.match(styles, /\.flowgen-get\s+\.flowgen-method\s*\{\s*background:\s*#61affe/);
+  assert.match(styles, /\.flowgen-post\s+\.flowgen-method\s*\{\s*background:\s*#49cc90/);
+  assert.match(styles, /\.flowgen-put\s+\.flowgen-method\s*\{\s*background:\s*#fca130/);
+  assert.match(styles, /\.flowgen-delete\s+\.flowgen-method\s*\{\s*background:\s*#f93e3e/);
+  assert.match(styles, /\.flowgen-method\s*\{[^}]*font-weight:\s*700/);
+  assert.match(styles, /\.flowgen-path\s*\{[^}]*font-size:\s*16px/);
+  assert.match(styles, /\.flowgen-path\s*\{[^}]*font-weight:\s*600/);
+  assert.match(styles, /\.flowgen-path\s*\{[^}]*color:\s*#3b4151/);
+});
+
+test('every non deprecated operation is listed and deprecated ones are not', async () => {
+  await openSpecTab(SPEC_V2);
+  $('#flowgen-select-btn').trigger('click');
+  const texts = $('#flowgen-op-list .flowgen-op').map((i, el) => $(el).text()).get();
+  assert.strictEqual(texts.length, 19, 'petstore v2 has 20 operations, one deprecated');
+  assert.ok(!texts.some(t => t.indexOf('/pet/findByTags') !== -1));
+
+  const doc = require('../flowgen').parseDocument(SPEC_V2);
+  const expected = require('../flowgen').listOperations(doc).operations
+    .map(o => o.method.toUpperCase() + o.path);
+  texts.forEach((text, i) => {
+    assert.ok(text.startsWith(expected[i]), 'row ' + i + ' should be ' + expected[i]);
+  });
+});
+
+test('arrow keys move the selection and stop at the ends', async () => {
+  await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
+  const rows = $('#flowgen-op-list .flowgen-op');
+  const key = code => $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: code }));
+
+  key(40);
+  assert.ok(rows.eq(0).hasClass('selected'), 'down selects the first row');
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
+
+  key(40);
+  assert.ok(rows.eq(1).hasClass('selected'));
+  key(38);
+  assert.ok(rows.eq(0).hasClass('selected'));
+  key(38);
+  assert.ok(rows.eq(0).hasClass('selected'), 'up at the top stays put');
+
+  for (let i = 0; i < rows.length + 5; i++) key(40);
+  assert.ok(rows.eq(rows.length - 1).hasClass('selected'), 'down at the bottom stays put');
+});
+
+test('a file load pretty prints JSON just like a url fetch', async () => {
+  specTab().trigger('click');
+  await wait(20);
+
+  const compact = '{"openapi":"3.0.0","info":{"title":"T","version":"1"},'
+    + '"servers":[{"url":"https://t.test"}],"paths":{"/a":{"get":{}}}}';
+  class FakeReader {
+    readAsText() { setTimeout(() => this.onload({ target: { result: compact } }), 0); }
+  }
+  win.FileReader = FakeReader;
+  const input = win.document.getElementById('flowgen-file');
+  Object.defineProperty(input, 'files', { value: [{ name: 's.json' }], configurable: true });
+  $(input).trigger('change');
+  await wait(300);
+
+  assert.strictEqual($('#flowgen-spec-text').val(), JSON.stringify(JSON.parse(compact), null, 2));
+});
+
+test('the list container is focusable and sized to scroll', async () => {
+  await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
+  assert.strictEqual($('#flowgen-op-list').attr('tabindex'), '0');
+
+  const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
+  const rule = styles.match(/#flowgen-op-list\s*\{([^}]*)\}/)[1];
+  assert.match(rule, /height:\s*100%/);
+  assert.match(rule, /overflow-y:\s*auto/);
 });
 
 test('the panel and its views are laid out to fill the height', async () => {

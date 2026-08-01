@@ -1,6 +1,6 @@
 {
   "name": "node-red-flowgen",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Generate Node-RED flows and function-node code from OpenAPI 3 / Swagger 2 documents",
   "main": "flowgen.js",
   "scripts": {

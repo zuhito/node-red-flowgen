@@ -62,6 +62,16 @@ function pairsLiteral(list) {
   return literal(list.reduce((acc, entry) => (acc[entry[0]] = entry[1], acc), {}), 0);
 }
 
+function typeOf(schema) {
+  if (!schema || typeof schema !== 'object') return null;
+  const type = Array.isArray(schema.type) ? schema.type[0] : schema.type;
+  if (type === 'array') {
+    const inner = typeOf(schema.items);
+    return inner ? 'array of ' + inner : 'array';
+  }
+  return type || null;
+}
+
 function dedupeHeaders(headers) {
   const out = [];
   for (const entry of headers) {
@@ -112,14 +122,29 @@ function renderUrl(base, path, params, choice) {
   return base + rendered + query;
 }
 
+function multipartPayload(schema, resolve, sample) {
+  const out = {};
+  const props = (schema && schema.properties) || {};
+  for (const key of Object.keys(props)) {
+    const prop = resolve(props[key]);
+    const isFile = prop.format === 'binary' ||
+      (prop.type === 'array' && resolve(prop.items || {}).format === 'binary');
+    out[key] = isFile
+      ? { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } }
+      : sample(prop);
+  }
+  return out;
+}
+
 function unresolved(path, params) {
-  return params.filter(p => p.in === 'path' && !p.values.length)
-    .map(p => p.name)
-    .filter(name => path.indexOf('{' + name + '}') !== -1)
-    .concat((String(path).match(/\{[^}]+\}/g) || [])
-      .map(token => token.slice(1, -1))
-      .filter(name => !params.some(p => p.name === name)))
-    .filter((name, i, all) => all.indexOf(name) === i);
+  const items = params.filter(p => p.in === 'path' && !p.values.length)
+    .filter(p => path.indexOf('{' + p.name + '}') !== -1)
+    .map(p => ({ name: p.name, type: p.type || null }));
+  for (const token of String(path).match(/\{[^}]+\}/g) || []) {
+    const name = token.slice(1, -1);
+    if (!params.some(p => p.name === name)) items.push({ name: name, type: null });
+  }
+  return items.filter((item, i, all) => all.findIndex(x => x.name === item.name) === i);
 }
 
 function urlLines(base, path, params) {
@@ -145,9 +170,13 @@ function listPhrase(names) {
   return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
 }
 
+function withType(label, type) {
+  return type ? label + ' (' + type + ')' : label;
+}
+
 function blanks(pairs) {
   return pairs.filter(entry => String(entry[1]) === '' || /\s$/.test(String(entry[1])))
-    .map(entry => entry[0]);
+    .map(entry => withType(quote(entry[0]), entry[2]));
 }
 
 function assemble(parts) {
@@ -155,7 +184,9 @@ function assemble(parts) {
   lines.push('msg.method = ' + quote(parts.method.toUpperCase()) + ';');
 
   if (parts.todo.length) {
-    lines.push('// Replace ' + listPhrase(parts.todo.map(name => '{' + name + '}')) +
+    lines.push('');
+    lines.push('// Replace ' +
+      listPhrase(parts.todo.map(item => withType('{' + item.name + '}', item.type))) +
       ' in the URL below with ' + (parts.todo.length === 1 ? 'a real value' : 'real values') + '.');
   }
   parts.urls.forEach(function (url, i) {
@@ -164,20 +195,27 @@ function assemble(parts) {
 
   if (parts.headers.length) {
     const empty = blanks(parts.headers);
+    lines.push('');
     if (empty.length) {
-      lines.push('// Fill in ' + listPhrase(empty.map(quote)) + ' below.');
+      lines.push('// Fill in ' + listPhrase(empty) + ' below.');
     }
     lines.push('msg.headers = ' + pairsLiteral(parts.headers) + ';');
   }
   if (parts.cookies.length) {
     const empty = blanks(parts.cookies);
+    lines.push('');
     if (empty.length) {
-      lines.push('// Fill in ' + listPhrase(empty.map(quote)) + ' below.');
+      lines.push('// Fill in ' + listPhrase(empty) + ' below.');
     }
     lines.push('msg.cookies = ' + pairsLiteral(parts.cookies) + ';');
   }
   if (parts.hasBody) {
-    lines.push('// Adjust the request body below to suit the call.');
+    lines.push('');
+    if (parts.multipart) {
+      lines.push('// Set FILE_CONTENTS and the filename for each file field, and adjust the other values.');
+    } else {
+      lines.push('// Adjust the request body below to suit the call.');
+    }
     lines.push('msg.payload = ' + literal(parts.payload, 0) + ';');
   }
   lines.push('return msg;');
@@ -211,8 +249,11 @@ function generateOpenApi3(doc, rawMethod, target) {
   let found = null;
   for (const rawPath of Object.keys(paths)) {
     const item = resolve(paths[rawPath]);
-    for (const m of METHODS) if (item[m]) available.push(m + ' ' + rawPath);
-    if (item[method] && rawPath.replace(/^\//, '') === wanted) {
+    for (const m of METHODS) {
+      if (item[m] && !item[m].deprecated) available.push(m + ' ' + rawPath);
+    }
+    if (item[method] && !item[method].deprecated &&
+        rawPath.replace(/^\//, '') === wanted) {
       found = { path: rawPath, item: item, op: item[method] };
     }
   }
@@ -243,10 +284,15 @@ function generateOpenApi3(doc, rawMethod, target) {
   const urlParams = params.filter(p => p.in === 'path' || p.in === 'query').map(p => ({
     name: p.name,
     in: p.in,
+    type: typeOf(resolve(p.schema || {})),
     values: valuesFor(resolve(p.schema || {}), p)
   }));
-  for (const p of params.filter(p => p.in === 'header')) headers.push([p.name, '']);
-  for (const p of params.filter(p => p.in === 'cookie')) cookies.push([p.name, '']);
+  for (const p of params.filter(p => p.in === 'header')) {
+    headers.push([p.name, '', typeOf(resolve(p.schema || {}))]);
+  }
+  for (const p of params.filter(p => p.in === 'cookie')) {
+    cookies.push([p.name, '', typeOf(resolve(p.schema || {}))]);
+  }
 
   const requirements = op.security !== undefined ? op.security : (doc.security || []);
   const requirement = requirements.find(r => r && Object.keys(r).length) || null;
@@ -308,12 +354,15 @@ function generateOpenApi3(doc, rawMethod, target) {
   const hasBody = Boolean(op.requestBody) && !BODYLESS.has(method);
   const contentType = hasBody && types.length
     ? (types.find(t => /^application\/(\w+\+)?json$/.test(t)) || types[0]) : null;
+  const multipart = /^multipart\//.test(contentType || '');
   let payload = {};
   if (hasBody) {
     if (contentType) headers.push(['content-type', contentType]);
     const media = resolve(content[contentType] || {});
     const exampleKeys = media.examples ? Object.keys(media.examples) : [];
-    if (media.example !== undefined) payload = media.example;
+    if (multipart) {
+      payload = multipartPayload(resolve(media.schema || {}), resolve, sample);
+    } else if (media.example !== undefined) payload = media.example;
     else if (exampleKeys.length) payload = resolve(media.examples[exampleKeys[0]]).value;
     else if (/^text\//.test(contentType || '') || /octet-stream/.test(contentType || '')) payload = '';
     else {
@@ -365,8 +414,11 @@ function generateSwagger2(doc, rawMethod, target) {
   let found = null;
   for (const rawPath of Object.keys(paths)) {
     const item = resolve(paths[rawPath]);
-    for (const m of METHODS) if (item[m]) available.push(m + ' ' + rawPath);
-    if (item[method] && rawPath.replace(/^\//, '') === wanted) {
+    for (const m of METHODS) {
+      if (item[m] && !item[m].deprecated) available.push(m + ' ' + rawPath);
+    }
+    if (item[method] && !item[method].deprecated &&
+        rawPath.replace(/^\//, '') === wanted) {
       found = { path: rawPath, item: item, op: item[method] };
     }
   }
@@ -388,9 +440,12 @@ function generateSwagger2(doc, rawMethod, target) {
   const urlParams = params.filter(p => p.in === 'path' || p.in === 'query').map(p => ({
     name: p.name,
     in: p.in,
+    type: typeOf(p),
     values: valuesFor(p, p)
   }));
-  for (const p of params.filter(p => p.in === 'header')) headers.push([p.name, '']);
+  for (const p of params.filter(p => p.in === 'header')) {
+    headers.push([p.name, '', typeOf(p)]);
+  }
 
   const requirements = op.security !== undefined ? op.security : (doc.security || []);
   const requirement = requirements.find(r => r && Object.keys(r).length) || null;
@@ -446,9 +501,11 @@ function generateSwagger2(doc, rawMethod, target) {
   const hasBody = Boolean(bodyParam || formParams.length) && !BODYLESS.has(method);
 
   let payload = {};
+  let multipart = false;
   if (hasBody) {
     const contentType = consumes.find(t => /^application\/(\w+\+)?json$/.test(t)) || consumes[0] ||
       (formParams.length ? 'application/x-www-form-urlencoded' : 'application/json');
+    multipart = /^multipart\//.test(contentType);
     headers.push(['content-type', contentType]);
     if (bodyParam) {
       if (/^text\//.test(contentType) || /octet-stream/.test(contentType)) payload = '';
@@ -456,6 +513,13 @@ function generateSwagger2(doc, rawMethod, target) {
         const value = sample(bodyParam.schema || {});
         payload = value === null || value === undefined ? {} : value;
       }
+    } else if (multipart) {
+      payload = formParams.reduce((acc, p) => {
+        acc[p.name] = p.type === 'file'
+          ? { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } }
+          : sample(p);
+        return acc;
+      }, {});
     } else {
       payload = formParams.reduce((acc, p) => (acc[p.name] = sample(p), acc), {});
     }
@@ -471,17 +535,58 @@ function generateSwagger2(doc, rawMethod, target) {
     headers: dedupeHeaders(headers),
     cookies: [],
     hasBody: hasBody,
+    multipart: multipart,
     payload: payload
   });
+}
+
+function estimateLabelWidth(text) {
+  let width = 0;
+  for (const ch of String(text)) {
+    if (/[ijl.,:;'|!]/.test(ch)) width += 4;
+    else if (/[ftr()\[\]{}\/]/.test(ch)) width += 5.5;
+    else if (/[A-Z@#%&]/.test(ch)) width += 10;
+    else if (/[mwMW]/.test(ch)) width += 12;
+    else width += 8;
+  }
+  return width;
+}
+
+function nodeWidth(label, hasInput) {
+  const DEFAULT_WIDTH = 100;
+  if (!label) return DEFAULT_WIDTH;
+  const text = estimateLabelWidth(label) + 50 + (hasInput ? 7 : 0);
+  return Math.max(DEFAULT_WIDTH, 20 * Math.ceil(text / 20));
+}
+
+function layout(labels) {
+  const GRID = 20;
+  const GAP = 2 * GRID;
+  const xs = [];
+  let left = 3 * GRID;
+  for (const entry of labels) {
+    const width = nodeWidth(entry.label, entry.hasInput);
+    const centre = GRID * Math.round((left + width / 2) / GRID);
+    xs.push(centre);
+    left = centre + width / 2 + GAP;
+  }
+  return xs;
 }
 
 function buildFlow(doc, method, target, options) {
   const code = generate(doc, method, target);
   const withTab = !options || options.tab !== false;
   const tab = withTab ? 'flowgen-tab' : undefined;
+  const name = String(method).toUpperCase() + ' ' + target;
+  const xs = layout([
+    { label: 'timestamp', hasInput: false },
+    { label: name, hasInput: true },
+    { label: 'http request', hasInput: true },
+    { label: 'msg.payload', hasInput: true }
+  ]);
   const nodes = [
     {
-      id: tab, type: 'tab', label: String(method).toUpperCase() + ' ' + target,
+      id: tab, type: 'tab', label: name,
       disabled: false, info: '', env: []
     },
     {
@@ -489,27 +594,27 @@ function buildFlow(doc, method, target, options) {
       props: [{ p: 'payload' }, { p: 'topic', vt: 'str' }],
       repeat: '', crontab: '', once: false, onceDelay: 0.1,
       topic: '', payload: '', payloadType: 'date',
-      x: 160, y: 100, wires: [['flowgen-function']]
+      x: xs[0], y: 100, wires: [['flowgen-function']]
     },
     {
       id: 'flowgen-function', type: 'function', z: tab,
-      name: String(method).toUpperCase() + ' ' + target,
+      name: name,
       func: code, outputs: 1, timeout: 0, noerr: 0,
       initialize: '', finalize: '', libs: [],
-      x: 360, y: 100, wires: [['flowgen-request']]
+      x: xs[1], y: 100, wires: [['flowgen-request']]
     },
     {
       id: 'flowgen-request', type: 'http request', z: tab, name: '',
       method: 'use', ret: 'obj', paytoqs: 'ignore', url: '', tls: '',
       persist: false, proxy: '', insecureHTTPParser: false,
       authType: '', senderr: false, headers: [],
-      x: 570, y: 100, wires: [['flowgen-debug']]
+      x: xs[2], y: 100, wires: [['flowgen-debug']]
     },
     {
       id: 'flowgen-debug', type: 'debug', z: tab, name: '',
       active: true, tosidebar: true, console: false, tostatus: false,
       complete: 'payload', targetType: 'msg', statusVal: '', statusType: 'auto',
-      x: 750, y: 100, wires: []
+      x: xs[3], y: 100, wires: []
     }
   ];
   if (withTab) { return nodes; }
@@ -539,7 +644,7 @@ function listOperations(doc) {
     const item = resolve(doc.paths[path]);
     for (const method of METHODS) {
       const op = item[method];
-      if (!op) continue;
+      if (!op || op.deprecated) continue;
       operations.push({ method: method, path: path, summary: op.summary || null });
     }
   }
@@ -557,7 +662,7 @@ function formatList(result) {
 
 return {
   parseDocument, detectFormat, generate, generateOpenApi3, generateSwagger2,
-  listOperations, buildFlow, formatList, isUrl
+  listOperations, buildFlow, formatList, isUrl, nodeWidth
 };
 }));
 

@@ -287,15 +287,42 @@ test('swagger 2.0 body parameter becomes the payload', () => {
   assert.strictEqual(msg.headers.accept, 'application/json');
 });
 
-test('swagger 2.0 formData parameters become the payload', () => {
+test('swagger 2.0 multipart formData follows the http request node file upload shape', () => {
   const doc = v2({ '/x': { post: {
     consumes: ['multipart/form-data'],
     parameters: [{ name: 'file', in: 'formData', type: 'file' },
                  { name: 'note', in: 'formData', type: 'string' }]
   } } });
-  const msg = run(flowgen.generate(doc, 'post', '/x'));
-  assert.deepStrictEqual(msg.payload, { file: '', note: '' });
+  const code = flowgen.generate(doc, 'post', '/x');
+  const msg = run(code);
+  assert.deepStrictEqual(msg.payload, {
+    file: { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } },
+    note: ''
+  });
   assert.strictEqual(msg.headers['content-type'], 'multipart/form-data');
+  assert.match(code, /\/\/ Set FILE_CONTENTS and the filename/);
+});
+
+test('swagger 2.0 urlencoded formData stays a flat object', () => {
+  const doc = v2({ '/x': { post: {
+    consumes: ['application/x-www-form-urlencoded'],
+    parameters: [{ name: 'user', in: 'formData', type: 'string' }]
+  } } });
+  assert.deepStrictEqual(run(flowgen.generate(doc, 'post', '/x')).payload, { user: '' });
+});
+
+test('openapi 3 multipart binary fields follow the file upload shape', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'multipart/form-data': {
+    schema: { type: 'object', properties: {
+      file: { type: 'string', format: 'binary' },
+      note: { type: 'string' }
+    } }
+  } } } } } });
+  const msg = run(flowgen.generate(doc, 'post', '/x'));
+  assert.deepStrictEqual(msg.payload, {
+    file: { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } },
+    note: ''
+  });
 });
 
 test('swagger 2.0 security definitions map to msg properties', () => {
@@ -508,11 +535,24 @@ test('an api key in the query stays empty', () => {
   assert.strictEqual(run(flowgen.generate(doc, 'get', '/x')).url, 'https://api.test/v1/x?key=');
 });
 
-test('nodes are laid out with the tighter spacing', () => {
-  const doc = v3({ '/x': { get: {} } });
-  const nodes = flowgen.buildFlow(doc, 'get', '/x', { tab: false });
-  assert.deepStrictEqual(nodes.map(n => n.x), [160, 360, 570, 750]);
-  assert.deepStrictEqual(nodes.map(n => n.y), [100, 100, 100, 100]);
+test('nodes snap to the grid with a two cell gap between them', () => {
+  const GRID = 20;
+  const label = name => name === '' ? null : name;
+  for (const target of ['/x', '/pet/{petId}/uploadImage']) {
+    const doc = v3({ [target]: { get: {} } });
+    const nodes = flowgen.buildFlow(doc, 'get', target, { tab: false });
+    const labels = ['timestamp', 'GET ' + target, 'http request', 'msg.payload'];
+    for (const node of nodes) {
+      assert.strictEqual(node.x % GRID, 0, node.type + ' x=' + node.x + ' is off grid');
+    }
+    for (let i = 0; i < nodes.length - 1; i++) {
+      const wLeft = flowgen.nodeWidth(labels[i], i > 0);
+      const wRight = flowgen.nodeWidth(labels[i + 1], true);
+      const gap = (nodes[i + 1].x - wRight / 2) - (nodes[i].x + wLeft / 2);
+      assert.ok(gap >= 2 * GRID - GRID / 2 && gap <= 2 * GRID + GRID,
+        'gap between ' + nodes[i].type + ' and ' + nodes[i + 1].type + ' is ' + gap);
+    }
+  }
 });
 
 test('the http request node returns a parsed JSON object', () => {
@@ -589,4 +629,106 @@ test('a request body is called out above the payload', () => {
   const lines = flowgen.generate(doc, 'post', '/x').split('\n');
   const at = lines.findIndex(l => l.startsWith('msg.payload = '));
   assert.strictEqual(lines[at - 1], '// Adjust the request body below to suit the call.');
+});
+
+test('parameter types appear in the guidance comments', () => {
+  const doc = v3({ '/pet/{petId}': { get: {
+    parameters: [
+      { name: 'petId', in: 'path', schema: { type: 'integer' } },
+      { name: 'X-Trace', in: 'header', schema: { type: 'string' } }
+    ] } } });
+  const code = flowgen.generate(doc, 'get', '/pet/{petId}');
+  assert.match(code, /\/\/ Replace \{petId\} \(integer\) in the URL below with a real value\./);
+  assert.match(code, /\/\/ Fill in 'X-Trace' \(string\) below\./);
+});
+
+test('a missing type leaves the comment untyped', () => {
+  const doc = v3({ '/pet/{petId}': { get: { parameters: [{ name: 'petId', in: 'path' }] } } });
+  assert.match(flowgen.generate(doc, 'get', '/pet/{petId}'),
+    /\/\/ Replace \{petId\} in the URL below with a real value\./);
+});
+
+test('array parameter types read naturally', () => {
+  const doc = v2({ '/x/{ids}': { get: { parameters: [
+    { name: 'ids', in: 'path', type: 'array', items: { type: 'integer' } }] } } });
+  assert.match(flowgen.generate(doc, 'get', '/x/{ids}'),
+    /\{ids\} \(array of integer\)/);
+});
+
+test('a blank line precedes each commented block but not the url alternates', () => {
+  const doc = v2({ '/pet/findByStatus': { get: {
+    security: [{ oauth: [] }],
+    produces: ['application/json'],
+    parameters: [{ name: 'status', in: 'query', type: 'string',
+      enum: ['available', 'pending', 'sold'] }]
+  } } }, { securityDefinitions: { oauth: { type: 'oauth2' } } });
+  const code = flowgen.generate(doc, 'get', '/pet/findByStatus');
+  const lines = code.split('\n');
+  assert.strictEqual(lines[0], "msg.method = 'GET';");
+  assert.match(lines[1], /^msg\.url = /);
+  assert.match(lines[2], /^\/\/ msg\.url = /);
+  assert.match(lines[3], /^\/\/ msg\.url = /);
+  assert.strictEqual(lines[4], '');
+  assert.match(lines[5], /^\/\/ Fill in 'authorization' below\./);
+  assert.match(lines[6], /^msg\.headers = /);
+  assert.ok(!/\n\n\n/.test(code), 'no double blank lines');
+});
+
+test('the full example shape matches the requested format', () => {
+  const doc = v2({ '/pet/{petId}/uploadImage': { post: {
+    security: [{ oauth: [] }],
+    consumes: ['multipart/form-data'],
+    produces: ['application/json'],
+    parameters: [
+      { name: 'petId', in: 'path', type: 'integer' },
+      { name: 'additionalMetadata', in: 'formData', type: 'string' },
+      { name: 'file', in: 'formData', type: 'file' }
+    ]
+  } } }, { securityDefinitions: { oauth: { type: 'oauth2' } } });
+  const code = flowgen.generate(doc, 'post', '/pet/{petId}/uploadImage');
+  const blocks = code.split('\n\n');
+  assert.strictEqual(blocks.length, 4, 'method | url | headers | payload blocks');
+  assert.match(blocks[0], /^msg\.method/);
+  assert.match(blocks[1], /^\/\/ Replace \{petId\} \(integer\)/);
+  assert.match(blocks[2], /^\/\/ Fill in 'authorization'/);
+  assert.match(blocks[3], /^\/\/ Set FILE_CONTENTS/);
+  assert.match(blocks[3], /return msg;$/);
+});
+
+test('deprecated operations are hidden from the list', () => {
+  const doc = v3({
+    '/pet/findByTags': { get: { deprecated: true } },
+    '/pet/findByStatus': { get: {} }
+  });
+  const list = flowgen.listOperations(doc);
+  assert.strictEqual(list.count, 1);
+  assert.deepStrictEqual(list.operations.map(o => o.path), ['/pet/findByStatus']);
+});
+
+test('deprecated operations cannot be generated and are not offered', () => {
+  const doc = v3({
+    '/pet/findByTags': { get: { deprecated: true } },
+    '/other': { get: {} }
+  });
+  assert.throws(() => flowgen.generate(doc, 'get', '/pet/findByTags'), err => {
+    assert.match(err.message, /not found/);
+    assert.ok(!/findByTags/.test(err.message.split('available:')[1]),
+      'the available list must not offer deprecated operations');
+    return true;
+  });
+});
+
+test('the petstore list order matches the document order like Swagger UI', async () => {
+  const doc = flowgen.parseDocument(await specs.spec('v2'));
+  const list = flowgen.listOperations(doc);
+  const docOrder = [];
+  for (const p of Object.keys(doc.paths)) {
+    for (const m of ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']) {
+      const op = doc.paths[p][m];
+      if (op && !op.deprecated) docOrder.push(m + ' ' + p);
+    }
+  }
+  assert.deepStrictEqual(list.operations.map(o => o.method + ' ' + o.path), docOrder);
+  assert.ok(!list.operations.some(o => o.path === '/pet/findByTags'),
+    'findByTags is deprecated in the petstore and must be hidden');
 });

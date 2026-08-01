@@ -3,7 +3,6 @@
   display: none;
   height: 100%;
   max-height: 100%;
-  padding: 8px 8px 0 8px;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -20,54 +19,99 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 .flowgen-bar .flowgen-spacer { flex: 1 1 auto; }
 #flowgen-select-btn, #flowgen-back-btn {
-  background: var(--red-ui-workspace-button-background-active, #ad1625);
-  border-color: var(--red-ui-workspace-button-background-active, #ad1625);
-  color: #fff;
+  background: #ad1625;
+  border: 1px solid #ad1625;
+  color: #fff !important;
 }
 #flowgen-select-btn:hover, #flowgen-back-btn:hover {
-  background: var(--red-ui-workspace-button-background-hover, #6e1018);
-  border-color: var(--red-ui-workspace-button-background-hover, #6e1018);
-  color: #fff;
+  background: #6e1018;
+  border-color: #6e1018;
+  color: #fff !important;
 }
 #flowgen-spec-text {
   width: 100%;
   height: 100%;
   resize: none;
-  font-family: monospace;
+  font-family: var(--red-ui-monospace-font, monospace);
+  font-size: 13px;
+  box-sizing: border-box;
 }
 #flowgen-op-list {
   width: 100%;
+  height: 100%;
   border: 1px solid var(--red-ui-secondary-border-color, #ccc);
   overflow-y: auto;
   overflow-x: hidden;
+  box-sizing: border-box;
+  outline: none;
 }
 #flowgen-op-list .flowgen-op {
-  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  margin: 0 0 4px 0;
+  padding: 5px;
   cursor: pointer;
-  border-bottom: 1px solid var(--red-ui-tertiary-border-color, #eee);
-  font-family: monospace;
-  font-size: 12px;
-}
-#flowgen-op-list .flowgen-op.selected {
-  background: var(--red-ui-list-item-background-selected, #efefef);
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: rgba(97, 175, 254, 0.1);
+  border-color: #61affe;
+  font-family: sans-serif;
 }
 #flowgen-op-list .flowgen-op .flowgen-method {
-  display: inline-block;
-  width: 62px;
-  font-weight: bold;
+  flex: 0 0 auto;
+  min-width: 80px;
+  padding: 6px 0;
+  text-align: center;
+  border-radius: 3px;
+  background: #61affe;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: sans-serif;
+}
+#flowgen-op-list .flowgen-op .flowgen-path {
+  flex: 0 0 auto;
+  padding: 0 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #3b4151;
+  font-family: sans-serif;
+  word-break: break-word;
 }
 #flowgen-op-list .flowgen-op .flowgen-summary {
-  color: var(--red-ui-secondary-text-color, #999);
-  margin-left: 8px;
+  flex: 1 1 auto;
+  font-size: 13px;
+  color: #3b4151;
+  font-family: sans-serif;
 }
-#flowgen-status { flex: 0 0 auto; margin: 4px 0; min-height: 16px; font-size: 12px; }
-#flowgen-prompt { flex: 0 0 auto; margin: 0; }
+#flowgen-op-list .flowgen-op.flowgen-get    { background: rgba(97,175,254,.1); border-color: #61affe; }
+#flowgen-op-list .flowgen-op.flowgen-get    .flowgen-method { background: #61affe; }
+#flowgen-op-list .flowgen-op.flowgen-post   { background: rgba(73,204,144,.1); border-color: #49cc90; }
+#flowgen-op-list .flowgen-op.flowgen-post   .flowgen-method { background: #49cc90; }
+#flowgen-op-list .flowgen-op.flowgen-put    { background: rgba(252,161,48,.1); border-color: #fca130; }
+#flowgen-op-list .flowgen-op.flowgen-put    .flowgen-method { background: #fca130; }
+#flowgen-op-list .flowgen-op.flowgen-delete { background: rgba(249,62,62,.1); border-color: #f93e3e; }
+#flowgen-op-list .flowgen-op.flowgen-delete .flowgen-method { background: #f93e3e; }
+#flowgen-op-list .flowgen-op.flowgen-patch  { background: rgba(80,227,194,.1); border-color: #50e3c2; }
+#flowgen-op-list .flowgen-op.flowgen-patch  .flowgen-method { background: #50e3c2; }
+#flowgen-op-list .flowgen-op.flowgen-head,
+#flowgen-op-list .flowgen-op.flowgen-options,
+#flowgen-op-list .flowgen-op.flowgen-trace  { background: rgba(144,18,254,.1); border-color: #9012fe; }
+#flowgen-op-list .flowgen-op.flowgen-head   .flowgen-method,
+#flowgen-op-list .flowgen-op.flowgen-options .flowgen-method,
+#flowgen-op-list .flowgen-op.flowgen-trace  .flowgen-method { background: #9012fe; }
+#flowgen-op-list .flowgen-op.selected {
+  box-shadow: 0 0 0 2px var(--red-ui-form-input-focus-color, #ad1625) inset;
+}
+#flowgen-status { flex: 0 0 auto; margin-top: 6px; min-height: 16px; font-size: 12px; }
+#flowgen-status:empty { min-height: 0; margin: 0; }
 #flowgen-status.flowgen-error { color: var(--red-ui-text-color-error, #a33); }
+#flowgen-prompt { flex: 0 0 auto; }
 </style>
 
 <script type="text/javascript">
@@ -131,16 +175,14 @@
     }
     status('');
     result.operations.forEach(function (op) {
-      $('<div>').addClass('flowgen-op')
+      $('<div>').addClass('flowgen-op flowgen-' + op.method)
         .append($('<span>').addClass('flowgen-method').text(op.method.toUpperCase()))
-        .append($('<span>').text(op.path))
+        .append($('<span>').addClass('flowgen-path').text(op.path))
         .append($('<span>').addClass('flowgen-summary').text(op.summary || ''))
         .on('click', function () {
-          $('#flowgen-op-list .flowgen-op').removeClass('selected');
-          $(this).addClass('selected');
-          selected = op;
-          okButton(true);
+          choose($(this), op);
         })
+        .data('flowgen-op', op)
         .appendTo(list);
     });
 
@@ -173,6 +215,10 @@
     }
   }
 
+  function pretty(text) {
+    try { return JSON.stringify(JSON.parse(text), null, 2); } catch (err) { return text; }
+  }
+
   function fetchSpec(url) {
     if (fetching === url) { return; }
     fetching = url;
@@ -182,10 +228,9 @@
       return res.text();
     }).then(function (text) {
       fetching = null;
-      var pretty = text;
-      try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (err) { pretty = text; }
-      $('#flowgen-spec-text').val(pretty);
-      parse(pretty);
+      var formatted = pretty(text);
+      $('#flowgen-spec-text').val(formatted);
+      parse(formatted);
     }).catch(function (err) {
       fetching = null;
       status('could not fetch the document: ' + err.message, true);
@@ -206,7 +251,8 @@
         .css('display', 'none'))
       .append($('<span>').addClass('flowgen-spacer'))
       .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-select-btn', href: '#' })
-        .text('Select endpoint').hide())
+        .append($('<span>').text('Select endpoint '))
+        .append('<i class="fa fa-chevron-right"></i>').hide())
       .on('keydown', function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); } })
       .appendTo(paste);
 
@@ -225,7 +271,11 @@
       .appendTo(select);
 
     $('<div>').addClass('flowgen-grow')
-      .append($('<div>').attr('id', 'flowgen-op-list'))
+      .append($('<div>').attr({ id: 'flowgen-op-list', tabindex: '0' })
+        .on('keydown', function (ev) {
+          if (ev.keyCode === 40) { ev.preventDefault(); moveSelection(1); }
+          if (ev.keyCode === 38) { ev.preventDefault(); moveSelection(-1); }
+        }))
       .appendTo(select);
 
     $('<div>').attr('id', 'flowgen-status').appendTo(el);
@@ -233,6 +283,7 @@
     el.find('#flowgen-select-btn').on('click', function (ev) {
       ev.preventDefault();
       view('select');
+      $('#flowgen-op-list').trigger('focus');
     });
     el.find('#flowgen-back-btn').on('click', function (ev) {
       ev.preventDefault();
@@ -248,8 +299,9 @@
       if (!file) { return; }
       var reader = new FileReader();
       reader.onload = function (ev) {
-        $('#flowgen-spec-text').val(ev.target.result);
-        parse(ev.target.result);
+        var formatted = pretty(ev.target.result);
+        $('#flowgen-spec-text').val(formatted);
+        parse(formatted);
       };
       reader.readAsText(file);
     });
@@ -260,6 +312,24 @@
     });
 
     return el;
+  }
+
+  function choose(row, op) {
+    $('#flowgen-op-list .flowgen-op').removeClass('selected');
+    row.addClass('selected');
+    selected = op;
+    okButton(true);
+    if (row[0] && row[0].scrollIntoView) { row[0].scrollIntoView({ block: 'nearest' }); }
+  }
+
+  function moveSelection(delta) {
+    var rows = $('#flowgen-op-list .flowgen-op');
+    if (!rows.length) { return; }
+    var at = rows.index(rows.filter('.selected'));
+    var next = at === -1 ? (delta > 0 ? 0 : rows.length - 1) : at + delta;
+    if (next < 0 || next >= rows.length) { return; }
+    var row = rows.eq(next);
+    choose(row, row.data('flowgen-op'));
   }
 
   function view(name) {
