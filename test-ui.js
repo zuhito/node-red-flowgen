@@ -13,7 +13,7 @@ const CONTENT = '#red-ui-clipboard-dialog-import-tabs-content';
 
 const DIALOG = `
 <div id="red-ui-clipboard-dialog">
-  <div class="dialog-form">
+  <form class="dialog-form form-horizontal">
     <div class="red-ui-clipboard-dialog-box">
       <div class="red-ui-clipboard-dialog-tabs">
         <ul id="red-ui-clipboard-dialog-import-tabs">
@@ -39,13 +39,13 @@ const DIALOG = `
         <a id="red-ui-clipboard-dialog-import-opt-new" class="red-ui-button toggle" href="#"></a>
       </span>
     </div>
-  </div>
+  </form>
   <div class="ui-dialog-buttonpane">
     <button id="red-ui-clipboard-dialog-ok" class="primary">Import</button>
   </div>
 </div>`;
 
-let dom, win, $, RED, imported, dialogClosed, okDefaultRuns;
+let dom, win, $, RED, imported, dialogClosed, okDefaultRuns, submits;
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -60,6 +60,10 @@ async function boot() {
   imported = [];
   dialogClosed = 0;
   okDefaultRuns = 0;
+  submits = 0;
+
+  win.document.querySelector('form.dialog-form')
+    .addEventListener('submit', () => { submits++; });
 
   $.fn.dialog = function (action) {
     if (action === 'close') { dialogClosed++; }
@@ -210,7 +214,8 @@ test('the Import button imports the selected endpoint as a flow', async () => {
 
   const nodes = imported[0].nodes;
   assert.strictEqual(nodes.map(n => n.type).join(','),
-    'tab,inject,function,http request,debug');
+    'inject,function,http request,debug', 'no tab node, so no new flow is created');
+  assert.ok(!nodes.some(n => 'z' in n), 'nodes must not be pinned to a workspace');
   const fn = nodes.find(n => n.type === 'function');
   assert.match(fn.func, /msg\.method = 'GET';/);
   assert.match(fn.func, /pet\/\{petId\}/);
@@ -253,4 +258,37 @@ test('an uploaded file populates the text area and the list', async () => {
 
   assert.strictEqual($('#flowgen-spec-text').val(), SPEC_V3);
   assert.ok($('#flowgen-op-list .flowgen-op').length > 0);
+});
+
+test('importing never submits the dialog form', async () => {
+  await openSpecTab(SPEC_V3);
+  $('#flowgen-op-list .flowgen-op').first().trigger('click');
+  clickOk();
+  assert.strictEqual(imported.length, 1);
+  assert.strictEqual(submits, 0, 'a submit would reload the editor');
+});
+
+test('pressing enter in the panel does not submit the form', async () => {
+  await openSpecTab(SPEC_V3);
+  const form = win.document.querySelector('form.dialog-form');
+  let defaultPrevented = null;
+  form.addEventListener('submit', ev => { defaultPrevented = ev.defaultPrevented; });
+  form.dispatchEvent(new win.Event('submit', { bubbles: true, cancelable: true }));
+  assert.strictEqual(defaultPrevented, true, 'the form submit must be cancelled');
+});
+
+test('the imported nodes carry the generated code and stay wired', async () => {
+  await openSpecTab(SPEC_V3);
+  $('#flowgen-op-list .flowgen-op')
+    .filter((i, el) => $(el).text().indexOf('/store/inventory') !== -1).first().trigger('click');
+  clickOk();
+
+  const nodes = imported[0].nodes;
+  const ids = nodes.map(n => n.id);
+  for (const node of nodes) {
+    for (const wire of [].concat.apply([], node.wires || [])) {
+      assert.ok(ids.indexOf(wire) !== -1, 'dangling wire ' + wire);
+    }
+  }
+  assert.match(nodes.find(n => n.type === 'function').func, /store\/inventory/);
 });

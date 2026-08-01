@@ -374,10 +374,11 @@ function generateSwagger2(doc, rawMethod, target) {
   });
 }
 
-function buildFlow(doc, method, target) {
+function buildFlow(doc, method, target, options) {
   const code = generate(doc, method, target);
-  const tab = 'flowgen-tab';
-  return [
+  const withTab = !options || options.tab !== false;
+  const tab = withTab ? 'flowgen-tab' : undefined;
+  const nodes = [
     {
       id: tab, type: 'tab', label: String(method).toUpperCase() + ' ' + target,
       disabled: false, info: '', env: []
@@ -410,6 +411,12 @@ function buildFlow(doc, method, target) {
       x: 860, y: 100, wires: []
     }
   ];
+  if (withTab) { return nodes; }
+  return nodes.slice(1).map(function (node) {
+    const copy = Object.assign({}, node);
+    delete copy.z;
+    return copy;
+  });
 }
 
 function listOperations(doc) {

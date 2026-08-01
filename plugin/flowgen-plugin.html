@@ -113,6 +113,7 @@
         .append($('<span>').text('select a file')))
       .append($('<input>').attr({ type: 'file', id: 'flowgen-file', accept: '.json,.yaml,.yml' })
         .css('display', 'none'))
+      .on('keydown', function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); } })
       .appendTo(el);
 
     $('<div>').addClass('form-row')
@@ -175,7 +176,7 @@
     if (!doc || !selected) { return; }
     var nodes;
     try {
-      nodes = flowgen.buildFlow(doc, selected.method, selected.path);
+      nodes = flowgen.buildFlow(doc, selected.method, selected.path, { tab: false });
     } catch (err) {
       status(err.message, true);
       return;
@@ -185,6 +186,11 @@
     RED.view.importNodes(nodes, { generateIds: true, addFlow: newFlow });
     $('#red-ui-clipboard-dialog').dialog('close');
     RED.view.focus();
+  }
+
+  function preventSubmit() {
+    $('#red-ui-clipboard-dialog').find('form').off('submit.flowgen')
+      .on('submit.flowgen', function (ev) { ev.preventDefault(); });
   }
 
   function interceptOk() {
@@ -212,6 +218,7 @@
     content().appendTo('#red-ui-clipboard-dialog-import-tabs-content');
 
     interceptOk();
+    preventSubmit();
 
     li.on('click', function (ev) {
       ev.preventDefault();

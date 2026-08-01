@@ -395,3 +395,28 @@ test('petstore v2 known operation', () => {
   assert.strictEqual(msg.headers['content-type'], 'application/json');
   assert.strictEqual(msg.payload.name, 'doggie');
 });
+
+test('buildFlow can omit the tab so nodes land in the current flow', () => {
+  const doc = v3({ '/x': { get: {} } });
+  const nodes = flowgen.buildFlow(doc, 'get', '/x', { tab: false });
+  assert.deepStrictEqual(nodes.map(n => n.type),
+    ['inject', 'function', 'http request', 'debug']);
+  assert.ok(!nodes.some(n => 'z' in n));
+
+  const ids = nodes.map(n => n.id);
+  for (const node of nodes) {
+    for (const wire of [].concat.apply([], node.wires || [])) assert.ok(ids.includes(wire));
+  }
+  assert.strictEqual(nodes.find(n => n.type === 'function').func,
+    flowgen.generate(doc, 'get', '/x'));
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(nodes)), nodes);
+});
+
+test('buildFlow keeps the tab by default and when asked', () => {
+  const doc = v3({ '/x': { get: {} } });
+  const withTab = flowgen.buildFlow(doc, 'get', '/x');
+  assert.strictEqual(withTab[0].type, 'tab');
+  assert.strictEqual(flowgen.buildFlow(doc, 'get', '/x', {})[0].type, 'tab');
+  assert.strictEqual(flowgen.buildFlow(doc, 'get', '/x', { tab: true })[0].type, 'tab');
+  for (const node of withTab.slice(1)) assert.strictEqual(node.z, withTab[0].id);
+});

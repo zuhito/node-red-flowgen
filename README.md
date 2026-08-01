@@ -84,7 +84,8 @@ const doc = flowgen.parseDocument(fs.readFileSync('spec/petstore-v3.yaml', 'utf8
 flowgen.detectFormat(doc);                        // 'openapi3' | 'swagger2'
 flowgen.listOperations(doc);                      // { format, count, operations: [...] }
 flowgen.generate(doc, 'get', '/pet/{petId}');     // function-node source, as a string
-flowgen.buildFlow(doc, 'get', '/pet/{petId}');    // array of Node-RED nodes
+flowgen.buildFlow(doc, 'get', '/pet/{petId}');    // nodes, wrapped in their own tab
+flowgen.buildFlow(doc, 'get', '/pet/{petId}', { tab: false });  // nodes only, for the current flow
 ```
 
 `generateOpenApi3` and `generateSwagger2` are exported as well; `generate` dispatches to them after
@@ -103,7 +104,8 @@ npm install node-red-flowgen
 
 Restart Node-RED, then choose *Import* from the menu and select the **API Spec** tab. Upload a
 document or paste one into the text area, pick an endpoint from the list and press the dialog's
-usual **Import** button. The inject, function, http request and debug nodes are added to the
+usual **Import** button. The four nodes are added to the flow you are already on — no extra tab is
+created — and the editor is never reloaded. The inject, function, http request and debug nodes are added to the
 current flow, or to a new one if *new flow* is selected.
 
 The plugin is frontend only: it loads the same `flowgen.js` used by the command line, so the
