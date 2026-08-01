@@ -16,9 +16,9 @@ jobs:
       matrix:
         node-version: ['22.x', '24.x']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -63,8 +63,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22.x'
       - run: npm install
@@ -77,9 +77,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22.x'
 
@@ -104,7 +104,7 @@ jobs:
           test -f node_modules/node-red-flowgen/flowgen-plugin.html
           test -f node_modules/node-red-flowgen/flowgen-plugin.js
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: node-red-flowgen
           path: node-red-flowgen.tgz
@@ -146,3 +146,38 @@ jobs:
                  --notes "$NOTES"
           gh release upload latest node-red-flowgen.tgz \
             --repo "$GITHUB_REPOSITORY" --clobber
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [test, package]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.x'
+          registry-url: https://registry.npmjs.org
+
+      - run: npm install
+
+      - name: Check the tag matches package.json
+        run: |
+          set -e
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "package.json is $PKG_VERSION but the tag is $TAG_VERSION" >&2
+            exit 1
+          fi
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -e
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::warning::NPM_TOKEN is not set; skipping npm publish"
+            exit 0
+          fi
+          npm publish --access public
