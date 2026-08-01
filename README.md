@@ -4,7 +4,7 @@ Generate [Node-RED](https://nodered.org/) flows from OpenAPI 3.x / Swagger 2.0 d
 
 Pick an endpoint from an API definition and get a ready-to-run flow — inject, function,
 http request and debug — where the function node sets up `msg` for the request: method, URL,
-headers, cookies and a sample body. Works as a CLI and as an editor plugin that adds an
+headers, cookies and a sample body. Works as an editor plugin that adds an
 **API Spec** tab to the Import dialog.
 
 ## Install
