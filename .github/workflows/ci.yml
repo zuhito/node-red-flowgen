@@ -66,7 +66,11 @@ jobs:
       - run: npm install
 
       - name: Build the tarball
-        run: npm pack
+        run: |
+          set -e
+          npm pack
+          mv node-red-flowgen-*.tgz node-red-flowgen.tgz
+          tar tzf node-red-flowgen.tgz | head
 
       - name: Install the tarball into a clean Node-RED instance
         run: |
@@ -74,11 +78,11 @@ jobs:
           mkdir -p /tmp/nr && cd /tmp/nr
           npm init -y > /dev/null
           npm install node-red --no-audit --no-fund
-          npm install "$GITHUB_WORKSPACE"/node-red-flowgen-*.tgz --no-audit --no-fund
+          npm install "$GITHUB_WORKSPACE/node-red-flowgen.tgz" --no-audit --no-fund
           test -f node_modules/node-red-flowgen/flowgen.js
           test -f node_modules/node-red-flowgen/plugin/flowgen-plugin.html
 
       - uses: actions/upload-artifact@v4
         with:
-          name: node-red-flowgen-tgz
-          path: node-red-flowgen-*.tgz
+          name: node-red-flowgen
+          path: node-red-flowgen.tgz

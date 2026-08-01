@@ -110,6 +110,17 @@ The plugin is frontend only: it loads the same `flowgen.js` used by the command 
 generated code is identical either way. The runtime half of the plugin does nothing but serve
 `flowgen.js` and the js-yaml browser build to the editor.
 
+## Prebuilt tarball
+
+Every CI run on `main` uploads the packed module as a build artifact named **node-red-flowgen**.
+GitHub always serves artifacts as a zip, so the download is `node-red-flowgen.zip` containing
+`node-red-flowgen.tgz`. Unzip it and install the tarball directly:
+
+```bash
+cd ~/.node-red
+npm install /path/to/node-red-flowgen.tgz
+```
+
 ## Tests
 
 ```bash
