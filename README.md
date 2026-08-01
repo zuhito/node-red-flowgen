@@ -112,8 +112,9 @@ generated code is identical either way. The runtime half of the plugin does noth
 
 ## Prebuilt tarball
 
-The easiest download is the [latest release](../../releases/latest), which carries
-`node-red-flowgen.tgz` as a plain asset — no zip involved:
+The easiest download is a [release](../../releases), which carries `node-red-flowgen.tgz` as a
+plain asset — no zip involved. Every push to `main` refreshes the rolling **latest** prerelease,
+so the newest build is always one click away; tagged versions are published alongside it:
 
 ```bash
 cd ~/.node-red
