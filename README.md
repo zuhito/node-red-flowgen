@@ -112,14 +112,18 @@ generated code is identical either way. The runtime half of the plugin does noth
 
 ## Prebuilt tarball
 
-Every CI run on `main` uploads the packed module as a build artifact named **node-red-flowgen**.
-GitHub always serves artifacts as a zip, so the download is `node-red-flowgen.zip` containing
-`node-red-flowgen.tgz`. Unzip it and install the tarball directly:
+The easiest download is the [latest release](../../releases/latest), which carries
+`node-red-flowgen.tgz` as a plain asset — no zip involved:
 
 ```bash
 cd ~/.node-red
 npm install /path/to/node-red-flowgen.tgz
 ```
+
+Every CI run also uploads the same tarball as a build artifact. GitHub always serves *artifacts*
+as a zip, so that download arrives as `node-red-flowgen.zip` with `node-red-flowgen.tgz` inside.
+Note that the **Code → Download ZIP** button on the repository home page is something different
+again: it contains the source only, never the tarball.
 
 ## Tests
 
