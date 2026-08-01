@@ -131,12 +131,18 @@ again: it contains the source only, never the tarball.
 npm test              # unit tests plus every Petstore v2 and v3 operation
 npm run test:nodered  # loads generated flows into an embedded Node-RED instance
 npm run test:plugin   # packs the module, installs it and checks the plugin loads
+npm run test:live     # calls the real Petstore API through Node-RED (needs internet)
 npm run test:all
 ```
 
 The integration suite starts Node-RED in-process, points the generated code at a local recording
 server and asserts on the request that actually arrives — method, path, query string, headers,
 cookies and body.
+
+`npm run test:live` runs in CI against the public Petstore server. It fails on a 4xx, which
+would mean the generated request was malformed, and reports a 5xx as an upstream fault — the
+demo server currently returns 500 for `/store/inventory` and `/pet/findByStatus` even for a bare
+request with no headers at all, so those responses say nothing about the generated code.
 
 The plugin suite runs `npm pack`, installs the resulting tarball into a temporary Node-RED
 instance and checks that the plugin markup reaches the editor, that `flowgen.js` is served

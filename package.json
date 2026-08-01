@@ -7,7 +7,8 @@
     "test": "node --test test.js",
     "test:nodered": "node --test test-nodered.js",
     "test:all": "node --test test.js test-nodered.js test-plugin.js",
-    "test:plugin": "node --test test-plugin.js"
+    "test:plugin": "node --test test-plugin.js",
+    "test:live": "node test-live.js"
   },
   "license": "MIT",
   "bin": {

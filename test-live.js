@@ -14,9 +14,9 @@ const doc = flowgen.parseDocument(fs.readFileSync(SPEC, 'utf8'));
 const BASE = process.env.PETSTORE_BASE || '';
 
 const CASES = [
-  { method: 'get', path: '/store/inventory', fill: {} },
+  { method: 'get', path: '/pet/{petId}', fill: { petId: '1' } },
   { method: 'get', path: '/pet/findByStatus', fill: { status: 'available' } },
-  { method: 'get', path: '/pet/{petId}', fill: { petId: '1' } }
+  { method: 'get', path: '/store/inventory', fill: {} }
 ];
 
 function fill(code, values) {
@@ -90,12 +90,19 @@ async function main() {
     }
     result = result || { status: null, payload: 'timeout' };
 
-    if (result.status && result.status >= 200 && result.status < 400) {
+    const body = JSON.stringify(result.payload).slice(0, 200);
+    if (result.status >= 200 && result.status < 400) {
       note('notice', label + ' -> HTTP ' + result.status);
+    } else if (result.status >= 500) {
+      note('notice', label + ' -> HTTP ' + result.status +
+        ' (upstream demo server error, not a generation fault) ' + body);
+    } else if (result.status) {
+      failures++;
+      note('error', label + ' -> HTTP ' + result.status +
+        ' (the generated request was rejected) ' + body);
     } else {
       failures++;
-      note('error', label + ' -> HTTP ' + result.status + ' body=' +
-        JSON.stringify(result.payload).slice(0, 300));
+      note('error', label + ' -> no response: ' + body);
     }
   }
 
