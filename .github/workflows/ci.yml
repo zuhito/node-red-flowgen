@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['18.x', '20.x', '22.x']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - run: npm install
+
+      - name: Unit and Petstore tests
+        run: npm test
+
+      - name: Node-RED integration tests
+        run: npm run test:nodered
+
+      - name: Generate function code for every Petstore operation
+        run: |
+          set -e
+          for spec in spec/petstore-v2.yaml spec/petstore-v3.yaml; do
+            echo "== $spec"
+            node flowgen.js "$spec" --list
+            node flowgen.js "$spec" --list | sed 's/ *#.*//' | while read -r method path; do
+              node flowgen.js "$spec" "$method" "$path" > /dev/null
+              node flowgen.js "$spec" "$method" "$path" --flow | node -e '
+                let s = "";
+                process.stdin.on("data", d => s += d).on("end", () => {
+                  const flow = JSON.parse(s);
+                  const types = flow.map(n => n.type).join(",");
+                  if (types !== "tab,inject,function,http request,debug") {
+                    throw new Error("unexpected flow: " + types);
+                  }
+                });
+              '
+            done
+          done

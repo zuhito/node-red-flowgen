@@ -1,0 +1,28 @@
+{
+  "name": "node-red-flowgen",
+  "version": "1.0.0",
+  "description": "Generate Node-RED flows and function-node code from OpenAPI 3 / Swagger 2 documents",
+  "main": "flowgen.js",
+  "scripts": {
+    "test": "node --test test.js",
+    "test:nodered": "node --test test-nodered.js",
+    "test:all": "node --test test.js test-nodered.js"
+  },
+  "license": "MIT",
+  "bin": {
+    "flowgen": "flowgen.js"
+  },
+  "files": [
+    "flowgen.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "js-yaml": "4.3.0"
+  },
+  "devDependencies": {
+    "express": "^4.19.2",
+    "node-red": "^4.0.0"
+  }
+}
