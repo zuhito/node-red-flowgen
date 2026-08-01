@@ -12,6 +12,9 @@ const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'tr
 const BODYLESS = new Set(['get', 'head']);
 
 function parseDocument(text) {
+  if (/^\s*meta\s*\{/.test(String(text || ''))) {
+    return parseCollection([{ path: 'request.bru', text: String(text) }]);
+  }
   const head = text.replace(/^\uFEFF/, '').trimStart();
   if (head.startsWith('{') || head.startsWith('[')) return JSON.parse(head);
   const doc = yaml.load(text);
@@ -23,14 +26,243 @@ function isUrl(text) {
   return /^https?:\/\/\S+$/i.test(String(text || '').trim());
 }
 
+/* ---------- Bruno collections ---------- */
+
+function parseBru(text) {
+  const blocks = {};
+  const re = /^([\w:.-]+)\s*\{\s*\n([\s\S]*?)\n\}/gm;
+  let m;
+  while ((m = re.exec(text))) {
+    const name = m[1], body = m[2];
+    if (/^body:/.test(name) && name !== 'body:form-urlencoded' && name !== 'body:multipart-form') {
+      blocks[name] = body;
+      continue;
+    }
+    const pairs = [];
+    for (const line of body.split('\n')) {
+      const at = line.indexOf(':');
+      if (at === -1) continue;
+      const key = line.slice(0, at).trim();
+      if (!key || key.startsWith('~')) continue;
+      pairs.push([key, line.slice(at + 1).trim()]);
+    }
+    blocks[name] = pairs;
+  }
+  return blocks;
+}
+
+function normalizeRequest(nameHint, source) {
+  const req = { name: nameHint, method: null, url: '', headers: [], hasBody: false,
+    multipart: false, payload: {} };
+  if (typeof source === 'string') {
+    const blocks = parseBru(source);
+    if (blocks.meta) {
+      const n = blocks.meta.find(p => p[0] === 'name');
+      if (n) req.name = n[1];
+    }
+    for (const method of METHODS) {
+      if (!blocks[method]) continue;
+      req.method = method;
+      const u = blocks[method].find(p => p[0] === 'url');
+      if (u) req.url = u[1];
+    }
+    for (const [k, v] of blocks.headers || []) req.headers.push([k, v]);
+    if (blocks['auth:bearer']) {
+      const t = blocks['auth:bearer'].find(p => p[0] === 'token');
+      req.headers.push(['authorization', 'Bearer ' + (t ? t[1] : '')]);
+    }
+    if (blocks['auth:basic']) req.headers.push(['authorization', 'Basic ']);
+    if (blocks['body:json'] !== undefined) {
+      req.hasBody = true;
+      try { req.payload = JSON.parse(blocks['body:json']); }
+      catch (err) { req.payload = blocks['body:json'].trim(); }
+    } else if (blocks['body:text'] !== undefined) {
+      req.hasBody = true;
+      req.payload = blocks['body:text'].trim();
+    } else if (blocks['body:form-urlencoded']) {
+      req.hasBody = true;
+      req.payload = {};
+      for (const [k, v] of blocks['body:form-urlencoded']) req.payload[k] = v;
+    } else if (blocks['body:multipart-form']) {
+      req.hasBody = true;
+      req.multipart = true;
+      req.payload = {};
+      for (const [k, v] of blocks['body:multipart-form']) {
+        req.payload[k] = /^@file\(/.test(v)
+          ? { value: 'FILE_CONTENTS', options: { filename: v.replace(/^@file\(|\)$/g, '') || 'FILENAME' } }
+          : v;
+      }
+    }
+  } else if (source && typeof source === 'object') {
+    const http = source.http || source.request || source;
+    if (source.info && source.info.name) req.name = source.info.name;
+    if (source.name) req.name = source.name;
+    req.method = String(http.method || 'get').toLowerCase();
+    req.url = http.url || '';
+    let headers = source.headers || http.headers || [];
+    if (!Array.isArray(headers)) headers = Object.keys(headers).map(k => ({ name: k, value: headers[k] }));
+    for (const h of headers) {
+      if (h && h.enabled === false) continue;
+      req.headers.push([h.name || h.key, h.value === undefined ? '' : String(h.value)]);
+    }
+    const auth = source.auth || http.authDetails || null;
+    if (auth && typeof auth === 'object') {
+      if (auth.bearer) req.headers.push(['authorization', 'Bearer ' + (auth.bearer.token || '')]);
+      else if (auth.basic) req.headers.push(['authorization', 'Basic ']);
+    }
+    const body = source.body || http.body || null;
+    if (body && typeof body === 'object') {
+      const mode = body.type || body.mode;
+      const data = body.data !== undefined ? body.data : body[mode];
+      if (mode === 'json') {
+        req.hasBody = true;
+        if (typeof data === 'string') { try { req.payload = JSON.parse(data); } catch (err) { req.payload = data; } }
+        else req.payload = data === undefined ? {} : data;
+      } else if (mode === 'text') { req.hasBody = true; req.payload = String(data || ''); }
+      else if (mode === 'formUrlEncoded' || mode === 'form-urlencoded') {
+        req.hasBody = true; req.payload = {};
+        for (const e of data || []) if (e.enabled !== false) req.payload[e.name] = e.value || '';
+      } else if (mode === 'multipartForm' || mode === 'multipart-form') {
+        req.hasBody = true; req.multipart = true; req.payload = {};
+        for (const e of data || []) {
+          if (e.enabled === false) continue;
+          req.payload[e.name] = e.type === 'file'
+            ? { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } }
+            : (e.value || '');
+        }
+      }
+    }
+  }
+  return req.method && req.url ? req : null;
+}
+
+function parseCollection(files) {
+  const requests = [];
+  const vars = {};
+  for (const file of files) {
+    const rel = String(file.path || '').replace(/\\/g, '/');
+    const base = rel.split('/').pop();
+    if (/^opencollection\.ya?ml$|^bruno\.json$|^collection\.bru$/.test(base)) {
+      if (/\.bru$/.test(base)) {
+        for (const [k, v] of parseBru(file.text).vars || []) vars[k] = vars[k] === undefined ? v : vars[k];
+      }
+      continue;
+    }
+    if (/(^|\/)environments\//.test(rel)) {
+      let pairs = [];
+      if (/\.bru$/.test(base)) pairs = parseBru(file.text).vars || [];
+      else {
+        try {
+          const env = yaml.load(file.text) || {};
+          const list = env.vars || env.variables || [];
+          pairs = Array.isArray(list) ? list.map(e => [e.name, e.value]) :
+            Object.keys(list).map(k => [k, list[k]]);
+        } catch (err) { pairs = []; }
+      }
+      for (const [k, v] of pairs) if (vars[k] === undefined) vars[k] = v;
+      continue;
+    }
+    let req = null;
+    if (/\.bru$/.test(base)) req = normalizeRequest(base.replace(/\.bru$/, ''), file.text);
+    else if (/\.(ya?ml|json)$/.test(base)) {
+      let doc = null;
+      try { doc = /\.json$/.test(base) ? JSON.parse(file.text) : yaml.load(file.text); } catch (err) { doc = null; }
+      if (doc && (doc.http || doc.request)) {
+        req = normalizeRequest(base.replace(/\.(ya?ml|json)$/, ''), doc);
+      } else if (doc && Array.isArray(doc.items)) {
+        const walk = items => {
+          for (const item of items || []) {
+            if (Array.isArray(item.items)) { walk(item.items); continue; }
+            const r = normalizeRequest(item.name || '', item);
+            if (r) requests.push(r);
+          }
+        };
+        walk(doc.items);
+      }
+    }
+    if (req) requests.push(req);
+  }
+  if (!requests.length) throw new Error('no requests found in the Bruno collection');
+  return { bruno: true, vars: vars, requests: requests };
+}
+
+function brunoParts(doc, req) {
+  const todo = [];
+  const url = String(req.url).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) => {
+    if (doc.vars[name] !== undefined && String(doc.vars[name]) !== '') return String(doc.vars[name]);
+    if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
+    return '{' + name + '}';
+  });
+  const headers = req.headers.map(h => [h[0],
+    String(h[1]).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
+      doc.vars[name] !== undefined ? String(doc.vars[name]) : '{' + name + '}')]);
+  return {
+    method: req.method,
+    urls: [url],
+    todo: todo,
+    headers: dedupeHeaders(headers),
+    cookies: [],
+    hasBody: req.hasBody && !BODYLESS.has(req.method),
+    multipart: req.multipart,
+    payload: req.payload
+  };
+}
+
+function brunoPath(req, vars) {
+  const clean = String(req.url).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
+    vars && vars[name] !== undefined && String(vars[name]) !== ''
+      ? String(vars[name]) : '{' + name + '}');
+  const noProto = clean.replace(/^https?:\/\/[^/]*/, '');
+  const path = noProto.split('?')[0];
+  return path || '/';
+}
+
 function detectFormat(doc) {
+  if (doc && doc.bruno === true && Array.isArray(doc.requests)) return 'bruno';
+  if (doc && doc.http && doc.http.url) return 'bruno';
+  if (doc && Array.isArray(doc.items) &&
+      doc.items.some(i => i && (i.request || (i.items || []).some(j => j && j.request)))) return 'bruno';
   if (typeof doc.swagger === 'string' && doc.swagger.startsWith('2.')) return 'swagger2';
   if (typeof doc.openapi === 'string' && doc.openapi.startsWith('3.')) return 'openapi3';
   throw new Error('unknown format: expected swagger 2.x or openapi 3.x');
 }
 
+function toBruno(doc) {
+  let bruno = null;
+  if (doc.bruno === true) bruno = doc;
+  else if (doc.http && doc.http.url) {
+    const req = normalizeRequest((doc.info && doc.info.name) || 'request', doc);
+    if (!req) throw new Error('not a usable Bruno request');
+    bruno = { bruno: true, vars: {}, requests: [req] };
+  } else {
+    bruno = parseCollection([{ path: 'collection.json', text: JSON.stringify(doc) }]);
+  }
+  const seen = {};
+  for (const req of bruno.requests) {
+    const base = brunoPath(req, bruno.vars);
+    const id = req.method + ' ' + base;
+    seen[id] = (seen[id] || 0) + 1;
+    req._path = seen[id] > 1 ? base + '#' + seen[id] : base;
+  }
+  return bruno;
+}
+
 function generate(doc, method, target) {
   const format = detectFormat(doc);
+  if (format === 'bruno') {
+    const bruno = toBruno(doc);
+    const wanted = String(target || '').replace(/^\//, '');
+    let found = null;
+    const available = [];
+    for (const req of bruno.requests) {
+      available.push(req.method + ' ' + req._path);
+      if (req.method === String(method).toLowerCase() && req._path.replace(/^\//, '') === wanted) {
+        found = req;
+      }
+    }
+    if (!found) throw notFound(method, target, available);
+    return assemble(brunoParts(bruno, found));
+  }
   if (format === 'swagger2') return generateSwagger2(doc, method, target);
   return generateOpenApi3(doc, method, target);
 }
@@ -106,21 +338,28 @@ function valuesFor(schema, param) {
   return out;
 }
 
-function renderUrl(base, path, params, choice) {
-  let rendered = path;
-  for (const param of params) {
-    if (param.in !== 'path') continue;
-    const value = choice[param.name];
-    if (value !== undefined) {
-      rendered = rendered.split('{' + param.name + '}').join(encodeURIComponent(value));
+function urlLines(base, path, params) {
+  const render = choice => {
+    let rendered = path;
+    for (const p of params) {
+      if (p.in === 'path' && choice[p.name] !== undefined) {
+        rendered = rendered.split('{' + p.name + '}').join(encodeURIComponent(choice[p.name]));
+      }
+    }
+    return base + rendered + params.filter(p => p.in === 'query').map((p, i) =>
+      (i ? '&' : '?') + p.name + '=' + (choice[p.name] === undefined
+        ? '{' + p.name + '}' : encodeURIComponent(choice[p.name]))).join('');
+  };
+  const primary = {};
+  for (const p of params) if (p.values.length) primary[p.name] = p.values[0];
+  const urls = [render(primary)];
+  for (const p of params) {
+    for (let i = 1; i < p.values.length; i++) {
+      const url = render(Object.assign({}, primary, { [p.name]: p.values[i] }));
+      if (urls.indexOf(url) === -1) urls.push(url);
     }
   }
-  const query = params.filter(p => p.in === 'query').map(function (param, i) {
-    const value = choice[param.name];
-    return (i ? '&' : '?') + param.name + '=' +
-      (value === undefined ? '{' + param.name + '}' : encodeURIComponent(value));
-  }).join('');
-  return base + rendered + query;
+  return urls;
 }
 
 function multipartPayload(schema, resolve, sample) {
@@ -151,75 +390,35 @@ function unresolved(path, params) {
   return items.filter((item, i, all) => all.findIndex(x => x.name === item.name) === i);
 }
 
-function urlLines(base, path, params) {
-  const primary = {};
-  for (const param of params) {
-    if (param.values.length) primary[param.name] = param.values[0];
-  }
-  const urls = [renderUrl(base, path, params, primary)];
-  for (const param of params) {
-    for (let i = 1; i < param.values.length; i++) {
-      const choice = Object.assign({}, primary);
-      choice[param.name] = param.values[i];
-      const url = renderUrl(base, path, params, choice);
-      if (urls.indexOf(url) === -1) urls.push(url);
-    }
-  }
-  return urls;
-}
-
-function listPhrase(names) {
-  if (names.length === 1) return names[0];
-  if (names.length === 2) return names[0] + ' and ' + names[1];
-  return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
-}
-
-function withType(label, type) {
-  return type ? label + ' (' + type + ')' : label;
-}
-
-function blanks(pairs) {
-  return pairs.filter(entry => String(entry[1]) === '' || /\s$/.test(String(entry[1])))
-    .map(entry => withType(quote(entry[0]), entry[2]));
-}
 
 function assemble(parts) {
-  const lines = [];
-  lines.push('msg.method = ' + quote(parts.method.toUpperCase()) + ';');
+  const phrase = names => names.length === 1 ? names[0]
+    : names.length === 2 ? names[0] + ' and ' + names[1]
+    : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+  const typed = (label, type) => type ? label + ' (' + type + ')' : label;
+  const blank = pairs => pairs
+    .filter(e => String(e[1]) === '' || /\s$/.test(String(e[1])))
+    .map(e => typed(quote(e[0]), e[2]));
 
+  const lines = ['msg.method = ' + quote(parts.method.toUpperCase()) + ';'];
   if (parts.todo.length) {
-    lines.push('');
-    lines.push('// Replace ' +
-      listPhrase(parts.todo.map(item => withType('{' + item.name + '}', item.type))) +
+    lines.push('', '// Replace ' +
+      phrase(parts.todo.map(item => typed('{' + item.name + '}', item.type))) +
       ' in the URL below with ' + (parts.todo.length === 1 ? 'a real value' : 'real values') + '.');
   }
-  parts.urls.forEach(function (url, i) {
-    lines.push((i ? '// ' : '') + 'msg.url = ' + quote(url) + ';');
-  });
-
-  if (parts.headers.length) {
-    const empty = blanks(parts.headers);
+  parts.urls.forEach((url, i) =>
+    lines.push((i ? '// ' : '') + 'msg.url = ' + quote(url) + ';'));
+  for (const [key, pairs] of [['headers', parts.headers], ['cookies', parts.cookies]]) {
+    if (!pairs.length) continue;
+    const empty = blank(pairs);
     lines.push('');
-    if (empty.length) {
-      lines.push('// Fill in ' + listPhrase(empty) + ' below.');
-    }
-    lines.push('msg.headers = ' + pairsLiteral(parts.headers) + ';');
-  }
-  if (parts.cookies.length) {
-    const empty = blanks(parts.cookies);
-    lines.push('');
-    if (empty.length) {
-      lines.push('// Fill in ' + listPhrase(empty) + ' below.');
-    }
-    lines.push('msg.cookies = ' + pairsLiteral(parts.cookies) + ';');
+    if (empty.length) lines.push('// Fill in ' + phrase(empty) + ' below.');
+    lines.push('msg.' + key + ' = ' + pairsLiteral(pairs) + ';');
   }
   if (parts.hasBody) {
-    lines.push('');
-    if (parts.multipart) {
-      lines.push('// Set FILE_CONTENTS and the filename for each file field, and adjust the other values.');
-    } else {
-      lines.push('// Adjust the request body below to suit the call.');
-    }
+    lines.push('', parts.multipart
+      ? '// Set FILE_CONTENTS and the filename for each file field, and adjust the other values.'
+      : '// Adjust the request body below to suit the call.');
     lines.push('msg.payload = ' + literal(parts.payload, 0) + ';');
   }
   lines.push('return msg;');
@@ -631,6 +830,13 @@ function buildFlow(doc, method, target, options) {
 
 function listOperations(doc) {
   const format = detectFormat(doc);
+  if (format === 'bruno') {
+    const bruno = toBruno(doc);
+    const operations = bruno.requests.map(req => ({
+      method: req.method, path: req._path, summary: req.name || null
+    }));
+    return { format: 'bruno', count: operations.length, operations: operations };
+  }
   const resolve = node => {
     const seen = new Set();
     while (node && typeof node === 'object' && typeof node.$ref === 'string') {
@@ -666,7 +872,7 @@ function formatList(result) {
 
 return {
   parseDocument, detectFormat, generate, generateOpenApi3, generateSwagger2,
-  listOperations, buildFlow, formatList, isUrl, nodeWidth
+  listOperations, buildFlow, formatList, isUrl, nodeWidth, parseCollection
 };
 }));
 
@@ -675,6 +881,55 @@ if (typeof module === 'object' && module.exports && require.main === module) {
   const {
     parseDocument, generate, listOperations, buildFlow, formatList, isUrl
   } = module.exports;
+
+  const path = require('path');
+  const os = require('os');
+  const { execFileSync } = require('child_process');
+
+  const gatherDir = root => {
+    const files = [];
+    const walk = dir => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === '.git' || entry.name === 'node_modules') continue;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(bru|ya?ml|json)$/.test(entry.name)) {
+          files.push({ path: path.relative(root, full), text: fs.readFileSync(full, 'utf8') });
+        }
+      }
+    };
+    walk(root);
+    return files;
+  };
+
+  const load = async source => {
+    const { parseCollection } = module.exports;
+    if (/\.git$/.test(String(source).trim())) {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-git-'));
+      execFileSync('git', ['clone', '--quiet', '--depth', '1', String(source).trim(), tmp],
+        { stdio: 'pipe' });
+      return parseCollection(gatherDir(tmp));
+    }
+    if (isUrl(source)) return parseDocument(await read(source));
+    const stat = fs.statSync(source);
+    if (stat.isDirectory()) return parseCollection(gatherDir(source));
+    if (/\.zip$/i.test(source)) {
+      const AdmZip = require('adm-zip');
+      const files = [];
+      for (const entry of new AdmZip(source).getEntries()) {
+        if (entry.isDirectory) continue;
+        if (!/\.(bru|ya?ml|json)$/.test(entry.entryName)) continue;
+        if (/(^|\/)(\.git|node_modules)\//.test(entry.entryName)) continue;
+        files.push({ path: entry.entryName, text: entry.getData().toString('utf8') });
+      }
+      return parseCollection(files);
+    }
+    const text = fs.readFileSync(source, 'utf8');
+    if (/\.bru$/.test(source)) {
+      return parseCollection([{ path: path.basename(source), text: text }]);
+    }
+    return parseDocument(text);
+  };
 
   const read = source => new Promise((resolve, reject) => {
     if (!isUrl(source)) { return resolve(fs.readFileSync(source, 'utf8')); }
@@ -714,8 +969,7 @@ if (typeof module === 'object' && module.exports && require.main === module) {
       '  node-red-flowgen https://petstore.swagger.io/v2/swagger.json --list\n');
     process.exit(1);
   }
-  read(file).then(text => {
-    const doc = parseDocument(text);
+  load(file).then(doc => {
     if (listMode || !method) {
       process.stdout.write(formatList(listOperations(doc)) + '\n');
     } else if (flowMode) {

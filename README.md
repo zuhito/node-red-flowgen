@@ -60,3 +60,14 @@ return msg;
 - `multipart/form-data` bodies use the http request node's file-upload shape
   (`{ value: FILE_CONTENTS, options: { filename: FILENAME } }`).
 - Deprecated operations are hidden everywhere.
+
+## CLI
+
+The source can be an OpenAPI/Swagger file or URL, or a [Bruno](https://www.usebruno.com/)
+collection — a folder, an exported zip, a single `.bru`/YAML request file, or a git URL:
+
+```bash
+node-red-flowgen https://github.com/bruno-collections/bruno-starter-guide.git --list
+node-red-flowgen ./my-collection.zip --list
+```
+
