@@ -135,6 +135,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
   var selected = null;
   var isActive = false;
   var fetching = null;
+  var collectionDoc = null;
 
   var PLACEHOLDER = [
     'openapi: 3.0.4',
@@ -220,9 +221,50 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     okButton(false);
   }
 
+  function apiRoot() {
+    var root = (RED.settings.apiRootUrl || '');
+    if (root && !/\/$/.test(root)) { root += '/'; }
+    return root;
+  }
+
+  function useCollection(files) {
+    try {
+      collectionDoc = flowgen.parseCollection(files);
+      doc = collectionDoc;
+      render();
+    } catch (err) {
+      status(err.message, true);
+    }
+  }
+
+  function fetchGit(url) {
+    if (fetching === url) { return; }
+    fetching = url;
+    status('cloning ' + url);
+    fetch(apiRoot() + 'flowgen/collection?url=' + encodeURIComponent(url))
+      .then(function (res) { return res.json().then(function (data) { return { res: res, data: data }; }); })
+      .then(function (got) {
+        fetching = null;
+        if (!got.res.ok) { throw new Error(got.data.error || 'HTTP ' + got.res.status); }
+        useCollection(got.data.files);
+      })
+      .catch(function (err) {
+        fetching = null;
+        status('could not fetch the repository: ' + err.message, true);
+      });
+  }
+
   function parse(text) {
     reset();
-    if (!text || !text.trim()) { status(''); return; }
+    if (!text || !text.trim()) {
+      if (collectionDoc) { doc = collectionDoc; render(); return; }
+      status('');
+      return;
+    }
+    collectionDoc = null;
+    if (/\.git$/.test(String(text).trim()) && flowgen.isUrl(text)) {
+      return fetchGit(text.trim());
+    }
     if (flowgen.isUrl(text)) { return fetchSpec(text.trim()); }
     try {
       doc = flowgen.parseDocument(text);
@@ -264,7 +306,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
       .append($('<a>').addClass('red-ui-button').attr('id', 'flowgen-file-btn')
         .append('<i class="fa fa-upload"></i> ')
         .append($('<span>').text('select a file')))
-      .append($('<input>').attr({ type: 'file', id: 'flowgen-file', accept: '.json,.yaml,.yml,.bru' })
+      .append($('<input>').attr({ type: 'file', id: 'flowgen-file', accept: '.json,.yaml,.yml,.bru,.zip' })
         .css('display', 'none'))
       .append($('<span>').addClass('flowgen-spacer'))
       .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-select-btn', href: '#' })
@@ -315,6 +357,26 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     el.find('#flowgen-file').on('change', function () {
       var file = this.files && this.files[0];
       if (!file) { return; }
+      if (/\.zip$/i.test(file.name)) {
+        var zipReader = new FileReader();
+        zipReader.onload = function (ev) {
+          status('reading ' + file.name);
+          fetch(apiRoot() + 'flowgen/collection', {
+            method: 'POST', body: ev.target.result
+          }).then(function (res) {
+            return res.json().then(function (data) { return { res: res, data: data }; });
+          }).then(function (got) {
+            if (!got.res.ok) { throw new Error(got.data.error || 'HTTP ' + got.res.status); }
+            $('#flowgen-spec-text').val('');
+            reset();
+            useCollection(got.data.files);
+          }).catch(function (err) {
+            status('could not read the zip file: ' + err.message, true);
+          });
+        };
+        zipReader.readAsArrayBuffer(file);
+        return;
+      }
       var reader = new FileReader();
       reader.onload = function (ev) {
         var formatted = pretty(ev.target.result);

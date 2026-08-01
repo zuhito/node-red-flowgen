@@ -139,3 +139,52 @@ test('the installed package resolves js-yaml from its own node_modules', () => {
   const plugin = fs.readFileSync(path.join(installed, 'flowgen-plugin.js'), 'utf8');
   assert.ok(!/https?:\/\//.test(plugin), 'the runtime never references a remote URL');
 });
+
+test('the collection endpoint clones a git url and returns its files', async () => {
+  const os = require('os');
+  const { execFileSync } = require('child_process');
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-ep-git-'));
+  fs.writeFileSync(path.join(repo, 'get-user.yml'),
+    'info:\n  name: Get user\nhttp:\n  method: GET\n  url: https://api.example.test/users/1\n');
+  execFileSync('git', ['init', '-q', repo]);
+  execFileSync('git', ['-C', repo, 'add', '-A']);
+  execFileSync('git', ['-C', repo, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'x']);
+
+  const res = await get('/flowgen/collection?url=' + encodeURIComponent(repo + '/.git'));
+  fs.rmSync(repo, { recursive: true, force: true });
+  assert.strictEqual(res.status, 200, res.body);
+  const files = JSON.parse(res.body).files;
+  assert.ok(files.some(f => f.path === 'get-user.yml'));
+});
+
+test('the collection endpoint rejects non git urls', async () => {
+  const res = await get('/flowgen/collection?url=https%3A%2F%2Fexample.test%2Fspec.yaml');
+  assert.strictEqual(res.status, 400);
+  assert.match(JSON.parse(res.body).error, /\.git/);
+});
+
+test('the collection endpoint unpacks an uploaded zip', async () => {
+  const AdmZip = require('adm-zip');
+  const zip = new AdmZip();
+  zip.addFile('req.bru', Buffer.from(
+    'meta {\n  name: Ping\n}\n\nget {\n  url: https://api.example.test/ping\n}\n'));
+  zip.addFile('.git/config', Buffer.from('ignored'));
+  const body = zip.toBuffer();
+
+  const res = await new Promise((resolve, reject) => {
+    const req = http.request({
+      host: '127.0.0.1', port: port, path: '/flowgen/collection', method: 'POST',
+      headers: { 'content-type': 'application/zip', 'content-length': body.length }
+    }, r => {
+      const chunks = [];
+      r.on('data', c => chunks.push(c));
+      r.on('end', () => resolve({ status: r.statusCode, body: Buffer.concat(chunks).toString() }));
+    });
+    req.on('error', reject);
+    req.end(body);
+  });
+  assert.strictEqual(res.status, 200, res.body);
+  const files = JSON.parse(res.body).files;
+  assert.deepStrictEqual(files.map(f => f.path), ['req.bru']);
+  assert.match(files[0].text, /api\.example\.test\/ping/);
+});
