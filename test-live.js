@@ -15,7 +15,7 @@ const BASE = process.env.PETSTORE_BASE || '';
 
 const CASES = [
   { method: 'get', path: '/pet/{petId}', fill: { petId: '1' } },
-  { method: 'get', path: '/pet/findByStatus', fill: { status: 'available' } },
+  { method: 'get', path: '/pet/findByStatus', fill: {} },
   { method: 'get', path: '/store/inventory', fill: {} }
 ];
 

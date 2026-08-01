@@ -67,23 +67,70 @@ function dedupeHeaders(headers) {
   return out;
 }
 
-function queryString(names) {
-  return names.map((name, i) => (i ? '&' : '?') + name + '=').join('');
+function valuesFor(schema, param) {
+  const out = [];
+  const push = value => {
+    if (value === null || value === undefined || typeof value === 'object') return;
+    const text = String(value);
+    if (text !== '' && out.indexOf(text) === -1) out.push(text);
+  };
+  const source = schema || {};
+  if (Array.isArray(source.enum)) source.enum.forEach(push);
+  if (Array.isArray(source.items && source.items.enum)) source.items.enum.forEach(push);
+  push(source.example);
+  push(source.default);
+  if (param) {
+    push(param.example);
+    if (param.examples) {
+      for (const key of Object.keys(param.examples)) {
+        const entry = param.examples[key];
+        if (entry && typeof entry === 'object') push(entry.value);
+      }
+    }
+  }
+  return out;
 }
 
-function describe(doc, method, path, op) {
-  const lines = [];
-  for (const line of String(op.description || '').split('\n')) {
-    const trimmed = line.trim();
-    if (trimmed) lines.push(trimmed);
+function renderUrl(base, path, params, choice) {
+  let rendered = path;
+  for (const param of params) {
+    if (param.in !== 'path') continue;
+    const value = choice[param.name];
+    if (value !== undefined) {
+      rendered = rendered.split('{' + param.name + '}').join(encodeURIComponent(value));
+    }
   }
-  return lines;
+  const query = params.filter(p => p.in === 'query').map(function (param, i) {
+    const value = choice[param.name];
+    return (i ? '&' : '?') + param.name + '=' +
+      (value === undefined ? '' : encodeURIComponent(value));
+  }).join('');
+  return base + rendered + query;
+}
+
+function urlLines(base, path, params) {
+  const primary = {};
+  for (const param of params) {
+    if (param.values.length) primary[param.name] = param.values[0];
+  }
+  const urls = [renderUrl(base, path, params, primary)];
+  for (const param of params) {
+    for (let i = 1; i < param.values.length; i++) {
+      const choice = Object.assign({}, primary);
+      choice[param.name] = param.values[i];
+      const url = renderUrl(base, path, params, choice);
+      if (urls.indexOf(url) === -1) urls.push(url);
+    }
+  }
+  return urls;
 }
 
 function assemble(parts) {
-  const lines = parts.comments.map(line => '// ' + line);
+  const lines = [];
   lines.push('msg.method = ' + quote(parts.method.toUpperCase()) + ';');
-  lines.push('msg.url = ' + quote(parts.url) + ';');
+  parts.urls.forEach(function (url, i) {
+    lines.push((i ? '// ' : '') + 'msg.url = ' + quote(url) + ';');
+  });
   if (parts.headers.length) lines.push('msg.headers = ' + pairsLiteral(parts.headers) + ';');
   if (parts.cookies.length) lines.push('msg.cookies = ' + pairsLiteral(parts.cookies) + ';');
   if (parts.hasBody) lines.push('msg.payload = ' + literal(parts.payload, 0) + ';');
@@ -147,7 +194,11 @@ function generateOpenApi3(doc, rawMethod, target) {
 
   const headers = [];
   const cookies = [];
-  const query = params.filter(p => p.in === 'query').map(p => p.name);
+  const urlParams = params.filter(p => p.in === 'path' || p.in === 'query').map(p => ({
+    name: p.name,
+    in: p.in,
+    values: valuesFor(resolve(p.schema || {}), p)
+  }));
   for (const p of params.filter(p => p.in === 'header')) headers.push([p.name, '']);
   for (const p of params.filter(p => p.in === 'cookie')) cookies.push([p.name, '']);
 
@@ -160,7 +211,7 @@ function generateOpenApi3(doc, rawMethod, target) {
       const type = String(scheme.type || '').toLowerCase();
       if (type === 'apikey') {
         if (scheme.in === 'header') headers.push([scheme.name, '']);
-        else if (scheme.in === 'query') query.push(scheme.name);
+        else if (scheme.in === 'query') urlParams.push({ name: scheme.name, in: 'query', values: [] });
         else if (scheme.in === 'cookie') cookies.push([scheme.name, '']);
       } else if (type === 'http') {
         const s = String(scheme.scheme || '').toLowerCase();
@@ -236,9 +287,8 @@ function generateOpenApi3(doc, rawMethod, target) {
   }
 
   return assemble({
-    comments: describe(doc, method, path, op),
     method: method,
-    url: base + path + queryString(query),
+    urls: urlLines(base, path, urlParams),
     headers: dedupeHeaders(headers),
     cookies: cookies,
     hasBody: hasBody,
@@ -288,7 +338,11 @@ function generateSwagger2(doc, rawMethod, target) {
     : String(doc.basePath || '').replace(/\/$/, '');
 
   const headers = [];
-  const query = params.filter(p => p.in === 'query').map(p => p.name);
+  const urlParams = params.filter(p => p.in === 'path' || p.in === 'query').map(p => ({
+    name: p.name,
+    in: p.in,
+    values: valuesFor(p, p)
+  }));
   for (const p of params.filter(p => p.in === 'header')) headers.push([p.name, '']);
 
   const requirements = op.security !== undefined ? op.security : (doc.security || []);
@@ -300,7 +354,7 @@ function generateSwagger2(doc, rawMethod, target) {
       const type = String(def.type || '').toLowerCase();
       if (type === 'apikey') {
         if (def.in === 'header') headers.push([def.name, '']);
-        else if (def.in === 'query') query.push(def.name);
+        else if (def.in === 'query') urlParams.push({ name: def.name, in: 'query', values: [] });
       } else if (type === 'basic') {
         headers.push(['authorization', 'Basic ']);
       } else if (type === 'oauth2') {
@@ -364,9 +418,8 @@ function generateSwagger2(doc, rawMethod, target) {
   if (accept) headers.push(['accept', accept]);
 
   return assemble({
-    comments: describe(doc, method, path, op),
     method: method,
-    url: base + path + queryString(query),
+    urls: urlLines(base, path, urlParams),
     headers: dedupeHeaders(headers),
     cookies: [],
     hasBody: hasBody,

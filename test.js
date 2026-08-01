@@ -69,11 +69,12 @@ test('target accepts path with or without leading slash, method is case insensit
   assert.strictEqual(flowgen.generate(doc, 'GET', '/x'), flowgen.generate(doc, 'get', 'x'));
 });
 
-test('comment carries the description only', () => {
+test('no description or summary is emitted as a comment', () => {
   const doc = v3({ '/x': { get: { summary: 'S', description: 'line one\n\nline two' } } });
-  assert.deepStrictEqual(comments(flowgen.generate(doc, 'get', '/x')), ['line one', 'line two']);
-  const noDesc = v3({ '/x': { get: { summary: 'S' } } });
-  assert.deepStrictEqual(comments(flowgen.generate(noDesc, 'get', '/x')), []);
+  const code = flowgen.generate(doc, 'get', '/x');
+  assert.deepStrictEqual(comments(code), []);
+  assert.ok(!/line one|S/.test(code));
+  assert.ok(code.startsWith("msg.method = 'GET';"));
 });
 
 test('server variables resolve and trailing slash is trimmed', () => {
@@ -118,6 +119,7 @@ test('query parameters are appended in order with ? then &', () => {
   });
   assert.strictEqual(run(flowgen.generate(doc, 'get', '/x')).url,
     'https://api.test/v1/x?a=&b=&shared=');
+  assert.deepStrictEqual(comments(flowgen.generate(doc, 'get', '/x')), []);
 });
 
 test('duplicate parameters keep the operation level one', () => {
@@ -339,10 +341,10 @@ test('unknown target and method raise errors', () => {
 });
 
 test('quoting survives hostile strings', () => {
-  const doc = v3({ "/it's": { get: { description: "a'b\\c" } } });
-  const code = flowgen.generate(doc, 'get', "/it's");
-  assert.strictEqual(run(code).url, "https://api.test/v1/it's");
-  assert.deepStrictEqual(comments(code), ["a'b\\c"]);
+  const doc = v3({ "/it's": { get: { parameters: [
+    { name: 'q', in: 'query', schema: { example: "a'b\\c" } }] } } });
+  const msg = run(flowgen.generate(doc, 'get', "/it's"));
+  assert.strictEqual(msg.url, "https://api.test/v1/it's?q=a'b%5Cc");
 });
 
 for (const [label, file] of Object.entries(SPECS)) {
@@ -419,4 +421,93 @@ test('buildFlow keeps the tab by default and when asked', () => {
   assert.strictEqual(flowgen.buildFlow(doc, 'get', '/x', {})[0].type, 'tab');
   assert.strictEqual(flowgen.buildFlow(doc, 'get', '/x', { tab: true })[0].type, 'tab');
   for (const node of withTab.slice(1)) assert.strictEqual(node.z, withTab[0].id);
+});
+
+function urlLinesOf(code) {
+  return code.split('\n').filter(l => /msg\.url = /.test(l));
+}
+
+test('an enum fills the first value and comments out the rest', () => {
+  const doc = v3({ '/x': { get: { parameters: [
+    { name: 'status', in: 'query', schema: { type: 'string', enum: ['A', 'B', 'C'] } }
+  ] } } });
+  assert.deepStrictEqual(urlLinesOf(flowgen.generate(doc, 'get', '/x')), [
+    "msg.url = 'https://api.test/v1/x?status=A';",
+    "// msg.url = 'https://api.test/v1/x?status=B';",
+    "// msg.url = 'https://api.test/v1/x?status=C';"
+  ]);
+  assert.strictEqual(run(flowgen.generate(doc, 'get', '/x')).url, 'https://api.test/v1/x?status=A');
+});
+
+test('example and default are used when there is no enum', () => {
+  const doc = v3({
+    '/a': { get: { parameters: [{ name: 'q', in: 'query', schema: { example: 'hello' } }] } },
+    '/b': { get: { parameters: [{ name: 'q', in: 'query', schema: { default: 7 } }] } },
+    '/c': { get: { parameters: [{ name: 'q', in: 'query', example: 'onparam' }] } }
+  });
+  assert.strictEqual(run(flowgen.generate(doc, 'get', '/a')).url, 'https://api.test/v1/a?q=hello');
+  assert.strictEqual(run(flowgen.generate(doc, 'get', '/b')).url, 'https://api.test/v1/b?q=7');
+  assert.strictEqual(run(flowgen.generate(doc, 'get', '/c')).url, 'https://api.test/v1/c?q=onparam');
+});
+
+test('path parameters are filled from the spec and otherwise left as placeholders', () => {
+  const doc = v3({
+    '/p/{id}': { get: { parameters: [
+      { name: 'id', in: 'path', schema: { example: 42 } }] } },
+    '/q/{id}': { get: { parameters: [{ name: 'id', in: 'path' }] } }
+  });
+  assert.strictEqual(run(flowgen.generate(doc, 'get', '/p/{id}')).url, 'https://api.test/v1/p/42');
+  assert.strictEqual(run(flowgen.generate(doc, 'get', '/q/{id}')).url, 'https://api.test/v1/q/{id}');
+});
+
+test('values are url encoded', () => {
+  const doc = v3({ '/x/{id}': { get: { parameters: [
+    { name: 'id', in: 'path', schema: { example: 'a b' } },
+    { name: 'q', in: 'query', schema: { example: 'x&y' } }
+  ] } } });
+  assert.strictEqual(run(flowgen.generate(doc, 'get', '/x/{id}')).url,
+    'https://api.test/v1/x/a%20b?q=x%26y');
+});
+
+test('alternates vary one parameter at a time', () => {
+  const doc = v3({ '/x': { get: { parameters: [
+    { name: 'a', in: 'query', schema: { enum: ['1', '2'] } },
+    { name: 'b', in: 'query', schema: { enum: ['x', 'y'] } }
+  ] } } });
+  assert.deepStrictEqual(urlLinesOf(flowgen.generate(doc, 'get', '/x')), [
+    "msg.url = 'https://api.test/v1/x?a=1&b=x';",
+    "// msg.url = 'https://api.test/v1/x?a=2&b=x';",
+    "// msg.url = 'https://api.test/v1/x?a=1&b=y';"
+  ]);
+});
+
+test('a single value produces exactly one url line', () => {
+  const doc = v3({ '/x': { get: { parameters: [
+    { name: 'q', in: 'query', schema: { enum: ['only'] } }] } } });
+  assert.strictEqual(urlLinesOf(flowgen.generate(doc, 'get', '/x')).length, 1);
+});
+
+test('swagger 2 reads enum and default from the parameter itself', () => {
+  const doc = v2({ '/x': { get: { parameters: [
+    { name: 'status', in: 'query', type: 'string', enum: ['available', 'sold'] },
+    { name: 'limit', in: 'query', type: 'integer', default: 10 }
+  ] } } });
+  assert.deepStrictEqual(urlLinesOf(flowgen.generate(doc, 'get', '/x')), [
+    "msg.url = 'https://api.test/v1/x?status=available&limit=10';",
+    "// msg.url = 'https://api.test/v1/x?status=sold&limit=10';"
+  ]);
+});
+
+test('an array parameter uses the item enum', () => {
+  const doc = v3({ '/x': { get: { parameters: [
+    { name: 'tags', in: 'query', schema: { type: 'array', items: { enum: ['a', 'b'] } } }
+  ] } } });
+  assert.strictEqual(run(flowgen.generate(doc, 'get', '/x')).url, 'https://api.test/v1/x?tags=a');
+});
+
+test('an api key in the query stays empty', () => {
+  const doc = v3({ '/x': { get: { security: [{ k: [] }] } } }, {
+    components: { securitySchemes: { k: { type: 'apiKey', in: 'query', name: 'key' } } }
+  });
+  assert.strictEqual(run(flowgen.generate(doc, 'get', '/x')).url, 'https://api.test/v1/x?key=');
 });

@@ -62,10 +62,21 @@ Paths containing `{...}` need quoting in the shell.
 
 ## Output
 
-Placeholders are left empty on purpose — fill in the values before running the flow:
+Parameter values come from the spec where it offers them — an `enum`, an `example` or a `default`.
+The first candidate is used in `msg.url`; any further candidates follow as commented-out
+assignments, so `Ctrl + /` switches between them:
 
-- **Path parameters** stay in their `{name}` form inside the URL.
-- **Query parameters** are appended as `?a=&b=` in the order declared.
+```js
+msg.method = 'GET';
+msg.url = 'https://petstore3.swagger.io/api/v3/pet/findByStatus?status=available';
+// msg.url = 'https://petstore3.swagger.io/api/v3/pet/findByStatus?status=pending';
+// msg.url = 'https://petstore3.swagger.io/api/v3/pet/findByStatus?status=sold';
+```
+
+Everything the spec does not pin down is left blank for you to fill in:
+
+- **Path parameters** keep their `{name}` form when the spec suggests no value.
+- **Query parameters** are appended in the order declared, empty when there is no candidate.
 - **Header and cookie parameters** become keys with empty values.
 - **Authentication** is derived from `security`: API keys land in the header, query or cookie
   according to their definition; HTTP basic, bearer, OAuth2 and OpenID Connect produce an
