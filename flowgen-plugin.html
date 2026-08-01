@@ -195,6 +195,10 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         .on('click', function () {
           choose($(this), op);
         })
+        .on('dblclick', function () {
+          choose($(this), op);
+          importSelected();
+        })
         .data('flowgen-op', op)
         .appendTo(list);
     });
