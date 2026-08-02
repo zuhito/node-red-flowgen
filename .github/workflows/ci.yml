@@ -23,13 +23,45 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - run: npm install
       - name: Generation, CLI and Bruno tests
-        run: npm test
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee out.txt || {
+            grep -E "^not ok|error:|Error:" out.txt | head -20 | while read -r line; do
+              echo "::error::Generation, CLI and Bruno tests: $line"
+            done
+            exit 1
+          }
       - name: Editor UI tests
-        run: npm run test:ui
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:ui 2>&1 | tee out.txt || {
+            grep -E "^not ok|error:|Error:" out.txt | head -20 | while read -r line; do
+              echo "::error::Editor UI tests: $line"
+            done
+            exit 1
+          }
       - name: Node-RED integration tests
-        run: npm run test:nodered
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:nodered 2>&1 | tee out.txt || {
+            grep -E "^not ok|error:|Error:" out.txt | head -20 | while read -r line; do
+              echo "::error::Node-RED integration tests: $line"
+            done
+            exit 1
+          }
       - name: Plugin package tests
-        run: npm run test:plugin
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:plugin 2>&1 | tee out.txt || {
+            grep -E "^not ok|error:|Error:" out.txt | head -20 | while read -r line; do
+              echo "::error::Plugin package tests: $line"
+            done
+            exit 1
+          }
 
   release:
     runs-on: ubuntu-latest

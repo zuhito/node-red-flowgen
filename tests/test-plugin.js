@@ -7,6 +7,8 @@ const os = require('os');
 const path = require('path');
 const http = require('http');
 const { execFileSync } = require('child_process');
+
+const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const express = require('express');
 const RED = require('node-red');
 
@@ -27,14 +29,14 @@ function get(urlPath) {
 before(async () => {
   userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nr-plugin-'));
 
-  const packed = execFileSync('npm', ['pack', '--pack-destination', userDir], {
+  const packed = execFileSync(NPM, ['pack', '--pack-destination', userDir], {
     cwd: path.join(__dirname, '..'), encoding: 'utf8'
   }).trim().split('\n').pop();
   const tgz = path.join(userDir, packed);
   assert.ok(fs.existsSync(tgz), 'npm pack did not produce ' + tgz);
 
   fs.writeFileSync(path.join(userDir, 'package.json'), JSON.stringify({ name: 'nr-test' }));
-  execFileSync('npm', ['install', tgz, '--no-audit', '--no-fund'], { cwd: userDir, stdio: 'pipe' });
+  execFileSync(NPM, ['install', tgz, '--no-audit', '--no-fund'], { cwd: userDir, stdio: 'pipe' });
 
   const app = express();
   server = http.createServer(app);
@@ -143,6 +145,8 @@ test('the installed package resolves js-yaml from its own node_modules', () => {
 test('the collection endpoint clones a git url and returns its files', async () => {
   const os = require('os');
   const { execFileSync } = require('child_process');
+
+const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-ep-git-'));
   fs.writeFileSync(path.join(repo, 'get-user.yml'),
     'info:\n  name: Get user\nhttp:\n  method: GET\n  url: https://api.example.test/users/1\n');
