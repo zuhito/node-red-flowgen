@@ -8,7 +8,14 @@ const path = require('path');
 const http = require('http');
 const { execFileSync } = require('child_process');
 
-const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const WINDOWS = process.platform === 'win32';
+const NPM = WINDOWS ? 'npm.cmd' : 'npm';
+
+function npm(args, options) {
+  const safe = WINDOWS ? args.map(a => /[\s"]/.test(a) ? '"' + a + '"' : a) : args;
+  return execFileSync(NPM, safe,
+    Object.assign({ shell: WINDOWS, windowsHide: true }, options));
+}
 const express = require('express');
 const RED = require('node-red');
 
@@ -29,14 +36,15 @@ function get(urlPath) {
 before(async () => {
   userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nr-plugin-'));
 
-  const packed = execFileSync(NPM, ['pack', '--pack-destination', userDir], {
+  const packed = npm(['pack', '--pack-destination', userDir], {
     cwd: path.join(__dirname, '..'), encoding: 'utf8'
-  }).trim().split('\n').pop();
+  }).trim().split('\n').pop().trim();
   const tgz = path.join(userDir, packed);
   assert.ok(fs.existsSync(tgz), 'npm pack did not produce ' + tgz);
 
   fs.writeFileSync(path.join(userDir, 'package.json'), JSON.stringify({ name: 'nr-test' }));
-  execFileSync(NPM, ['install', tgz, '--no-audit', '--no-fund'], { cwd: userDir, stdio: 'pipe' });
+  npm(['install', tgz, '--no-audit', '--no-fund'],
+    { cwd: userDir, stdio: 'pipe' });
 
   const app = express();
   server = http.createServer(app);
@@ -146,7 +154,14 @@ test('the collection endpoint clones a git url and returns its files', async () 
   const os = require('os');
   const { execFileSync } = require('child_process');
 
-const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const WINDOWS = process.platform === 'win32';
+const NPM = WINDOWS ? 'npm.cmd' : 'npm';
+
+function npm(args, options) {
+  const safe = WINDOWS ? args.map(a => /[\s"]/.test(a) ? '"' + a + '"' : a) : args;
+  return execFileSync(NPM, safe,
+    Object.assign({ shell: WINDOWS, windowsHide: true }, options));
+}
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-ep-git-'));
   fs.writeFileSync(path.join(repo, 'get-user.yml'),
     'info:\n  name: Get user\nhttp:\n  method: GET\n  url: https://api.example.test/users/1\n');
