@@ -93,8 +93,10 @@ test('the shared flowgen.js is served to the browser', async () => {
   const res = await get('/flowgen/flowgen.js');
   assert.strictEqual(res.status, 200);
   assert.ok(res.body.replace(/^#![^\n]*\n/, '').startsWith('(function (root'), 'not the UMD build');
-  assert.strictEqual(res.body,
-    fs.readFileSync(path.join(__dirname, '..', 'flowgen.js'), 'utf8'));
+  const normalise = text => text.replace(/\r\n/g, '\n');
+  assert.strictEqual(normalise(res.body),
+    normalise(fs.readFileSync(path.join(__dirname, '..', 'flowgen.js'), 'utf8')),
+    'the served file must match the repository copy apart from line endings');
 });
 
 test('js-yaml is served for browser side parsing', async () => {
