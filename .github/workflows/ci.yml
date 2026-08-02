@@ -10,10 +10,11 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: ['22.x', '24.x']
     steps:
       - uses: actions/checkout@v7
@@ -62,6 +63,26 @@ jobs:
             echo "package.json is $PKG_VERSION but the tag is $TAG_VERSION" >&2
             exit 1
           fi
+
+      - name: Remove older releases and tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 200 \
+            --json tagName --jq '.[].tagName' > releases.txt || true
+          while read -r tag; do
+            [ -z "$tag" ] && continue
+            [ "$tag" = "$GITHUB_REF_NAME" ] && continue
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          done < releases.txt
+          git ls-remote --tags origin | awk '{print $2}' | sed 's|refs/tags/||' \
+            | grep -v '\^{}' | sort -u > tags.txt || true
+          while read -r tag; do
+            [ -z "$tag" ] && continue
+            [ "$tag" = "$GITHUB_REF_NAME" ] && continue
+            git push origin ":refs/tags/$tag" || true
+          done < tags.txt
 
       - name: Publish the release with the tarball
         env:

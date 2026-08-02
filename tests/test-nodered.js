@@ -20,14 +20,14 @@ let redServer;
 const received = [];
 
 function fill(code, base, values) {
-  let out = code.replace(/'https?:\/\/[^']*?(\/[^']*)?'/, match => {
+  let out = code.replace(/`https?:\/\/[^`]*`/, match => {
     const url = match.slice(1, -1);
     const rest = url.replace(/^https?:\/\/[^/]+/, '');
-    return "'" + base + rest + "'";
+    return '`' + base + rest + '`';
   });
   for (const [key, value] of Object.entries(values)) {
     out = out.split('{' + key + '}').join(value);
-    out = out.split("'" + key + "': ''").join("'" + key + "': " + JSON.stringify(value));
+    out = out.split("'" + key + "': ``").join("'" + key + "': " + JSON.stringify(value));
     out = out.split(key + '=').join(key + '=' + value);
   }
   return out;

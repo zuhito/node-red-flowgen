@@ -27,6 +27,36 @@ module.exports = function (RED) {
     }
   });
 
+  function unzip(buffer, done) {
+    const yauzl = require('yauzl');
+    yauzl.fromBuffer(buffer, { lazyEntries: true }, function (err, zip) {
+      if (err) { return done(err); }
+      const files = [];
+      let failed = false;
+      const fail = function (e) { if (!failed) { failed = true; done(e); } };
+      zip.on('error', fail);
+      zip.on('end', function () { if (!failed) { done(null, files); } });
+      zip.on('entry', function (entry) {
+        const name = String(entry.fileName).replace(/\\/g, '/');
+        if (/\/$/.test(name) || !/\.(bru|ya?ml|json)$/.test(name) ||
+            /(^|\/)(\.git|node_modules)\//.test(name)) {
+          return zip.readEntry();
+        }
+        zip.openReadStream(entry, function (streamErr, stream) {
+          if (streamErr) { return fail(streamErr); }
+          const chunks = [];
+          stream.on('data', function (c) { chunks.push(c); });
+          stream.on('error', fail);
+          stream.on('end', function () {
+            files.push({ path: name, text: Buffer.concat(chunks).toString('utf8') });
+            zip.readEntry();
+          });
+        });
+      });
+      zip.readEntry();
+    });
+  }
+
   function gather(root) {
     const files = [];
     const walk = dir => {
@@ -65,7 +95,7 @@ module.exports = function (RED) {
     request.on('error', done);
   }
 
-  RED.httpAdmin.get('/flowgen/collection', function (req, res) {
+  RED.httpAdmin.get('/flowgen/source', function (req, res) {
     const url = String(req.query.url || '').trim();
     if (!/^https?:\/\/\S+$/i.test(url)) {
       return res.status(400).json({ error: 'only http(s) URLs are accepted' });
@@ -103,7 +133,7 @@ module.exports = function (RED) {
     });
   });
 
-  RED.httpAdmin.post('/flowgen/collection', function (req, res) {
+  RED.httpAdmin.post('/flowgen/source', function (req, res) {
     const chunks = [];
     let size = 0;
     req.on('data', function (chunk) {
@@ -112,19 +142,12 @@ module.exports = function (RED) {
       chunks.push(chunk);
     });
     req.on('end', function () {
-      try {
-        const AdmZip = require('adm-zip');
-        const files = [];
-        for (const entry of new AdmZip(Buffer.concat(chunks)).getEntries()) {
-          if (entry.isDirectory) { continue; }
-          if (!/\.(bru|ya?ml|json)$/.test(entry.entryName)) { continue; }
-          if (/(^|\/)(\.git|node_modules)\//.test(entry.entryName)) { continue; }
-          files.push({ path: entry.entryName, text: entry.getData().toString('utf8') });
+      unzip(Buffer.concat(chunks), function (err, files) {
+        if (err) {
+          return res.status(400).json({ error: 'could not read the zip file: ' + err.message });
         }
         res.json({ files: files });
-      } catch (err) {
-        res.status(400).json({ error: 'could not read the zip file: ' + err.message });
-      }
+      });
     });
   });
 

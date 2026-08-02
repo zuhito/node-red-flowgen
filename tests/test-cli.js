@@ -40,7 +40,7 @@ test('a url can be given instead of a file', async () => {
 
   const code = await run([base + '/swagger.json', 'get', '/pet/findByStatus']);
   assert.strictEqual(code.code, 0, code.stderr);
-  assert.match(code.stdout, /msg\.url = 'http:\/\/petstore\.swagger\.io\/v2\/pet\/findByStatus\?status=available';/);
+  assert.match(code.stdout, /msg\.url = `http:\/\/petstore\.swagger\.io\/v2\/pet\/findByStatus\?status=available`;/);
 });
 
 test('redirects are followed', async () => {

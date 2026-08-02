@@ -134,7 +134,7 @@ test('everything the browser loads is served by the local admin server', async (
 test('the installed package resolves js-yaml from its own node_modules', () => {
   const installed = path.join(userDir, 'node_modules', 'node-red-flowgen');
   const pkg = JSON.parse(fs.readFileSync(path.join(installed, 'package.json'), 'utf8'));
-  assert.deepStrictEqual(Object.keys(pkg.dependencies).sort(), ['adm-zip', 'js-yaml'],
+  assert.deepStrictEqual(Object.keys(pkg.dependencies).sort(), ['js-yaml', 'yauzl'],
     'runtime dependencies ship at install time');
   const plugin = fs.readFileSync(path.join(installed, 'flowgen-plugin.js'), 'utf8');
   assert.ok(!/https?:\/\//.test(plugin), 'the runtime never references a remote URL');
@@ -157,7 +157,7 @@ test('the collection endpoint clones a git url and returns its files', async () 
   await new Promise(resolve => gitServer.listen(0, '127.0.0.1', resolve));
   const gitUrl = 'http://127.0.0.1:' + gitServer.address().port + '/.git';
 
-  const res = await get('/flowgen/collection?url=' + encodeURIComponent(gitUrl));
+  const res = await get('/flowgen/source?url=' + encodeURIComponent(gitUrl));
   await new Promise(resolve => gitServer.close(resolve));
   fs.rmSync(repo, { recursive: true, force: true });
   assert.strictEqual(res.status, 200, res.body);
@@ -167,7 +167,7 @@ test('the collection endpoint clones a git url and returns its files', async () 
 
 test('the collection endpoint rejects non http sources', async () => {
   for (const bad of ['file:///etc/passwd', 'notaurl', '']) {
-    const res = await get('/flowgen/collection?url=' + encodeURIComponent(bad));
+    const res = await get('/flowgen/source?url=' + encodeURIComponent(bad));
     assert.strictEqual(res.status, 400, bad);
     assert.match(JSON.parse(res.body).error, /http/);
   }
@@ -189,15 +189,15 @@ test('the collection endpoint proxies plain spec urls, following redirects', asy
   await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve));
   const base = 'http://127.0.0.1:' + upstream.address().port;
 
-  const direct = await get('/flowgen/collection?url=' + encodeURIComponent(base + '/spec.yaml'));
+  const direct = await get('/flowgen/source?url=' + encodeURIComponent(base + '/spec.yaml'));
   assert.strictEqual(direct.status, 200, direct.body);
   assert.strictEqual(JSON.parse(direct.body).text, 'openapi: 3.0.0\n');
 
-  const redirected = await get('/flowgen/collection?url=' + encodeURIComponent(base + '/redirect'));
+  const redirected = await get('/flowgen/source?url=' + encodeURIComponent(base + '/redirect'));
   assert.strictEqual(redirected.status, 200, redirected.body);
   assert.strictEqual(JSON.parse(redirected.body).text, 'openapi: 3.0.0\n');
 
-  const missing = await get('/flowgen/collection?url=' + encodeURIComponent(base + '/nope'));
+  const missing = await get('/flowgen/source?url=' + encodeURIComponent(base + '/nope'));
   assert.strictEqual(missing.status, 502);
   assert.match(JSON.parse(missing.body).error, /HTTP 404/);
 
@@ -205,16 +205,17 @@ test('the collection endpoint proxies plain spec urls, following redirects', asy
 });
 
 test('the collection endpoint unpacks an uploaded zip', async () => {
-  const AdmZip = require('adm-zip');
-  const zip = new AdmZip();
-  zip.addFile('req.bru', Buffer.from(
-    'meta {\n  name: Ping\n}\n\nget {\n  url: https://api.example.test/ping\n}\n'));
-  zip.addFile('.git/config', Buffer.from('ignored'));
-  const body = zip.toBuffer();
+  const zipwriter = require('./zipwriter');
+  const body = zipwriter.build([
+    { path: 'req.bru',
+      text: 'meta {\n  name: Ping\n}\n\nget {\n  url: https://api.example.test/ping\n}\n' },
+    { path: '.git/config', text: 'ignored' },
+    { path: 'nested/dir/', text: '' }
+  ], { deflate: true });
 
   const res = await new Promise((resolve, reject) => {
     const req = http.request({
-      host: '127.0.0.1', port: port, path: '/flowgen/collection', method: 'POST',
+      host: '127.0.0.1', port: port, path: '/flowgen/source', method: 'POST',
       headers: { 'content-type': 'application/zip', 'content-length': body.length }
     }, r => {
       const chunks = [];

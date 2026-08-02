@@ -54,8 +54,8 @@ test('parseDocument accepts JSON and YAML', () => {
 test('minimal operation emits only method, url and return', () => {
   const code = flowgen.generate(v3({ '/x': { get: {} } }), 'get', '/x');
   assert.strictEqual(code, [
-    "msg.method = 'GET';",
-    "msg.url = 'https://api.test/v1/x';",
+    "msg.method = `GET`;",
+    "msg.url = `https://api.test/v1/x`;",
     'return msg;'
   ].join('\n'));
 });
@@ -70,7 +70,7 @@ test('no description or summary is emitted as a comment', () => {
   const code = flowgen.generate(doc, 'get', '/x');
   assert.deepStrictEqual(comments(code), []);
   assert.ok(!/line one|S/.test(code));
-  assert.ok(code.startsWith("msg.method = 'GET';"));
+  assert.ok(code.startsWith("msg.method = `GET`;"));
 });
 
 test('server variables resolve and trailing slash is trimmed', () => {
@@ -456,9 +456,9 @@ test('an enum fills the first value and comments out the rest', () => {
     { name: 'status', in: 'query', schema: { type: 'string', enum: ['A', 'B', 'C'] } }
   ] } } });
   assert.deepStrictEqual(urlLinesOf(flowgen.generate(doc, 'get', '/x')), [
-    "msg.url = 'https://api.test/v1/x?status=A';",
-    "// msg.url = 'https://api.test/v1/x?status=B';",
-    "// msg.url = 'https://api.test/v1/x?status=C';"
+    'msg.url = `https://api.test/v1/x?status=A`;',
+    '// msg.url = `https://api.test/v1/x?status=B`;',
+    '// msg.url = `https://api.test/v1/x?status=C`;'
   ]);
   assert.strictEqual(run(flowgen.generate(doc, 'get', '/x')).url, 'https://api.test/v1/x?status=A');
 });
@@ -499,9 +499,9 @@ test('alternates vary one parameter at a time', () => {
     { name: 'b', in: 'query', schema: { enum: ['x', 'y'] } }
   ] } } });
   assert.deepStrictEqual(urlLinesOf(flowgen.generate(doc, 'get', '/x')), [
-    "msg.url = 'https://api.test/v1/x?a=1&b=x';",
-    "// msg.url = 'https://api.test/v1/x?a=2&b=x';",
-    "// msg.url = 'https://api.test/v1/x?a=1&b=y';"
+    "msg.url = `https://api.test/v1/x?a=1&b=x`;",
+    "// msg.url = `https://api.test/v1/x?a=2&b=x`;",
+    "// msg.url = `https://api.test/v1/x?a=1&b=y`;"
   ]);
 });
 
@@ -517,8 +517,8 @@ test('swagger 2 reads enum and default from the parameter itself', () => {
     { name: 'limit', in: 'query', type: 'integer', default: 10 }
   ] } } });
   assert.deepStrictEqual(urlLinesOf(flowgen.generate(doc, 'get', '/x')), [
-    "msg.url = 'https://api.test/v1/x?status=available&limit=10';",
-    "// msg.url = 'https://api.test/v1/x?status=sold&limit=10';"
+    "msg.url = `https://api.test/v1/x?status=available&limit=10`;",
+    "// msg.url = `https://api.test/v1/x?status=sold&limit=10`;"
   ]);
 });
 
@@ -665,7 +665,7 @@ test('a blank line precedes each commented block but not the url alternates', ()
   } } }, { securityDefinitions: { oauth: { type: 'oauth2' } } });
   const code = flowgen.generate(doc, 'get', '/pet/findByStatus');
   const lines = code.split('\n');
-  assert.strictEqual(lines[0], "msg.method = 'GET';");
+  assert.strictEqual(lines[0], "msg.method = `GET`;");
   assert.match(lines[1], /^msg\.url = /);
   assert.match(lines[2], /^\/\/ msg\.url = /);
   assert.match(lines[3], /^\/\/ msg\.url = /);

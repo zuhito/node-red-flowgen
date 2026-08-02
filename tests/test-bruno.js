@@ -6,7 +6,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFile, execFileSync } = require('child_process');
-const AdmZip = require('adm-zip');
+const yazl = null;
+const zipwriter = require('./zipwriter');
 const flowgen = require('../flowgen');
 
 const BRU = `meta {
@@ -75,11 +76,11 @@ test('a bru file parses into a request with vars resolved from the environment',
   ]);
   assert.strictEqual(flowgen.detectFormat(doc), 'bruno');
   const code = flowgen.generate(doc, 'post', '/users');
-  assert.match(code, /msg\.url = 'https:\/\/api\.example\.test\/users\?verbose=true';/);
-  assert.match(code, /'X-Trace': 'abc'/);
+  assert.match(code, /msg\.url = `https:\/\/api\.example\.test\/users\?verbose=true`;/);
+  assert.match(code, /'X-Trace': `abc`/);
   assert.ok(!/X-Off/.test(code), 'disabled headers are skipped');
-  assert.match(code, /'authorization': 'Bearer \{token\}'/);
-  assert.match(code, /msg\.payload = \{\n  'name': 'rex'\n\};/);
+  assert.match(code, /'authorization': `Bearer \{token\}`/);
+  assert.match(code, /msg\.payload = \{\n  'name': `rex`\n\};/);
 });
 
 test('an unresolved variable becomes a placeholder with a comment', () => {
@@ -88,7 +89,7 @@ test('an unresolved variable becomes a placeholder with a comment', () => {
   assert.strictEqual(id, '{baseUrl}/users');
   const code = flowgen.generate(doc, 'post', id);
   assert.match(code, /\/\/ Replace \{baseUrl\} in the URL below with a real value\./);
-  assert.match(code, /msg\.url = '\{baseUrl\}\/users\?verbose=true';/);
+  assert.match(code, /msg\.url = `\{baseUrl\}\/users\?verbose=true`;/);
 });
 
 test('a bruno v2 yaml request file is understood', () => {
@@ -98,8 +99,8 @@ test('a bruno v2 yaml request file is understood', () => {
   assert.deepStrictEqual(list.operations,
     [{ method: 'get', path: '/users/1', summary: 'Get user' }]);
   const code = flowgen.generate(doc, 'get', '/users/1');
-  assert.match(code, /msg\.url = 'https:\/\/api\.example\.test\/users\/1';/);
-  assert.match(code, /'Accept': 'application\/json'/);
+  assert.match(code, /msg\.url = `https:\/\/api\.example\.test\/users\/1`;/);
+  assert.match(code, /'Accept': `application\/json`/);
 });
 
 test('duplicate method and path pairs get distinct identifiers', () => {
@@ -108,7 +109,7 @@ test('duplicate method and path pairs get distinct identifiers', () => {
     { path: 'a.yml', text: YML }, { path: 'b.yml', text: twice }]);
   const paths = flowgen.listOperations(doc).operations.map(o => o.path);
   assert.deepStrictEqual(paths, ['/users/1', '/users/1#2']);
-  assert.match(flowgen.generate(doc, 'get', '/users/1#2'), /msg\.method = 'GET';/);
+  assert.match(flowgen.generate(doc, 'get', '/users/1#2'), /msg\.method = `GET`;/);
 });
 
 test('a bruno collection folder works from the command line', async () => {
@@ -125,10 +126,13 @@ test('a bruno collection folder works from the command line', async () => {
 });
 
 test('a bruno export zip works from the command line', async () => {
-  const zip = new AdmZip();
-  zip.addLocalFolder(dir);
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+    .filter(e => e.isFile())
+    .map(e => ({ path: e.name, text: fs.readFileSync(path.join(dir, e.name)) }));
+  entries.push({ path: 'environments/local.bru',
+    text: fs.readFileSync(path.join(dir, 'environments', 'local.bru')) });
   const file = path.join(os.tmpdir(), 'bruno-test-' + process.pid + '.zip');
-  zip.writeZip(file);
+  fs.writeFileSync(file, zipwriter.build(entries, { deflate: true }));
 
   const listed = await run([file, '--list']);
   fs.unlinkSync(file);
@@ -169,7 +173,7 @@ test('a bruno json export is detected by parseDocument', () => {
   const doc = flowgen.parseDocument(exported);
   assert.strictEqual(flowgen.detectFormat(doc), 'bruno');
   const code = flowgen.generate(doc, 'get', '/ping');
-  assert.match(code, /msg\.url = 'https:\/\/api\.example\.test\/ping';/);
+  assert.match(code, /msg\.url = `https:\/\/api\.example\.test\/ping`;/);
 });
 
 test('a pasted bru file is accepted by parseDocument', () => {
@@ -194,8 +198,37 @@ body:multipart-form {
 `;
   const doc = flowgen.parseDocument(bru);
   const code = flowgen.generate(doc, 'post', '/upload');
-  assert.match(code, /'value': 'FILE_CONTENTS'/);
-  assert.match(code, /'filename': 'photo.png'/);
-  assert.match(code, /'note': 'hello'/);
+  assert.match(code, /'value': `FILE_CONTENTS`/);
+  assert.match(code, /'filename': `photo.png`/);
+  assert.match(code, /'note': `hello`/);
   assert.match(code, /\/\/ Set FILE_CONTENTS and the filename/);
+});
+
+test('zip entries with windows separators and nested folders are handled', async () => {
+  const file = path.join(os.tmpdir(), 'bruno-win-' + process.pid + '.zip');
+  fs.writeFileSync(file, zipwriter.build([
+    { path: 'collection\\requests\\ping.yml',
+      text: 'info:\n  name: Ping\nhttp:\n  method: GET\n  url: https://t.test/ping\n' },
+    { path: 'collection/environments/local.bru', text: 'vars {\n  host: t.test\n}\n' },
+    { path: 'collection/.git/config', text: 'ignored' },
+    { path: 'collection/readme.md', text: 'ignored' }
+  ], { deflate: true }));
+
+  const listed = await run([file, '--list']);
+  fs.unlinkSync(file);
+  assert.strictEqual(listed.code, 0, listed.stderr);
+  assert.match(listed.stdout, /get \/ping\s+# Ping/);
+});
+
+test('a stored (uncompressed) zip is read as well as a deflated one', async () => {
+  const entries = [{ path: 'ping.yml',
+    text: 'info:\n  name: Ping\nhttp:\n  method: GET\n  url: https://t.test/ping\n' }];
+  for (const deflate of [false, true]) {
+    const file = path.join(os.tmpdir(), 'bruno-mode-' + deflate + '-' + process.pid + '.zip');
+    fs.writeFileSync(file, zipwriter.build(entries, { deflate }));
+    const listed = await run([file, '--list']);
+    fs.unlinkSync(file);
+    assert.strictEqual(listed.code, 0, 'deflate=' + deflate + ': ' + listed.stderr);
+    assert.match(listed.stdout, /get \/ping/);
+  }
 });

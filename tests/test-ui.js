@@ -272,7 +272,7 @@ test('a pasted url is fetched and replaces the text area', async () => {
   $('#flowgen-spec-text').val('https://petstore.swagger.io/v2/swagger.json').trigger('keyup');
   await wait(400);
 
-  assert.match(requested, /flowgen\/collection\?url=/,
+  assert.match(requested, /flowgen\/source\?url=/,
     'the fetch goes through the runtime, avoiding CORS');
   assert.strictEqual(decodeURIComponent(requested.split('url=')[1]),
     'https://petstore.swagger.io/v2/swagger.json');
@@ -310,7 +310,7 @@ test('the Import button imports the selected endpoint as a flow', async () => {
     'inject,function,http request,debug', 'no tab node, so no new flow is created');
   assert.ok(!nodes.some(n => 'z' in n), 'nodes must not be pinned to a workspace');
   const fn = nodes.find(n => n.type === 'function');
-  assert.match(fn.func, /msg\.method = 'GET';/);
+  assert.match(fn.func, /msg\.method = `GET`;/);
   assert.match(fn.func, /pet\/\{petId\}/);
   assert.strictEqual(imported[0].opts.addFlow, false);
 });
@@ -748,7 +748,7 @@ test('a pasted git url is fetched via the runtime and the text area is untouched
   $('#flowgen-spec-text').val(gitUrl).trigger('keyup');
   await wait(400);
 
-  assert.match(requested, /flowgen\/collection\?url=/);
+  assert.match(requested, /flowgen\/source\?url=/);
   assert.match(decodeURIComponent(requested), /bruno-starter-guide\.git/);
   assert.strictEqual($('#flowgen-spec-text').val(), gitUrl,
     'the text area keeps the pasted url');
@@ -797,7 +797,7 @@ test('a zip upload goes to the runtime, clears the text area and lists endpoints
   $(input).trigger('change');
   await wait(100);
 
-  assert.match(posted.url, /flowgen\/collection$/);
+  assert.match(posted.url, /flowgen\/source$/);
   assert.strictEqual(posted.method, 'POST');
   assert.strictEqual($('#flowgen-spec-text').val(), '', 'the text area is cleared');
   assert.notStrictEqual($('#flowgen-select-btn').css('display'), 'none',
@@ -833,4 +833,60 @@ test('the collection survives the empty text area when revisiting the tab', asyn
   await wait(400);
   assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false,
     'the uploaded collection is still selectable');
+});
+
+test('closing the dialog clears the panel completely', async () => {
+  await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
+  $('#flowgen-op-list .flowgen-op').first().trigger('click');
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
+
+  $('#red-ui-clipboard-dialog').trigger('dialogclose');
+
+  assert.strictEqual($('#flowgen-spec-text').val(), '');
+  assert.strictEqual($('#flowgen-op-list .flowgen-op').length, 0);
+  assert.strictEqual($('#flowgen-select-btn').css('display'), 'none');
+  assert.strictEqual($('#flowgen-status').text(), '');
+  assert.strictEqual(shown(), 'paste');
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true);
+});
+
+test('reopening after a close cannot import the previous selection', async () => {
+  await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
+  $('#flowgen-op-list .flowgen-op').first().trigger('click');
+  $('#red-ui-clipboard-dialog').trigger('dialogclose');
+
+  $('#red-ui-clipboard-dialog').trigger('dialogopen');
+  await wait(30);
+  specTab().trigger('click');
+  await wait(30);
+
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true);
+  assert.strictEqual($('#flowgen-select-btn').css('display'), 'none');
+  clickOk();
+  assert.strictEqual(imported.length, 0, 'nothing can be imported after a reset');
+});
+
+test('an uploaded collection is dropped when the dialog closes', async () => {
+  specTab().trigger('click');
+  await wait(20);
+  win.fetch = () => Promise.resolve({ ok: true, status: 200,
+    json: () => Promise.resolve({ files: [{ path: 'a.yml',
+      text: 'info:\n  name: A\nhttp:\n  method: GET\n  url: https://t.test/a\n' }] }) });
+  class FakeReader {
+    readAsArrayBuffer() { setTimeout(() => this.onload({ target: { result: new win.ArrayBuffer(8) } }), 0); }
+  }
+  win.FileReader = FakeReader;
+  const input = win.document.getElementById('flowgen-file');
+  Object.defineProperty(input, 'files', { value: [{ name: 'c.zip' }], configurable: true });
+  $(input).trigger('change');
+  await wait(120);
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
+
+  $('#red-ui-clipboard-dialog').trigger('dialogclose');
+  specTab().trigger('click');
+  await wait(400);
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true,
+    'the uploaded collection must not survive a close');
 });

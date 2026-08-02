@@ -241,7 +241,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     if (fetching === url) { return; }
     fetching = url;
     status('cloning ' + url);
-    fetch(apiRoot() + 'flowgen/collection?url=' + encodeURIComponent(url))
+    fetch(apiRoot() + 'flowgen/source?url=' + encodeURIComponent(url))
       .then(function (res) { return res.json().then(function (data) { return { res: res, data: data }; }); })
       .then(function (got) {
         fetching = null;
@@ -282,7 +282,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     if (fetching === url) { return; }
     fetching = url;
     status('fetching ' + url);
-    fetch(apiRoot() + 'flowgen/collection?url=' + encodeURIComponent(url))
+    fetch(apiRoot() + 'flowgen/source?url=' + encodeURIComponent(url))
       .then(function (res) { return res.json().then(function (data) { return { res: res, data: data }; }); })
       .then(function (got) {
       fetching = null;
@@ -361,7 +361,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         var zipReader = new FileReader();
         zipReader.onload = function (ev) {
           status('reading ' + file.name);
-          fetch(apiRoot() + 'flowgen/collection', {
+          fetch(apiRoot() + 'flowgen/source', {
             method: 'POST', body: ev.target.result
           }).then(function (res) {
             return res.json().then(function (data) { return { res: res, data: data }; });
@@ -478,6 +478,20 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     }, true);
   }
 
+  function resetAll() {
+    isActive = false;
+    doc = null;
+    collectionDoc = null;
+    selected = null;
+    fetching = null;
+    $('#flowgen-spec-text').val('');
+    $('#flowgen-op-list').empty();
+    $('#flowgen-select-btn').hide();
+    $('#flowgen-status').text('').removeClass('flowgen-error');
+    view('paste');
+    okButton(false);
+  }
+
   function install() {
     var tabs = $('#red-ui-clipboard-dialog-import-tabs');
     if (!tabs.length || tabs.find('#flowgen-tab-link').length) { return; }
@@ -491,6 +505,8 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
 
     interceptOk();
     preventSubmit();
+    $('#red-ui-clipboard-dialog').off('dialogclose.flowgen')
+      .on('dialogclose.flowgen', function () { resetAll(); });
 
     li.on('click', function (ev) {
       ev.preventDefault();

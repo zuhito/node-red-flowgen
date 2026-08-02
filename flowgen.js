@@ -26,7 +26,6 @@ function isUrl(text) {
   return /^https?:\/\/\S+$/i.test(String(text || '').trim());
 }
 
-/* ---------- Bruno collections ---------- */
 
 function parseBru(text) {
   const blocks = {};
@@ -188,11 +187,14 @@ function parseCollection(files) {
 
 function brunoParts(doc, req) {
   const todo = [];
-  const url = String(req.url).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) => {
+  const url = colonToBrace(String(req.url).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) => {
     if (doc.vars[name] !== undefined && String(doc.vars[name]) !== '') return String(doc.vars[name]);
-    if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
     return '{' + name + '}';
-  });
+  }));
+  for (const token of url.match(/\{[^}]+\}/g) || []) {
+    const name = token.slice(1, -1);
+    if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
+  }
   const headers = req.headers.map(h => [h[0],
     String(h[1]).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
       doc.vars[name] !== undefined ? String(doc.vars[name]) : '{' + name + '}')]);
@@ -208,10 +210,14 @@ function brunoParts(doc, req) {
   };
 }
 
+function colonToBrace(text) {
+  return String(text).replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
+}
+
 function brunoPath(req, vars) {
-  const clean = String(req.url).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
+  const clean = colonToBrace(String(req.url).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
     vars && vars[name] !== undefined && String(vars[name]) !== ''
-      ? String(vars[name]) : '{' + name + '}');
+      ? String(vars[name]) : '{' + name + '}'));
   const noProto = clean.replace(/^https?:\/\/[^/]*/, '');
   const path = noProto.split('?')[0];
   return path || '/';
@@ -268,9 +274,13 @@ function generate(doc, method, target) {
 }
 
 function quote(value) {
-  return "'" + String(value)
-    .replace(/\\/g, '\\\\').replace(/'/g, "\\'")
-    .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + "'";
+  return '`' + String(value)
+    .replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
+    .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '`';
+}
+
+function keyQuote(value) {
+  return "'" + String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
 }
 
 function literal(value, indent) {
@@ -285,7 +295,7 @@ function literal(value, indent) {
   if (typeof value === 'object') {
     const keys = Object.keys(value);
     if (!keys.length) return '{}';
-    return '{\n' + keys.map(k => inner + quote(k) + ': ' + literal(value[k], indent + 1)).join(',\n') + '\n' + pad + '}';
+    return '{\n' + keys.map(k => inner + keyQuote(k) + ': ' + literal(value[k], indent + 1)).join(',\n') + '\n' + pad + '}';
   }
   if (typeof value === 'string') return quote(value);
   return String(value);
@@ -398,7 +408,7 @@ function assemble(parts) {
   const typed = (label, type) => type ? label + ' (' + type + ')' : label;
   const blank = pairs => pairs
     .filter(e => String(e[1]) === '' || /\s$/.test(String(e[1])))
-    .map(e => typed(quote(e[0]), e[2]));
+    .map(e => typed(keyQuote(e[0]), e[2]));
 
   const lines = ['msg.method = ' + quote(parts.method.toUpperCase()) + ';'];
   if (parts.todo.length) {
@@ -780,7 +790,13 @@ function buildFlow(doc, method, target, options) {
   const code = generate(doc, method, target);
   const withTab = !options || options.tab !== false;
   const tab = withTab ? 'flowgen-tab' : undefined;
-  const name = String(method).toUpperCase() + ' ' + target;
+  const urlMatch = code.match(/msg\.url = `([^`]*)`/);
+  let shown = String(target);
+  if (urlMatch) {
+    const withoutHost = urlMatch[1].replace(/^[a-z]+:\/\/[^/]*/i, '');
+    shown = (withoutHost.split('?')[0]) || String(target);
+  }
+  const name = String(method).toUpperCase() + ' ' + shown;
   const xs = layout([
     { label: 'timestamp', hasInput: false },
     { label: name, hasInput: true },
@@ -902,6 +918,34 @@ if (typeof module === 'object' && module.exports && require.main === module) {
     return files;
   };
 
+  const unzip = buffer => new Promise((resolve, reject) => {
+    const yauzl = require('yauzl');
+    yauzl.fromBuffer(buffer, { lazyEntries: true }, (err, zip) => {
+      if (err) return reject(err);
+      const files = [];
+      zip.on('error', reject);
+      zip.on('end', () => resolve(files));
+      zip.on('entry', entry => {
+        const name = String(entry.fileName).replace(/\\/g, '/');
+        if (/\/$/.test(name) || !/\.(bru|ya?ml|json)$/.test(name) ||
+            /(^|\/)(\.git|node_modules)\//.test(name)) {
+          return zip.readEntry();
+        }
+        zip.openReadStream(entry, (streamErr, stream) => {
+          if (streamErr) return reject(streamErr);
+          const chunks = [];
+          stream.on('data', c => chunks.push(c));
+          stream.on('error', reject);
+          stream.on('end', () => {
+            files.push({ path: name, text: Buffer.concat(chunks).toString('utf8') });
+            zip.readEntry();
+          });
+        });
+      });
+      zip.readEntry();
+    });
+  });
+
   const load = async source => {
     const { parseCollection } = module.exports;
     if (/\.git$/.test(String(source).trim())) {
@@ -914,15 +958,7 @@ if (typeof module === 'object' && module.exports && require.main === module) {
     const stat = fs.statSync(source);
     if (stat.isDirectory()) return parseCollection(gatherDir(source));
     if (/\.zip$/i.test(source)) {
-      const AdmZip = require('adm-zip');
-      const files = [];
-      for (const entry of new AdmZip(source).getEntries()) {
-        if (entry.isDirectory) continue;
-        if (!/\.(bru|ya?ml|json)$/.test(entry.entryName)) continue;
-        if (/(^|\/)(\.git|node_modules)\//.test(entry.entryName)) continue;
-        files.push({ path: entry.entryName, text: entry.getData().toString('utf8') });
-      }
-      return parseCollection(files);
+      return parseCollection(await unzip(fs.readFileSync(source)));
     }
     const text = fs.readFileSync(source, 'utf8');
     if (/\.bru$/.test(source)) {
