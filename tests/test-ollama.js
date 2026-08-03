@@ -67,10 +67,14 @@ const VARIATIONS = {
   '/api/version': [{}],
   '/v1/models': [{}],
   '/v1/chat/completions': [
+    { stream: false },
     { stream: false, max_tokens: 4, temperature: 0 },
     { stream: false, max_tokens: 8, seed: 1 }
   ],
-  '/v1/completions': [{ stream: false, max_tokens: 4 }],
+  '/v1/completions': [
+    { stream: false },
+    { stream: false, max_tokens: 4 }
+  ],
   '/v1/embeddings': [{}]
 };
 
@@ -258,5 +262,17 @@ for (const [format, load] of Object.entries(DOCS)) {
       assert.ok(result.payload.message, 'no message in ' + JSON.stringify(result.payload));
       assert.strictEqual(typeof result.payload.message.content, 'string');
     });
+  });
+}
+
+for (const [format, load] of Object.entries(DOCS)) {
+  test(format + ' defaults max_tokens to 1000', () => {
+    const doc = load();
+    for (const target of ['/v1/chat/completions', '/v1/completions']) {
+      const code = flowgen.generate(doc, 'post', target);
+      const built = new Function('msg', code).call(null, {}) || {};
+      assert.strictEqual(built.payload.max_tokens, 1000,
+        format + ' ' + target + ' should default max_tokens to 1000');
+    }
   });
 }
