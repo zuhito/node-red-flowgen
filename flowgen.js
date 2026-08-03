@@ -301,19 +301,41 @@ function keyQuote(value) {
   return "'" + String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
 }
 
-function literal(value, indent) {
+function literal(value, indent, schema, resolve) {
   indent = indent || 0;
   const pad = '  '.repeat(indent);
   const inner = '  '.repeat(indent + 1);
   if (value === null || value === undefined) return 'null';
   if (Array.isArray(value)) {
     if (!value.length) return '[]';
-    return '[\n' + value.map(v => inner + literal(v, indent + 1)).join(',\n') + '\n' + pad + ']';
+    const items = schema && resolve ? resolve(schema.items || {}) : null;
+    return '[\n' + value.map(v => inner + literal(v, indent + 1, items, resolve))
+      .join(',\n') + '\n' + pad + ']';
   }
   if (typeof value === 'object') {
     const keys = Object.keys(value);
     if (!keys.length) return '{}';
-    return '{\n' + keys.map(k => inner + keyQuote(k) + ': ' + literal(value[k], indent + 1)).join(',\n') + '\n' + pad + '}';
+    const required = schema && Array.isArray(schema.required) && schema.required.length
+      ? schema.required : null;
+    const properties = (schema && schema.properties) || {};
+    const useRequired = required && keys.some(key => required.indexOf(key) !== -1);
+    const entries = keys.map(key => {
+      const optional = useRequired ? required.indexOf(key) === -1 : false;
+      const child = !optional && resolve && properties[key] ? resolve(properties[key]) : null;
+      return {
+        optional: optional,
+        body: inner + keyQuote(key) + ': ' + literal(value[key], indent + 1, child, resolve)
+      };
+    });
+    let lastActive = -1;
+    entries.forEach((entry, i) => { if (!entry.optional) lastActive = i; });
+    const lines = entries.map((entry, i) => {
+      const body = entry.body + (i === lastActive ? '' : ',');
+      return entry.optional
+        ? body.split('\n').map(line => inner + '// ' + line.slice(inner.length)).join('\n')
+        : body;
+    });
+    return '{\n' + lines.join('\n') + '\n' + pad + '}';
   }
   if (typeof value === 'string') return quote(value);
   return String(value);
@@ -445,7 +467,8 @@ function assemble(parts) {
     lines.push('', parts.multipart
       ? '// Set FILE_CONTENTS and the filename for each file field, and adjust the other values.'
       : '// Adjust the request body below to suit the call.');
-    lines.push('msg.payload = ' + literal(parts.payload, 0) + ';');
+    lines.push('msg.payload = ' +
+      literal(parts.payload, 0, parts.payloadSchema, parts.resolve) + ';');
   }
   lines.push('return msg;');
   return lines.join('\n');
@@ -580,9 +603,11 @@ function generateOpenApi3(doc, rawMethod, target) {
     ? (types.find(t => /^application\/(\w+\+)?json$/.test(t)) || types[0]) : null;
   const multipart = /^multipart\//.test(contentType || '');
   let payload = {};
+  let payloadSchema = null;
   if (hasBody) {
     if (contentType) headers.push(['content-type', contentType]);
     const media = resolve(content[contentType] || {});
+    payloadSchema = media.schema ? resolve(media.schema) : null;
     const exampleKeys = media.examples ? Object.keys(media.examples) : [];
     if (multipart) {
       payload = multipartPayload(resolve(media.schema || {}), resolve, sample);
@@ -612,7 +637,9 @@ function generateOpenApi3(doc, rawMethod, target) {
     headers: dedupeHeaders(headers),
     cookies: cookies,
     hasBody: hasBody,
-    payload: payload
+    payload: payload,
+    payloadSchema: payloadSchema,
+    resolve: resolve
   });
 }
 
@@ -726,12 +753,14 @@ function generateSwagger2(doc, rawMethod, target) {
 
   let payload = {};
   let multipart = false;
+  let payloadSchema = null;
   if (hasBody) {
     const contentType = consumes.find(t => /^application\/(\w+\+)?json$/.test(t)) || consumes[0] ||
       (formParams.length ? 'application/x-www-form-urlencoded' : 'application/json');
     multipart = /^multipart\//.test(contentType);
     headers.push(['content-type', contentType]);
     if (bodyParam) {
+      payloadSchema = bodyParam.schema ? resolve(bodyParam.schema) : null;
       if (/^text\//.test(contentType) || /octet-stream/.test(contentType)) payload = '';
       else {
         const value = sample(bodyParam.schema || {});
@@ -744,8 +773,16 @@ function generateSwagger2(doc, rawMethod, target) {
           : sample(p);
         return acc;
       }, {});
+      payloadSchema = {
+        properties: formParams.reduce((acc, p) => (acc[p.name] = p, acc), {}),
+        required: formParams.filter(p => p.required).map(p => p.name)
+      };
     } else {
       payload = formParams.reduce((acc, p) => (acc[p.name] = sample(p), acc), {});
+      payloadSchema = {
+        properties: formParams.reduce((acc, p) => (acc[p.name] = p, acc), {}),
+        required: formParams.filter(p => p.required).map(p => p.name)
+      };
     }
   }
 
@@ -760,7 +797,9 @@ function generateSwagger2(doc, rawMethod, target) {
     cookies: [],
     hasBody: hasBody,
     multipart: multipart,
-    payload: payload
+    payload: payload,
+    payloadSchema: payloadSchema,
+    resolve: resolve
   });
 }
 

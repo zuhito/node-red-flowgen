@@ -86,6 +86,9 @@ paths:
                     type: array
                     items:
                       type: string
+            required:
+              - model
+              - prompt
   /api/chat:
     post:
       summary: Generate a chat completion
@@ -150,6 +153,9 @@ paths:
                   seed:
                     type: integer
                     default: 0
+            required:
+              - model
+              - messages
   /api/embed:
     post:
       summary: Generate embeddings
@@ -177,6 +183,9 @@ paths:
                 example: 5m
               options:
                 type: object
+            required:
+              - model
+              - input
   /api/embeddings:
     post:
       summary: Generate embeddings, older form
@@ -199,6 +208,9 @@ paths:
               keep_alive:
                 type: string
                 example: 5m
+            required:
+              - model
+              - prompt
   /api/tags:
     get:
       summary: List local models
@@ -236,6 +248,8 @@ paths:
               verbose:
                 type: boolean
                 default: false
+            required:
+              - model
   /api/copy:
     post:
       summary: Copy a model
@@ -255,6 +269,9 @@ paths:
               destination:
                 type: string
                 example: gemma3:270m-copy
+            required:
+              - source
+              - destination
   /api/delete:
     delete:
       summary: Delete a model
@@ -271,6 +288,8 @@ paths:
               model:
                 type: string
                 example: gemma3:270m-copy
+            required:
+              - model
   /api/pull:
     post:
       summary: Pull a model
@@ -293,6 +312,8 @@ paths:
               stream:
                 type: boolean
                 default: false
+            required:
+              - model
   /api/push:
     post:
       summary: Push a model
@@ -315,6 +336,8 @@ paths:
               stream:
                 type: boolean
                 default: false
+            required:
+              - model
   /api/create:
     post:
       summary: Create a model
@@ -340,6 +363,9 @@ paths:
               stream:
                 type: boolean
                 default: false
+            required:
+              - model
+              - from
   /v1/models:
     get:
       summary: List models, OpenAI compatible
@@ -388,6 +414,9 @@ paths:
               seed:
                 type: integer
                 default: 0
+            required:
+              - model
+              - messages
   /v1/completions:
     post:
       summary: Completions, OpenAI compatible
@@ -413,6 +442,9 @@ paths:
               max_tokens:
                 type: integer
                 default: 1000
+            required:
+              - model
+              - prompt
   /v1/embeddings:
     post:
       summary: Embeddings, OpenAI compatible
@@ -432,3 +464,6 @@ paths:
               input:
                 type: string
                 example: Why is the sky blue?
+            required:
+              - model
+              - input

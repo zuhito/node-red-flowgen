@@ -15,6 +15,9 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
+                - prompt
               properties:
                 model:
                   type: string
@@ -92,6 +95,9 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
+                - messages
               properties:
                 model:
                   type: string
@@ -155,6 +161,9 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
+                - input
               properties:
                 model:
                   type: string
@@ -186,6 +195,9 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
+                - prompt
               properties:
                 model:
                   type: string
@@ -242,6 +254,8 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
               properties:
                 model:
                   type: string
@@ -265,6 +279,9 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - source
+                - destination
               properties:
                 source:
                   type: string
@@ -284,6 +301,8 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
               properties:
                 model:
                   type: string
@@ -300,6 +319,8 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
               properties:
                 model:
                   type: string
@@ -322,6 +343,8 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
               properties:
                 model:
                   type: string
@@ -344,6 +367,9 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
+                - from
               properties:
                 model:
                   type: string
@@ -379,6 +405,9 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
+                - messages
               properties:
                 model:
                   type: string
@@ -422,6 +451,9 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
+                - prompt
               properties:
                 model:
                   type: string
@@ -451,6 +483,9 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - model
+                - input
               properties:
                 model:
                   type: string

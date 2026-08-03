@@ -1020,3 +1020,91 @@ test('template literal syntax in an openapi server is escaped safely', () => {
   assert.strictEqual(run(code).url, 'https://t.test/${x}/a`b');
   assert.ok(!/Replace \{x\}/.test(code));
 });
+
+test('optional body properties are commented out and required ones stay active', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { type: 'object', required: ['model', 'prompt'], properties: {
+      model: { type: 'string', example: 'm' },
+      prompt: { type: 'string', example: 'p' },
+      suffix: { type: 'string' }
+    } } } } } } } });
+  const code = flowgen.generate(doc, 'post', '/x');
+
+  assert.match(code, /^\s+'model': `m`,$/m);
+  assert.match(code, /^\s+'prompt': `p`$/m);
+  assert.match(code, /^\s+\/\/ 'suffix': ``,$/m);
+  assert.deepStrictEqual(run(code).payload, { model: 'm', prompt: 'p' });
+});
+
+test('nested optional objects are commented as a whole block', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { type: 'object', required: ['keep'], properties: {
+      keep: { type: 'string' },
+      opts: { type: 'object', properties: {
+        a: { type: 'integer' }, b: { type: 'boolean' } } },
+      list: { type: 'array', items: { type: 'string' } }
+    } } } } } } } });
+  const code = flowgen.generate(doc, 'post', '/x');
+
+  for (const line of code.split('\n').filter(l => /'a'|'b'|'opts'|'list'/.test(l))) {
+    assert.match(line, /^\s*\/\/ /, 'every optional line is commented: ' + line);
+  }
+  assert.doesNotThrow(() => new Function(code));
+  assert.deepStrictEqual(run(code).payload, { keep: '' });
+});
+
+test('nested required properties stay active inside a required object', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { type: 'object', required: ['opts'], properties: {
+      opts: { type: 'object', required: ['a'], properties: {
+        a: { type: 'integer' }, b: { type: 'boolean' } } }
+    } } } } } } } });
+  assert.deepStrictEqual(run(flowgen.generate(doc, 'post', '/x')).payload, { opts: { a: 0 } });
+});
+
+test('a schema with no required list keeps every property active', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { type: 'object', properties: {
+      a: { type: 'string' }, b: { type: 'integer' } } } } } } } } });
+  const code = flowgen.generate(doc, 'post', '/x');
+  assert.ok(!/\/\/ '/.test(code), 'nothing is commented when the spec says nothing');
+  assert.deepStrictEqual(run(code).payload, { a: '', b: 0 });
+});
+
+test('an empty required list is treated as no information', () => {
+  const doc = v2({ '/x': { post: {
+    consumes: ['multipart/form-data'],
+    parameters: [{ name: 'file', in: 'formData', type: 'file' },
+                 { name: 'note', in: 'formData', type: 'string' }]
+  } } });
+  const msg = run(flowgen.generate(doc, 'post', '/x'));
+  assert.deepStrictEqual(Object.keys(msg.payload).sort(), ['file', 'note']);
+});
+
+test('swagger 2.0 honours required on a body schema', () => {
+  const doc = v2({ '/x': { post: {
+    consumes: ['application/json'],
+    parameters: [{ name: 'body', in: 'body', schema: { type: 'object',
+      required: ['id'], properties: {
+        id: { type: 'integer' }, note: { type: 'string' } } } }]
+  } } });
+  assert.deepStrictEqual(run(flowgen.generate(doc, 'post', '/x')).payload, { id: 0 });
+});
+
+test('swagger 2.0 honours required form parameters', () => {
+  const doc = v2({ '/x': { post: {
+    consumes: ['application/x-www-form-urlencoded'],
+    parameters: [{ name: 'user', in: 'formData', type: 'string', required: true },
+                 { name: 'nickname', in: 'formData', type: 'string' }]
+  } } });
+  assert.deepStrictEqual(run(flowgen.generate(doc, 'post', '/x')).payload, { user: '' });
+});
+
+test('a required list that matches nothing leaves every property active', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { type: 'object', required: ['absent'], properties: {
+      a: { type: 'string' }, b: { type: 'integer' } } } } } } } } });
+  const code = flowgen.generate(doc, 'post', '/x');
+  assert.ok(!/\/\/ '/.test(code), 'the body must never be entirely commented out');
+  assert.deepStrictEqual(run(code).payload, { a: '', b: 0 });
+});
