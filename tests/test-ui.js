@@ -890,3 +890,119 @@ test('an uploaded collection is dropped when the dialog closes', async () => {
   assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true,
     'the uploaded collection must not survive a close');
 });
+
+const rowsShown = () => $('#flowgen-op-list .flowgen-op')
+  .filter((i, el) => !$(el).hasClass('flowgen-hidden')).length;
+
+async function openList() {
+  await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
+  await wait(50);
+}
+
+test('the select view offers a search box that filters the list', async () => {
+  await openList();
+  const total = $('#flowgen-op-list .flowgen-op').length;
+  assert.ok(total > 3);
+  assert.strictEqual($('#flowgen-search').length, 1);
+  assert.strictEqual(rowsShown(), total, 'everything is shown before typing');
+
+  $('#flowgen-search').val('inventory').trigger('input');
+  assert.ok(rowsShown() < total);
+  assert.strictEqual($('#flowgen-op-list .flowgen-op').filter((i, el) =>
+    !$(el).hasClass('flowgen-hidden') && $(el).text().indexOf('/store/inventory') !== -1).length, 1);
+});
+
+test('the search matches the method, the path and the summary', async () => {
+  await openList();
+  for (const term of ['delete', '/store/order', 'Find pet by ID']) {
+    $('#flowgen-search').val(term).trigger('input');
+    assert.ok(rowsShown() > 0, 'no match for ' + term);
+  }
+  $('#flowgen-search').val('definitely-not-there').trigger('input');
+  assert.strictEqual(rowsShown(), 0);
+});
+
+test('several search words all have to match', async () => {
+  await openList();
+  $('#flowgen-search').val('get pet').trigger('input');
+  const shown = $('#flowgen-op-list .flowgen-op').filter((i, el) => !$(el).hasClass('flowgen-hidden'));
+  assert.ok(shown.length > 0);
+  shown.each((i, el) => {
+    const text = $(el).text().toLowerCase();
+    assert.ok(text.indexOf('get') !== -1 && text.indexOf('pet') !== -1, $(el).text());
+  });
+});
+
+test('a search narrowing to one endpoint selects it automatically', async () => {
+  await openList();
+  $('#flowgen-search').val('/store/inventory').trigger('input');
+  assert.strictEqual(rowsShown(), 1);
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
+
+  clickOk();
+  assert.strictEqual(imported.length, 1);
+  assert.match(imported[0].nodes.find(n => n.type === 'function').func, /store\/inventory/);
+});
+
+test('a selection hidden by a later search is dropped', async () => {
+  await openList();
+  $('#flowgen-op-list .flowgen-op').first().trigger('click');
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
+
+  $('#flowgen-search').val('definitely-not-there').trigger('input');
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true,
+    'Import must not stay enabled for an invisible row');
+  assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 0);
+});
+
+test('the count is shown only while searching', async () => {
+  await openList();
+  assert.strictEqual($('#flowgen-count').text(), '');
+  $('#flowgen-search').val('pet').trigger('input');
+  assert.match($('#flowgen-count').text(), /^\d+ of \d+$/);
+  $('#flowgen-search').val('').trigger('input');
+  assert.strictEqual($('#flowgen-count').text(), '');
+});
+
+test('arrow keys in the search box move through the visible rows only', async () => {
+  await openList();
+  $('#flowgen-search').val('pet').trigger('input');
+  const visible = $('#flowgen-op-list .flowgen-op').filter((i, el) => !$(el).hasClass('flowgen-hidden'));
+
+  $('#flowgen-search').trigger($.Event('keydown', { keyCode: 40 }));
+  assert.ok(visible.eq(0).hasClass('selected'));
+  $('#flowgen-search').trigger($.Event('keydown', { keyCode: 40 }));
+  assert.ok(visible.eq(1).hasClass('selected'));
+  $('#flowgen-search').trigger($.Event('keydown', { keyCode: 38 }));
+  assert.ok(visible.eq(0).hasClass('selected'));
+
+  assert.strictEqual($('#flowgen-op-list .flowgen-op.selected.flowgen-hidden').length, 0);
+});
+
+test('enter in the search box imports the selected endpoint', async () => {
+  await openList();
+  $('#flowgen-search').val('/store/inventory').trigger('input');
+  $('#flowgen-search').trigger($.Event('keydown', { keyCode: 13 }));
+  assert.strictEqual(imported.length, 1);
+  assert.strictEqual(dialogClosed, 1);
+});
+
+test('escape clears the search and then returns to the paste view', async () => {
+  await openList();
+  $('#flowgen-search').val('pet').trigger('input');
+  $('#flowgen-search').trigger($.Event('keydown', { keyCode: 27 }));
+  assert.strictEqual($('#flowgen-search').val(), '');
+  assert.strictEqual(shown(), 'select');
+
+  $('#flowgen-search').trigger($.Event('keydown', { keyCode: 27 }));
+  assert.strictEqual(shown(), 'paste');
+});
+
+test('a new document clears the previous search', async () => {
+  await openList();
+  $('#flowgen-search').val('pet').trigger('input');
+  await openSpecTab(SPEC_V2);
+  assert.strictEqual($('#flowgen-search').val(), '');
+  assert.strictEqual($('#flowgen-count').text(), '');
+});

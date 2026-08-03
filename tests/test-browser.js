@@ -350,6 +350,39 @@ for (const engine of ENGINES) {
       await page.close();
     });
 
+    test('the endpoint list can be searched from the keyboard', async () => {
+      const page = await browser.newPage();
+      await startCoverage(page);
+      await openImport(page);
+      await paste(page, SPEC);
+      await click(page, '#flowgen-select-btn');
+      await page.waitForSelector('#flowgen-op-list .flowgen-op');
+
+      const visible = () => page.$$eval('#flowgen-op-list .flowgen-op',
+        els => els.filter(e => e.offsetParent !== null).length);
+      assert.strictEqual(await visible(), 2);
+
+      assert.strictEqual(await page.evaluate(
+        () => document.activeElement && document.activeElement.id), 'flowgen-search',
+        'the search box takes focus when the list opens');
+
+      await page.fill('#flowgen-search', 'remove');
+      await page.waitForTimeout(200);
+      assert.strictEqual(await visible(), 1);
+      await waitOk(page, false);
+
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(600);
+      const code = await page.evaluate(() => {
+        let src = '';
+        window.RED.nodes.eachNode(n => { if (n.type === 'function') src = n.func; });
+        return src;
+      });
+      assert.match(code, /msg\.method = `DELETE`;/);
+      await stopCoverage(page);
+      await page.close();
+    });
+
     test('a Bruno git URL is cloned by the runtime and stays in the text area', async () => {
       const { execFileSync } = require('child_process');
       const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'br-git-'));
