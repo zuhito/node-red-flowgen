@@ -515,14 +515,14 @@ test('the endpoint rows carry Swagger UI method colours and typography', async (
   assert.strictEqual(first.find('.flowgen-path').length, 1);
 
   const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
-  assert.match(styles, /\.flowgen-get\s+\.flowgen-method\s*\{\s*background:\s*#61affe/);
-  assert.match(styles, /\.flowgen-post\s+\.flowgen-method\s*\{\s*background:\s*#49cc90/);
-  assert.match(styles, /\.flowgen-put\s+\.flowgen-method\s*\{\s*background:\s*#fca130/);
-  assert.match(styles, /\.flowgen-delete\s+\.flowgen-method\s*\{\s*background:\s*#f93e3e/);
+  assert.match(styles, /\.flowgen-get\s+\.flowgen-method\s*\{\s*background:\s*#1d72c9/);
+  assert.match(styles, /\.flowgen-post\s+\.flowgen-method\s*\{\s*background:\s*#32b378/);
+  assert.match(styles, /\.flowgen-put\s+\.flowgen-method\s*\{\s*background:\s*#c97c1d/);
+  assert.match(styles, /\.flowgen-delete\s+\.flowgen-method\s*\{\s*background:\s*#c91d1d/);
   assert.match(styles, /\.flowgen-method\s*\{[^}]*font-weight:\s*700/);
   assert.match(styles, /\.flowgen-path\s*\{[^}]*font-size:\s*16px/);
   assert.match(styles, /\.flowgen-path\s*\{[^}]*font-weight:\s*600/);
-  assert.match(styles, /\.flowgen-path\s*\{[^}]*color:\s*#3b4151/);
+  assert.match(styles, /\.flowgen-path\s*\{[^}]*color:\s*var\(--red-ui-primary-text-color/);
 });
 
 test('every non deprecated operation is listed and deprecated ones are not', async () => {
@@ -1005,4 +1005,56 @@ test('a new document clears the previous search', async () => {
   await openSpecTab(SPEC_V2);
   assert.strictEqual($('#flowgen-search').val(), '');
   assert.strictEqual($('#flowgen-count').text(), '');
+});
+
+test('the method colours keep the Swagger hues but the Node-RED intensity', async () => {
+  const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
+
+  const toHsl = hex => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    if (max === min) return { h: 0, s: 0, l: l * 100 };
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0));
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    return { h: h * 60, s: s * 100, l: l * 100 };
+  };
+
+  const swagger = { get: '#61affe', post: '#49cc90', put: '#fca130', delete: '#f93e3e' };
+  for (const [method, original] of Object.entries(swagger)) {
+    const found = styles.match(
+      new RegExp('\\.flowgen-' + method +
+        '\\s+\\.flowgen-method\\s*\\{\\s*background:\\s*(#[0-9a-f]{6})'));
+    assert.ok(found, 'no badge colour for ' + method);
+
+    const before = toHsl(original);
+    const after = toHsl(found[1]);
+    assert.ok(Math.abs(after.h - before.h) < 6,
+      method + ' hue moved from ' + Math.round(before.h) + ' to ' + Math.round(after.h));
+    assert.ok(after.s <= before.s + 0.5,
+      method + ' should not gain saturation: ' +
+      Math.round(before.s) + ' -> ' + Math.round(after.s));
+    assert.ok(after.l < before.l,
+      method + ' should be darker than the Swagger colour');
+    assert.ok(after.s >= 40 && after.s <= 90,
+      method + ' saturation ' + Math.round(after.s) + ' is outside the Node-RED range');
+    assert.ok(after.l >= 35 && after.l <= 62,
+      method + ' lightness ' + Math.round(after.l) + ' is outside the Node-RED range');
+  }
+});
+
+test('the row tints are pale enough to read text over', async () => {
+  const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
+  const tints = styles.match(/\.flowgen-op\.flowgen-\w+\s*\{\s*background:\s*(#[0-9a-f]{6})/g) || [];
+  assert.ok(tints.length >= 5);
+  for (const rule of tints) {
+    const hex = rule.match(/#[0-9a-f]{6}/)[0];
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+    assert.ok((r + g + b) / 3 > 220, hex + ' is too dark for a row tint');
+  }
+  assert.ok(!/rgba\(/.test(styles), 'tints are solid colours, not alpha blends');
 });
