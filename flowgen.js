@@ -213,8 +213,8 @@ function brunoParts(doc, req) {
     return value;
   };
   const url = substitute(req.url).replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
-  for (const token of url.match(/\{[^}]+\}/g) || []) {
-    const name = token.slice(1, -1);
+  for (const match of url.matchAll(/(^|[^$])\{([^}]+)\}/g)) {
+    const name = match[2];
     if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
   }
   const headers = req.headers.map(h => [h[0], substitute(h[1])]);

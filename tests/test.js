@@ -1008,3 +1008,15 @@ test('swagger 2.0 ignores a reference outside the document', () => {
   } } });
   assert.doesNotThrow(() => new Function(flowgen.generate(doc, 'post', '/x')));
 });
+
+test('template literal syntax in an openapi server is escaped safely', () => {
+  const doc = {
+    openapi: '3.0.0', info: { title: 'T', version: '1' },
+    servers: [{ url: 'https://t.test/${x}' }],
+    paths: { '/a`b': { get: {} } }
+  };
+  const code = flowgen.generate(doc, 'get', '/a`b');
+  assert.doesNotThrow(() => new Function(code));
+  assert.strictEqual(run(code).url, 'https://t.test/${x}/a`b');
+  assert.ok(!/Replace \{x\}/.test(code));
+});

@@ -527,3 +527,37 @@ test('an undefined variable in the body stays a placeholder', () => {
   ].join('\n'));
   assert.strictEqual(evaluate(flowgen.generate(doc, 'post', '/c')).payload.model, '{missing}');
 });
+
+test('template literal syntax in a url is escaped and not mistaken for a variable', () => {
+  const doc = flowgen.parseDocument([
+    'meta {', '  name: X', '}', '',
+    'get {', '  url: https://t.test/a${c}/{{real}}/d', '}', ''
+  ].join('\n'));
+  const id = flowgen.listOperations(doc).operations[0].path;
+  const code = flowgen.generate(doc, 'get', id);
+
+  assert.doesNotThrow(() => new Function(code));
+  assert.strictEqual(evaluate(code).url, 'https://t.test/a${c}/{real}/d');
+  assert.match(code, /\/\/ Replace \{real\} in the URL below with a real value\./);
+  assert.ok(!/Replace \{c\}/.test(code), 'a template literal is not a variable');
+});
+
+test('a backtick in a url survives the generated string literal', () => {
+  const doc = flowgen.parseDocument([
+    'meta {', '  name: B', '}', '',
+    'get {', '  url: https://t.test/a`b/c', '}', ''
+  ].join('\n'));
+  const id = flowgen.listOperations(doc).operations[0].path;
+  const code = flowgen.generate(doc, 'get', id);
+  assert.doesNotThrow(() => new Function(code));
+  assert.strictEqual(evaluate(code).url, 'https://t.test/a`b/c');
+});
+
+test('a backslash and newline in a url survive', () => {
+  const doc = flowgen.parseDocument([
+    'meta {', '  name: S', '}', '',
+    'get {', '  url: https://t.test/a\\b', '}', ''
+  ].join('\n'));
+  const id = flowgen.listOperations(doc).operations[0].path;
+  assert.strictEqual(evaluate(flowgen.generate(doc, 'get', id)).url, 'https://t.test/a\\b');
+});
