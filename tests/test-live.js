@@ -102,15 +102,15 @@ const CASES = [
   { source: 'httpbingo', method: 'post', path: '/post' },
   { source: 'httpbingo', method: 'get', path: '/headers' },
   { source: 'httpbingo', method: 'get', path: '/bearer',
-    addAuth: { authorization: 'Bearer live-test-token' }, expect: 200 },
+    addAuth: { authorization: 'Bearer live-test-token' }, expect: 200, strict: true },
   { source: 'httpbingo', method: 'get', path: '/basic-auth/{user}/{passwd}',
     fill: { user: 'u', passwd: 'p' },
-    addAuth: { authorization: 'Basic dTpw' }, expect: 200 },
+    addAuth: { authorization: 'Basic dTpw' }, expect: 200, strict: true },
   { source: 'httpbingo', method: 'get', path: '/hidden-basic-auth/{user}/{passwd}',
     fill: { user: 'u', passwd: 'p' },
-    addAuth: { authorization: 'Basic dTpw' }, expect: 200 },
+    addAuth: { authorization: 'Basic dTpw' }, expect: 200, strict: true },
   { source: 'httpbingo', method: 'get', path: '/status/{code}', fill: { code: '204' },
-    expect: 204 },
+    expect: 204, strict: true },
   { source: 'apis-guru', method: 'get', path: '/providers.json' },
   { source: 'apis-guru', method: 'get', path: '/metrics.json' },
   { source: 'apis-guru', method: 'get', path: '/list.json' },
@@ -341,8 +341,17 @@ async function main() {
     result = result || { status: null };
 
     const expected = [].concat(testCase.expect || []);
-    if (expected.length && expected.indexOf(result.status) !== -1) {
-      note('notice', label + ' -> HTTP ' + result.status + ' (as expected)');
+    if (expected.length) {
+      if (expected.indexOf(result.status) !== -1) {
+        note('notice', label + ' -> HTTP ' + result.status + ' (as expected)');
+      } else if (testCase.strict) {
+        failures++;
+        note('error', label + ' -> HTTP ' + result.status + ', expected ' +
+          expected.join(' or '));
+      } else {
+        note('notice', label + ' -> HTTP ' + result.status + ', expected ' +
+          expected.join(' or '));
+      }
     } else if (result.status >= 200 && result.status < 400) {
       note('notice', label + ' -> HTTP ' + result.status);
     } else if (result.status >= 500) {
