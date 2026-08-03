@@ -15,12 +15,43 @@ const SPEC_SOURCES = [
   { name: 'petstore-v2', url: 'https://petstore.swagger.io/v2/swagger.json' },
   { name: 'petstore-v3', url: 'https://petstore3.swagger.io/api/v3/openapi.json' },
   { name: 'httpbin', url: 'https://httpbin.org/spec.json' },
-  { name: 'httpbingo', url: 'https://httpbingo.org/spec.json' },
+
   { name: 'apis-guru',
     url: 'https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/apis.guru/2.2.0/openapi.yaml' },
   { name: 'apis-guru-v2',
     url: 'https://api.apis.guru/v2/openapi.yaml' }
 ];
+
+const INLINE_SPECS = {
+  httpbingo: {
+    openapi: '3.0.3',
+    info: { title: 'httpbingo', version: '1.0.0' },
+    servers: [{ url: 'https://httpbingo.org' }],
+    paths: {
+      '/get': { get: { responses: { 200: { description: 'ok' } } } },
+      '/post': { post: {
+        requestBody: { content: { 'application/json': { schema: { type: 'object',
+          properties: { hello: { type: 'string', example: 'world' } } } } } },
+        responses: { 200: { description: 'ok' } } } },
+      '/headers': { get: { responses: { 200: { description: 'ok' } } } },
+      '/bearer': { get: { responses: { 200: { description: 'ok' } } } },
+      '/basic-auth/{user}/{passwd}': { get: {
+        parameters: [
+          { name: 'user', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'passwd', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { 200: { description: 'ok' } } } },
+      '/hidden-basic-auth/{user}/{passwd}': { get: {
+        parameters: [
+          { name: 'user', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'passwd', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { 200: { description: 'ok' } } } },
+      '/status/{code}': { get: {
+        parameters: [{ name: 'code', in: 'path', required: true,
+          schema: { type: 'integer' } }],
+        responses: { 200: { description: 'ok' } } } }
+    }
+  }
+};
 
 const BRUNO_SOURCES = [
   { name: 'bruno-starter-guide',
@@ -198,6 +229,10 @@ function applyAuth(code, headers) {
 
 async function loadSources() {
   const docs = {};
+  for (const [name, spec] of Object.entries(INLINE_SPECS)) {
+    docs[name] = spec;
+    note('notice', 'using the built in ' + name + ' definition');
+  }
   for (const source of SPEC_SOURCES) {
     try {
       docs[source.name] = flowgen.parseDocument(await download(source.url, 5));
