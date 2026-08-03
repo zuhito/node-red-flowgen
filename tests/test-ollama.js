@@ -210,7 +210,7 @@ for (const [format, load] of Object.entries(DOCS)) {
         if (WRITE_PATHS.indexOf(op.path) !== -1) continue;
         const variations = VARIATIONS[op.path] || [{}];
         for (const overrides of variations) {
-          const nodes = flowgen.buildFlow(doc, op.method, op.path, { tab: false });
+          const nodes = flowgen.buildFlow(doc, op.method, op.path);
           const fn = nodes.find(n => n.type === 'function');
           let source = fn.func.replace(/`http:\/\/127\.0\.0\.1:11434/g, '`' + baseUrl);
 
@@ -237,7 +237,7 @@ for (const [format, load] of Object.entries(DOCS)) {
     });
 
     test('the model answers a chat request', { skip: READ_ONLY }, async () => {
-      const nodes = flowgen.buildFlow(doc, 'post', '/api/chat', { tab: false });
+      const nodes = flowgen.buildFlow(doc, 'post', '/api/chat');
       const fn = nodes.find(n => n.type === 'function');
       fn.func = fn.func
         .replace(/`http:\/\/127\.0\.0\.1:11434/g, '`' + baseUrl)
