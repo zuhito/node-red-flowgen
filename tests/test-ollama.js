@@ -231,7 +231,8 @@ for (const [format, load] of Object.entries(DOCS)) {
           const result = await callThroughNodeRed(nodes);
           results.push(op.path + ' -> ' + result.status);
           const embeddingUnsupported = EMBEDDING_PATHS.indexOf(op.path) !== -1 &&
-            result.status === 501;
+            [500, 501].indexOf(result.status) !== -1 &&
+            /does not support embeddings/i.test(JSON.stringify(result.payload || ''));
           assert.ok((result.status >= 200 && result.status < 300) || embeddingUnsupported,
             op.method + ' ' + op.path + ' with ' + JSON.stringify(overrides) +
             ' returned ' + result.status + ' ' + JSON.stringify(result.payload).slice(0, 200));
