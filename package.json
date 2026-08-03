@@ -36,12 +36,14 @@
     "test:ui": "node --test tests/test-ui.js",
     "test:nodered": "node --test tests/test-nodered.js",
     "test:plugin": "node --test tests/test-plugin.js",
-    "test:all": "node --test tests/test.js tests/test-cli.js tests/test-bruno.js tests/test-ui.js tests/test-nodered.js tests/test-plugin.js"
+    "test:all": "node --test tests/test.js tests/test-cli.js tests/test-bruno.js tests/test-ui.js tests/test-nodered.js tests/test-plugin.js",
+    "test:browser": "node --test --test-timeout 180000 tests/test-browser.js"
   },
   "devDependencies": {
     "express": "5.2.1",
     "jquery": "4.0.0",
     "jsdom": "30.0.1",
-    "node-red": "5.0.4"
+    "node-red": "5.0.4",
+    "playwright": "1.56.1"
   }
 }

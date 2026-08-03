@@ -136,6 +136,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
   var isActive = false;
   var fetching = null;
   var collectionDoc = null;
+  var lastText = null;
 
   var PLACEHOLDER = [
     'openapi: 3.0.4',
@@ -255,6 +256,8 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
   }
 
   function parse(text) {
+    if (lastText !== null && text === lastText && (doc || collectionDoc)) { return; }
+    lastText = text;
     reset();
     if (!text || !text.trim()) {
       if (collectionDoc) { doc = collectionDoc; render(); return; }
@@ -482,6 +485,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     isActive = false;
     doc = null;
     collectionDoc = null;
+    lastText = null;
     selected = null;
     fetching = null;
     $('#flowgen-spec-text').val('');
