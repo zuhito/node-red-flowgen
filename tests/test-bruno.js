@@ -310,3 +310,46 @@ test('generated bruno code is valid JavaScript', () => {
     assert.doesNotThrow(() => new Function(code), op.method + ' ' + op.path);
   }
 });
+
+test('the v2 yaml nests auth under http.auth', () => {
+  const yml = [
+    'info:', '  name: Basic', '  type: http', '',
+    'http:', '  method: GET', '  url: https://api.example.test/secret',
+    '  auth:', '    type: basic', '    username: u', '    password: "p"', ''
+  ].join('\n');
+  const code = flowgen.generate(flowgen.parseDocument(yml), 'get', '/secret');
+  assert.match(code, /'authorization': `Basic `/);
+  assert.match(code, /\/\/ Fill in 'authorization' below\./);
+});
+
+test('a bearer token in http.auth becomes an authorization header', () => {
+  const yml = [
+    'info:', '  name: Bearer', '',
+    'http:', '  method: GET', '  url: https://api.example.test/me',
+    '  auth:', '    type: bearer', '    token: abc123', ''
+  ].join('\n');
+  assert.match(flowgen.generate(flowgen.parseDocument(yml), 'get', '/me'),
+    /'authorization': `Bearer abc123`/);
+});
+
+test('an api key in http.auth becomes its own header', () => {
+  const yml = [
+    'info:', '  name: Key', '',
+    'http:', '  method: GET', '  url: https://api.example.test/things',
+    '  auth:', '    type: apikey', '    key: X-Api-Key', '    value: ""',
+    '    placement: header', ''
+  ].join('\n');
+  const code = flowgen.generate(flowgen.parseDocument(yml), 'get', '/things');
+  assert.match(code, /'X-Api-Key': ``/);
+  assert.match(code, /\/\/ Fill in 'X-Api-Key' below\./);
+});
+
+test('an auth block with no recognised type is ignored', () => {
+  const yml = [
+    'info:', '  name: None', '',
+    'http:', '  method: GET', '  url: https://api.example.test/open',
+    '  auth:', '    type: none', ''
+  ].join('\n');
+  const code = flowgen.generate(flowgen.parseDocument(yml), 'get', '/open');
+  assert.ok(!/authorization/.test(code));
+});

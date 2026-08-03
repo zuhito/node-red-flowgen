@@ -104,10 +104,21 @@ function normalizeRequest(nameHint, source) {
       if (h && h.enabled === false) continue;
       req.headers.push([h.name || h.key, h.value === undefined ? '' : String(h.value)]);
     }
-    const auth = source.auth || http.authDetails || null;
+    const auth = source.auth || http.auth || http.authDetails || null;
     if (auth && typeof auth === 'object') {
-      if (auth.bearer) req.headers.push(['authorization', 'Bearer ' + (auth.bearer.token || '')]);
-      else if (auth.basic) req.headers.push(['authorization', 'Basic ']);
+      const kind = String(auth.type || auth.mode || '').toLowerCase();
+      if (auth.bearer || kind === 'bearer') {
+        const token = (auth.bearer && auth.bearer.token) || auth.token || '';
+        req.headers.push(['authorization', 'Bearer ' + token]);
+      } else if (auth.basic || kind === 'basic') {
+        req.headers.push(['authorization', 'Basic ']);
+      } else if (auth.apikey || kind === 'apikey' || kind === 'api-key') {
+        const entry = auth.apikey || auth;
+        const name = entry.key || entry.name || 'api-key';
+        if (String(entry.placement || 'header').toLowerCase() === 'header') {
+          req.headers.push([name, String(entry.value || '')]);
+        }
+      }
     }
     const body = source.body || http.body || null;
     if (body && typeof body === 'object') {

@@ -219,10 +219,21 @@ async function main() {
     }
     ran++;
 
+    if (testCase.auth) {
+      const fn = nodes.find(n => n.type === 'function');
+      try {
+        fn.func = applyAuth(fn.func, testCase.auth);
+      } catch (err) {
+        failures++;
+        note('error', label + ' -> ' + err.message);
+        continue;
+      }
+    }
+
     for (const node of nodes) {
       if (node.type === 'inject') { node.once = true; node.onceDelay = 0.1; }
       if (node.type === 'function') {
-        node.func = applyAuth(applyFill(node.func, testCase.fill), testCase.auth);
+        node.func = applyFill(node.func, testCase.fill);
       }
       if (node.type === 'http request') { node.ret = 'obj'; node.senderr = true; }
     }
