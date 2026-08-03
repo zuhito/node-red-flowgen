@@ -88,9 +88,17 @@ jobs:
       - name: Install the browser
         run: npx playwright install --with-deps ${{ matrix.browser == 'msedge' && 'msedge' || matrix.browser }}
       - name: Editor tests in ${{ matrix.browser }}
+        shell: bash
         env:
           BROWSERS: ${{ matrix.browser }}
-        run: npm run test:browser
+        run: |
+          set -o pipefail
+          npm run test:browser 2>&1 | tee browser.log || {
+            grep -E "^\s*(not ok|      error:)" browser.log | head -20 | while read -r line; do
+              echo "::error::${{ matrix.browser }}: ${line}"
+            done
+            exit 1
+          }
 
   live:
     runs-on: ubuntu-latest
