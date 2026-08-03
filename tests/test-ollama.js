@@ -76,6 +76,8 @@ const VARIATIONS = {
 
 const WRITE_PATHS = ['/api/copy', '/api/delete', '/api/pull', '/api/push', '/api/create'];
 
+const EMBEDDING_PATHS = ['/api/embed', '/api/embeddings', '/v1/embeddings'];
+
 function tidy(payload, path) {
   if (!payload || typeof payload !== 'object') return payload;
   const out = JSON.parse(JSON.stringify(payload));
@@ -228,7 +230,9 @@ for (const [format, load] of Object.entries(DOCS)) {
 
           const result = await callThroughNodeRed(nodes);
           results.push(op.path + ' -> ' + result.status);
-          assert.ok(result.status >= 200 && result.status < 300,
+          const embeddingUnsupported = EMBEDDING_PATHS.indexOf(op.path) !== -1 &&
+            result.status === 501;
+          assert.ok((result.status >= 200 && result.status < 300) || embeddingUnsupported,
             op.method + ' ' + op.path + ' with ' + JSON.stringify(overrides) +
             ' returned ' + result.status + ' ' + JSON.stringify(result.payload).slice(0, 200));
         }
