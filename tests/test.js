@@ -95,9 +95,9 @@ test('server precedence is operation, path item, document', () => {
   assert.strictEqual(run(flowgen.generate(doc, 'put', '/x')).url, 'https://item.test/x');
 });
 
-test('missing servers yields a relative url', () => {
+test('missing servers yields a baseUrl placeholder', () => {
   const doc = { openapi: '3.0.0', info: {}, paths: { '/x': { get: {} } } };
-  assert.strictEqual(run(flowgen.generate(doc, 'get', '/x')).url, '/x');
+  assert.strictEqual(run(flowgen.generate(doc, 'get', '/x')).url, '{baseUrl}/x');
 });
 
 test('path parameters stay as placeholders', () => {
@@ -273,7 +273,7 @@ test('swagger 2.0 builds the url from schemes, host and basePath', () => {
   assert.strictEqual(run(flowgen.generate(v2({ '/x': { get: {} } }), 'get', '/x')).url,
     'https://api.test/v1/x');
   const noHost = { swagger: '2.0', info: {}, basePath: '/v1', paths: { '/x': { get: {} } } };
-  assert.strictEqual(run(flowgen.generate(noHost, 'get', '/x')).url, '/v1/x');
+  assert.strictEqual(run(flowgen.generate(noHost, 'get', '/x')).url, '{baseUrl}/v1/x');
 });
 
 test('swagger 2.0 body parameter becomes the payload', () => {
@@ -830,4 +830,36 @@ test('string values use backticks while object keys stay quoted', () => {
   assert.match(code, /'X-Key': ``/);
   assert.ok(!/msg\.url = '/.test(code), 'no single quoted url');
   assert.doesNotThrow(() => new Function(code));
+});
+
+test('a document with no server declares a baseUrl placeholder', () => {
+  const swagger = { swagger: '2.0', info: { title: 'T', version: '1' },
+    paths: { '/things': { get: {} } } };
+  const code = flowgen.generate(swagger, 'get', '/things');
+  assert.match(code, /msg\.url = `\{baseUrl\}\/things`;/);
+  assert.match(code, /\/\/ Replace \{baseUrl\} in the URL below with a real value\./);
+
+  const three = { openapi: '3.0.0', info: { title: 'T', version: '1' },
+    paths: { '/things': { get: {} } } };
+  assert.match(flowgen.generate(three, 'get', '/things'), /msg\.url = `\{baseUrl\}\/things`;/);
+});
+
+test('a declared server suppresses the baseUrl placeholder', () => {
+  const doc = v3({ '/x': { get: {} } });
+  const code = flowgen.generate(doc, 'get', '/x');
+  assert.match(code, /msg\.url = `https:\/\/api\.test\/v1\/x`;/);
+  assert.ok(!/baseUrl/.test(code));
+});
+
+test('baseUrl is listed alongside other unresolved parameters', () => {
+  const doc = { swagger: '2.0', info: { title: 'T', version: '1' },
+    paths: { '/a': { get: { parameters: [{ name: 'q', in: 'query', type: 'string' }] } } } };
+  assert.match(flowgen.generate(doc, 'get', '/a'),
+    /\/\/ Replace \{baseUrl\} and \{q\} \(string\) in the URL below with real values\./);
+});
+
+test('a basePath without a host still gets a baseUrl placeholder', () => {
+  const doc = { swagger: '2.0', info: { title: 'T', version: '1' }, basePath: '/v2',
+    paths: { '/a': { get: {} } } };
+  assert.match(flowgen.generate(doc, 'get', '/a'), /msg\.url = `\{baseUrl\}\/v2\/a`;/);
 });

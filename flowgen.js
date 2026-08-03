@@ -355,6 +355,7 @@ function valuesFor(schema, param) {
 }
 
 function urlLines(base, path, params) {
+  if (!/^[a-z]+:\/\//i.test(String(base))) base = '{baseUrl}' + base;
   const render = choice => {
     let rendered = path;
     for (const p of params) {
@@ -392,8 +393,9 @@ function multipartPayload(schema, resolve, sample) {
   return out;
 }
 
-function unresolved(path, params) {
+function unresolved(base, path, params) {
   const items = [];
+  if (!/^[a-z]+:\/\//i.test(String(base))) items.push({ name: 'baseUrl', type: null });
   for (const p of params) {
     if (p.values.length) continue;
     if (p.in === 'path' && path.indexOf('{' + p.name + '}') === -1) continue;
@@ -598,7 +600,7 @@ function generateOpenApi3(doc, rawMethod, target) {
   return assemble({
     method: method,
     urls: urlLines(base, path, urlParams),
-    todo: unresolved(path, urlParams),
+    todo: unresolved(base, path, urlParams),
     headers: dedupeHeaders(headers),
     cookies: cookies,
     hasBody: hasBody,
@@ -745,7 +747,7 @@ function generateSwagger2(doc, rawMethod, target) {
   return assemble({
     method: method,
     urls: urlLines(base, path, urlParams),
-    todo: unresolved(path, urlParams),
+    todo: unresolved(base, path, urlParams),
     headers: dedupeHeaders(headers),
     cookies: [],
     hasBody: hasBody,
