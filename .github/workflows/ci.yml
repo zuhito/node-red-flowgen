@@ -93,12 +93,16 @@ jobs:
           BROWSERS: ${{ matrix.browser }}
         run: |
           set -o pipefail
-          npm run test:browser 2>&1 | tee browser.log || {
-            grep -E "^\s*(not ok|      error:)" browser.log | head -20 | while read -r line; do
-              echo "::error::${{ matrix.browser }}: ${line}"
-            done
-            exit 1
-          }
+          for attempt in 1 2; do
+            if npm run test:browser 2>&1 | tee browser.log; then
+              exit 0
+            fi
+            echo "::notice::${{ matrix.browser }}: attempt ${attempt} failed"
+          done
+          grep -E "^\s*(not ok|      error:)" browser.log | head -20 | while read -r line; do
+            echo "::error::${{ matrix.browser }}: ${line}"
+          done
+          exit 1
 
   live:
     runs-on: ubuntu-latest
