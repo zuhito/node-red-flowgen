@@ -52,6 +52,34 @@ const CASES = [
 
 const summary = [];
 
+const CORPUS_CASES = [
+  { spec: 'zoomconnect.com/1/swagger.yaml', path: '/api/rest/v1/account/balance' },
+  { spec: 'data2crm.com/1/swagger.yaml', path: '/application/entity/account/describe' },
+  { spec: 'consumerfinance.gov/1.0/swagger.yaml', path: '/data' },
+  { spec: 'avaza.com/v1/swagger.yaml', path: '/api/Currency' },
+  { spec: 'quarantine.country/1.0/swagger.yaml', path: '/summary/latest' },
+  { spec: 'rbaskets.in/1.0.0/swagger.yaml', path: '/api/version' },
+  { spec: 'deutschebahn.com/flinkster/v1/swagger.yaml', path: '/index' },
+  { spec: 'mastercard.com/CurrencyConversionCalculator/1.0.0/swagger.yaml', path: '/settlement-currencies' },
+  { spec: 'mastercard.com/MDES/2.0.7/swagger.yaml', path: '/systemstatus' },
+  { spec: 'mastercard.com/Locations/1.0.0/swagger.yaml', path: '/atms/v1/country' },
+  { spec: 'rumble.run/2.15.0/openapi.yaml', path: '/releases/agent/version' },
+  { spec: 'ndhm.gov.in/ndhm-hip/0.5/openapi.yaml', path: '/v0.5/.well-known/openid-configuration' },
+  { spec: 'ndhm.gov.in/ndhm-hiu/0.5/openapi.yaml', path: '/v0.5/.well-known/openid-configuration' },
+  { spec: 'ndhm.gov.in/ndhm-cm/0.5/openapi.yaml', path: '/v0.5/heartbeat' },
+  { spec: 'ndhm.gov.in/ndhm-gateway/0.5/openapi.yaml', path: '/v0.5/.well-known/openid-configuration' },
+  { spec: 'contribly.com/1.0.0/openapi.yaml', path: '/artifact-formats' },
+  { spec: 'bigdatacloud.net/1.0.0/openapi.yaml', path: '/data/ip-geolocation-full' },
+  { spec: 'thebluealliance.com/3.8.2/openapi.yaml', path: '/status' },
+  { spec: 'zuora.com/2021-08-20/openapi.yaml', path: '/v1/accounting-codes' },
+  { spec: 'asuarez.dev/searchly/1.0/openapi.yaml', path: '/similarity/by_song' },
+  { spec: 'openai.com/1.2.0/openapi.yaml', path: '/files' },
+  { spec: 'httpbin.org/0.9.2/openapi.yaml', path: '/anything' }
+];
+
+const CORPUS_BASE =
+  'https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/';
+
 function note(level, text) {
   const line = String(text).replace(/\r?\n/g, ' ');
   process.stdout.write('::' + level + '::' + line + '\n');
@@ -217,6 +245,70 @@ async function main() {
         ' (the generated request was rejected)');
     } else {
       note('notice', label + ' -> no response within 30s (upstream did not answer)');
+    }
+  }
+
+  if (process.env.LIVE_CORPUS) {
+    for (const entry of CORPUS_CASES) {
+      const label = 'corpus ' + entry.spec + ' GET ' + entry.path;
+      let doc;
+      try {
+        doc = flowgen.parseDocument(await download(CORPUS_BASE + entry.spec, 5));
+      } catch (err) {
+        note('notice', label + ' -> spec unavailable: ' + err.message);
+        continue;
+      }
+      let nodes;
+      try {
+        nodes = flowgen.buildFlow(doc, 'get', entry.path);
+      } catch (err) {
+        failures++;
+        note('error', label + ' -> generation failed: ' + err.message);
+        continue;
+      }
+      ran++;
+
+      for (const node of nodes) {
+        if (node.type === 'inject') { node.once = true; node.onceDelay = 0.1; }
+        if (node.type === 'http request') { node.ret = 'obj'; node.senderr = true; }
+      }
+      const probe = nodes.find(n => n.type === 'debug');
+      probe.type = 'function';
+      probe.name = 'probe';
+      probe.outputs = 1;
+      probe.wires = [[]];
+      probe.func = "global.set('liveResult', { status: msg.statusCode });\nreturn msg;";
+
+      fs.writeFileSync(path.join(userDir, 'flows.json'), JSON.stringify(nodes));
+      await RED.nodes.loadFlows(true);
+
+      let node = null;
+      for (let i = 0; i < 50 && !node; i++) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        node = RED.nodes.getNode(probe.id);
+      }
+      if (!node) { note('notice', label + ' -> probe never started'); continue; }
+      const context = node.context().global;
+      context.set('liveResult', null);
+
+      const started = Date.now();
+      let result = null;
+      while (!result && Date.now() - started < 20000) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        result = context.get('liveResult');
+      }
+      const status = (result || {}).status || null;
+
+      if (status && ((status >= 200 && status < 400) || status === 401 || status === 403)) {
+        note('notice', label + ' -> HTTP ' + status + ' (reached the API)');
+      } else if ([400, 405, 406, 415].indexOf(status) !== -1) {
+        failures++;
+        note('error', label + ' -> HTTP ' + status + ' (the generated request was malformed)');
+      } else if (status) {
+        note('notice', label + ' -> HTTP ' + status + ' (upstream, not a generation fault)');
+      } else {
+        note('notice', label + ' -> no response (host unreachable)');
+      }
     }
   }
 

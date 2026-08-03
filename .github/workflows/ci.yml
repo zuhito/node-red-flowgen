@@ -116,6 +116,11 @@ jobs:
       - name: Call real public APIs through Node-RED
         run: npm run test:live
 
+      - name: Call a corpus of public APIs through Node-RED
+        env:
+          LIVE_CORPUS: '1'
+        run: npm run test:live
+
   release:
     runs-on: ubuntu-latest
     needs: [test, browser, live]
