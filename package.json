@@ -41,7 +41,8 @@
     "test:live": "node tests/test-live.js",
     "coverage": "npx c8 --reporter=text --reporter=text-summary --reporter=lcov --reporter=html --include=flowgen.js --include=flowgen-plugin.js --report-dir=coverage node --test tests/test.js tests/test-cli.js tests/test-bruno.js tests/test-nodered.js tests/test-plugin.js tests/test-plugin-unit.js",
     "test:ollama": "node --test --test-timeout 900000 tests/test-ollama.js",
-    "test:plugin:unit": "node --test tests/test-plugin-unit.js"
+    "test:plugin:unit": "node --test tests/test-plugin-unit.js",
+    "samples": "node tests/generate-samples.js"
   },
   "devDependencies": {
     "c8": "10.1.3",
