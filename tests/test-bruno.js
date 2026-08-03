@@ -10,6 +10,11 @@ const yazl = null;
 const zipwriter = require('./zipwriter');
 const flowgen = require('../flowgen');
 
+function evaluate(code) {
+  const msg = {};
+  return new Function('msg', code).call(null, msg) || msg;
+}
+
 const BRU = `meta {
   name: Create user
   type: http
@@ -492,4 +497,33 @@ test('a colon style path variable is shown in braces', () => {
   assert.deepStrictEqual(flowgen.listOperations(doc).operations[0].path, '/users/{id}/posts');
   assert.match(flowgen.generate(doc, 'get', '/users/{id}/posts'),
     /msg\.url = `https:\/\/api\.example\.test\/users\/\{id\}\/posts`;/);
+});
+
+test('variables are substituted inside the request body', () => {
+  const doc = flowgen.parseCollection([
+    { path: 'environments/local.bru',
+      text: 'vars {\n  model: gemma3:270m\n  host: https://ollama.test\n}\n' },
+    { path: 'chat.bru', text: [
+      'meta {', '  name: Chat', '}', '',
+      'post {', '  url: {{host}}/api/chat', '  body: json', '}', '',
+      'body:json {',
+      '  { "model": "{{model}}", "nested": { "also": "{{model}}" },',
+      '    "list": ["{{model}}"], "keep": 1 }',
+      '}', ''
+    ].join('\n') }
+  ]);
+  const msg = evaluate(flowgen.generate(doc, 'post', '/api/chat'));
+  assert.strictEqual(msg.payload.model, 'gemma3:270m');
+  assert.strictEqual(msg.payload.nested.also, 'gemma3:270m');
+  assert.deepStrictEqual(msg.payload.list, ['gemma3:270m']);
+  assert.strictEqual(msg.payload.keep, 1);
+});
+
+test('an undefined variable in the body stays a placeholder', () => {
+  const doc = flowgen.parseDocument([
+    'meta {', '  name: C', '}', '',
+    'post {', '  url: https://t.test/c', '  body: json', '}', '',
+    'body:json {', '  { "model": "{{missing}}" }', '}', ''
+  ].join('\n'));
+  assert.strictEqual(evaluate(flowgen.generate(doc, 'post', '/c')).payload.model, '{missing}');
 });

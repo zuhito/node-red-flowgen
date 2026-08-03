@@ -1,0 +1,21 @@
+meta {
+  name: v1-embeddings
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseUrl}}/v1/embeddings
+  body: json
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "model": "{{model}}",
+    "input": "Why is the sky blue?"
+  }
+}

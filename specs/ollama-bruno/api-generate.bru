@@ -1,0 +1,46 @@
+meta {
+  name: api-generate
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/generate
+  body: json
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "model": "{{model}}",
+    "prompt": "Why is the sky blue?",
+    "suffix": "",
+    "system": "",
+    "template": "",
+    "context": [
+      0
+    ],
+    "stream": false,
+    "raw": false,
+    "think": false,
+    "format": "json",
+    "keep_alive": "5m",
+    "images": [
+      ""
+    ],
+    "options": {
+      "temperature": 0.8,
+      "top_k": 40,
+      "top_p": 0.9,
+      "seed": 0,
+      "num_predict": 16,
+      "num_ctx": 2048,
+      "stop": [
+        ""
+      ]
+    }
+  }
+}

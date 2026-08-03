@@ -1,0 +1,22 @@
+meta {
+  name: api-push
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/api/push
+  body: json
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "model": "{{model}}",
+    "insecure": false,
+    "stream": false
+  }
+}

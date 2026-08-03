@@ -1,0 +1,22 @@
+meta {
+  name: api-pull
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/pull
+  body: json
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "model": "{{model}}",
+    "insecure": false,
+    "stream": false
+  }
+}

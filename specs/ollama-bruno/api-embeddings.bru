@@ -1,0 +1,22 @@
+meta {
+  name: api-embeddings
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/embeddings
+  body: json
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "model": "{{model}}",
+    "prompt": "Why is the sky blue?",
+    "keep_alive": "5m"
+  }
+}

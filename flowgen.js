@@ -198,18 +198,26 @@ function parseCollection(files) {
 
 function brunoParts(doc, req) {
   const todo = [];
-  const url = String(req.url)
+  const substitute = text => String(text)
     .replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
       doc.vars[name] !== undefined && String(doc.vars[name]) !== ''
-        ? String(doc.vars[name]) : '{' + name + '}')
-    .replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
+        ? String(doc.vars[name]) : '{' + name + '}');
+  const substituteDeep = value => {
+    if (typeof value === 'string') return substitute(value);
+    if (Array.isArray(value)) return value.map(substituteDeep);
+    if (value && typeof value === 'object') {
+      const out = {};
+      for (const key of Object.keys(value)) out[key] = substituteDeep(value[key]);
+      return out;
+    }
+    return value;
+  };
+  const url = substitute(req.url).replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
   for (const token of url.match(/\{[^}]+\}/g) || []) {
     const name = token.slice(1, -1);
     if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
   }
-  const headers = req.headers.map(h => [h[0],
-    String(h[1]).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
-      doc.vars[name] !== undefined ? String(doc.vars[name]) : '{' + name + '}')]);
+  const headers = req.headers.map(h => [h[0], substitute(h[1])]);
   return {
     method: req.method,
     urls: [url],
@@ -218,7 +226,7 @@ function brunoParts(doc, req) {
     cookies: [],
     hasBody: req.hasBody && !BODYLESS.has(req.method),
     multipart: req.multipart,
-    payload: req.payload
+    payload: substituteDeep(req.payload)
   };
 }
 

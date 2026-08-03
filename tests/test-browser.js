@@ -73,10 +73,56 @@ before(async () => {
 });
 
 after(async () => {
+  if (COVERAGE_DIR && collected.length) {
+    const v8toIstanbul = require('v8-to-istanbul');
+    const target = path.join(__dirname, '..', 'flowgen-plugin.html');
+    const offset = pluginSource.indexOf(collected[0].source);
+    const merged = {};
+    for (const entry of collected) {
+      const converter = v8toIstanbul(target, offset > 0 ? offset : 0,
+        { source: entry.source });
+      await converter.load();
+      converter.applyCoverage(entry.functions);
+      const data = converter.toIstanbul()[target];
+      if (!data) continue;
+      if (!merged[target]) { merged[target] = data; continue; }
+      for (const key of Object.keys(data.s)) merged[target].s[key] += data.s[key];
+      for (const key of Object.keys(data.f)) merged[target].f[key] += data.f[key];
+      for (const key of Object.keys(data.b)) {
+        data.b[key].forEach((n, i) => { merged[target].b[key][i] += n; });
+      }
+    }
+    fs.mkdirSync(COVERAGE_DIR, { recursive: true });
+    fs.writeFileSync(path.join(COVERAGE_DIR, 'browser-coverage.json'),
+      JSON.stringify(merged));
+  }
   await RED.stop();
   await new Promise(resolve => server.close(resolve));
   fs.rmSync(userDir, { recursive: true, force: true });
 });
+
+const COVERAGE_DIR = process.env.BROWSER_COVERAGE_DIR || '';
+const pluginSource = fs.readFileSync(path.join(__dirname, '..', 'flowgen-plugin.html'), 'utf8');
+const collected = [];
+
+async function startCoverage(page) {
+  if (!COVERAGE_DIR || !page.coverage) return;
+  await page.coverage.startJSCoverage();
+}
+
+async function stopCoverage(page) {
+  if (!COVERAGE_DIR || !page.coverage) return;
+  let entries;
+  try {
+    entries = await page.coverage.stopJSCoverage();
+  } catch (err) {
+    return;
+  }
+  for (const entry of entries) {
+    if (!entry.source || entry.source.indexOf('flowgen-select-btn') === -1) continue;
+    collected.push({ source: entry.source, functions: entry.functions });
+  }
+}
 
 async function openImport(page) {
   await page.goto('http://127.0.0.1:' + port + '/', { waitUntil: 'networkidle' });
@@ -147,16 +193,19 @@ for (const engine of ENGINES) {
 
     test('the API Spec tab is added to the import dialog', async () => {
       const page = await browser.newPage();
+      await startCoverage(page);
       await openImport(page);
       const labels = await page.$$eval('#red-ui-clipboard-dialog-import-tabs li a',
         els => els.map(e => e.textContent.trim()));
       assert.ok(labels.includes('API Spec'), labels.join(','));
       assert.strictEqual(labels[labels.length - 1], 'API Spec');
+      await stopCoverage(page);
       await page.close();
     });
 
     test('a single endpoint enables Import and adds the four nodes', async () => {
       const page = await browser.newPage();
+      await startCoverage(page);
       await openImport(page);
       await paste(page, ONE);
 
@@ -167,11 +216,13 @@ for (const engine of ENGINES) {
       await page.waitForTimeout(500);
       assert.deepStrictEqual(await nodeTypes(page),
         ['debug', 'function', 'http request', 'inject']);
+      await stopCoverage(page);
       await page.close();
     });
 
     test('several endpoints go through the select step', async () => {
       const page = await browser.newPage();
+      await startCoverage(page);
       await openImport(page);
       await paste(page, SPEC);
 
@@ -194,11 +245,13 @@ for (const engine of ENGINES) {
       });
       assert.match(code, /msg\.method = `DELETE`;/);
       assert.match(code, /\{petId\}/);
+      await stopCoverage(page);
       await page.close();
     });
 
     test('arrow keys and double click work in the endpoint list', async () => {
       const page = await browser.newPage();
+      await startCoverage(page);
       await openImport(page);
       await paste(page, SPEC);
       await click(page, '#flowgen-select-btn');
@@ -215,22 +268,26 @@ for (const engine of ENGINES) {
       assert.ok((await nodeTypes(page)).includes('http request'));
       assert.strictEqual(await page.isVisible('#red-ui-clipboard-dialog'), false,
         'the dialog closes after a double click');
+      await stopCoverage(page);
       await page.close();
     });
 
     test('the editor never reloads while importing', async () => {
       const page = await browser.newPage();
+      await startCoverage(page);
       await openImport(page);
       await page.evaluate(() => { window.__stayed = true; });
       await paste(page, ONE);
       await click(page, '#red-ui-clipboard-dialog-ok');
       await page.waitForTimeout(500);
       assert.strictEqual(await page.evaluate(() => window.__stayed === true), true);
+      await stopCoverage(page);
       await page.close();
     });
 
     test('reopening the dialog starts from a clean panel', async () => {
       const page = await browser.newPage();
+      await startCoverage(page);
       await openImport(page);
       await paste(page, SPEC);
       await click(page, '#flowgen-select-btn');
@@ -245,11 +302,13 @@ for (const engine of ENGINES) {
       assert.strictEqual(await page.inputValue('#flowgen-spec-text'), '');
       assert.strictEqual(await page.isVisible('#flowgen-select-btn'), false);
       assert.strictEqual(await okDisabled(page), true);
+      await stopCoverage(page);
       await page.close();
     });
 
     test('leaving the tab hides the panel and shows the chosen one', async () => {
       const page = await browser.newPage();
+      await startCoverage(page);
       await openImport(page);
       const shown = () => page.$$eval('#red-ui-clipboard-dialog-import-tabs-content > div',
         els => els.filter(e => e.offsetParent !== null).map(e => e.id));
@@ -270,11 +329,13 @@ for (const engine of ENGINES) {
       await page.waitForTimeout(400);
       assert.deepStrictEqual(await shown(), ['red-ui-clipboard-dialog-import-tab-apispec'],
         'returning to the tab shows only our panel');
+      await stopCoverage(page);
       await page.close();
     });
 
     test('the Select endpoint button is red and Back is grey', async () => {
       const page = await browser.newPage();
+      await startCoverage(page);
       await openImport(page);
       await paste(page, SPEC);
       const select = await page.$eval('#flowgen-select-btn',
@@ -285,6 +346,7 @@ for (const engine of ENGINES) {
       const back = await page.$eval('#flowgen-back-btn',
         el => getComputedStyle(el).backgroundColor);
       assert.strictEqual(back, 'rgb(255, 255, 255)');
+      await stopCoverage(page);
       await page.close();
     });
 
@@ -306,6 +368,7 @@ for (const engine of ENGINES) {
       const gitUrl = 'http://127.0.0.1:' + gitServer.address().port + '/.git';
 
       const page = await browser.newPage();
+      await startCoverage(page);
       await openImport(page);
       await paste(page, gitUrl);
       await page.waitForTimeout(3000);
@@ -325,6 +388,7 @@ for (const engine of ENGINES) {
 
       await new Promise(resolve => gitServer.close(resolve));
       fs.rmSync(repo, { recursive: true, force: true });
+      await stopCoverage(page);
       await page.close();
     });
 
@@ -354,6 +418,7 @@ for (const engine of ENGINES) {
         'the browser must not request the spec itself');
 
       await new Promise(resolve => upstream.close(resolve));
+      await stopCoverage(page);
       await page.close();
     });
   });

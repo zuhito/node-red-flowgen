@@ -1,0 +1,21 @@
+meta {
+  name: api-show
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/show
+  body: json
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "model": "{{model}}",
+    "verbose": false
+  }
+}

@@ -1,0 +1,434 @@
+swagger: '2.0'
+info:
+  title: Ollama
+  description: Local Ollama server API.
+  version: 0.1.0
+host: 127.0.0.1:11434
+basePath: ''
+schemes:
+  - http
+consumes:
+  - application/json
+produces:
+  - application/json
+paths:
+  /api/generate:
+    post:
+      summary: Generate a completion
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: gemma3:270m
+              prompt:
+                type: string
+                example: Why is the sky blue?
+              suffix:
+                type: string
+              system:
+                type: string
+              template:
+                type: string
+              context:
+                type: array
+                items:
+                  type: integer
+              stream:
+                type: boolean
+                default: false
+              raw:
+                type: boolean
+                default: false
+              think:
+                type: boolean
+                default: false
+              format:
+                type: string
+                enum:
+                  - json
+              keep_alive:
+                type: string
+                example: 5m
+              images:
+                type: array
+                items:
+                  type: string
+              options:
+                type: object
+                properties:
+                  temperature:
+                    type: number
+                    default: 0.8
+                  top_k:
+                    type: integer
+                    default: 40
+                  top_p:
+                    type: number
+                    default: 0.9
+                  seed:
+                    type: integer
+                    default: 0
+                  num_predict:
+                    type: integer
+                    default: 16
+                  num_ctx:
+                    type: integer
+                    default: 2048
+                  stop:
+                    type: array
+                    items:
+                      type: string
+  /api/chat:
+    post:
+      summary: Generate a chat completion
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: gemma3:270m
+              messages:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    role:
+                      type: string
+                      enum:
+                        - user
+                        - assistant
+                        - system
+                        - tool
+                    content:
+                      type: string
+                      example: Hello
+                    images:
+                      type: array
+                      items:
+                        type: string
+              stream:
+                type: boolean
+                default: false
+              think:
+                type: boolean
+                default: false
+              format:
+                type: string
+                enum:
+                  - json
+              keep_alive:
+                type: string
+                example: 5m
+              tools:
+                type: array
+                items:
+                  type: object
+              options:
+                type: object
+                properties:
+                  temperature:
+                    type: number
+                    default: 0.8
+                  num_predict:
+                    type: integer
+                    default: 16
+                  seed:
+                    type: integer
+                    default: 0
+  /api/embed:
+    post:
+      summary: Generate embeddings
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: gemma3:270m
+              input:
+                type: string
+                example: Why is the sky blue?
+              truncate:
+                type: boolean
+                default: true
+              keep_alive:
+                type: string
+                example: 5m
+              options:
+                type: object
+  /api/embeddings:
+    post:
+      summary: Generate embeddings, older form
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: gemma3:270m
+              prompt:
+                type: string
+                example: Why is the sky blue?
+              keep_alive:
+                type: string
+                example: 5m
+  /api/tags:
+    get:
+      summary: List local models
+      responses:
+        '200':
+          description: ok
+  /api/ps:
+    get:
+      summary: List running models
+      responses:
+        '200':
+          description: ok
+  /api/version:
+    get:
+      summary: Server version
+      responses:
+        '200':
+          description: ok
+  /api/show:
+    post:
+      summary: Show model information
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: gemma3:270m
+              verbose:
+                type: boolean
+                default: false
+  /api/copy:
+    post:
+      summary: Copy a model
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              source:
+                type: string
+                example: gemma3:270m
+              destination:
+                type: string
+                example: gemma3:270m-copy
+  /api/delete:
+    delete:
+      summary: Delete a model
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: gemma3:270m-copy
+  /api/pull:
+    post:
+      summary: Pull a model
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: gemma3:270m
+              insecure:
+                type: boolean
+                default: false
+              stream:
+                type: boolean
+                default: false
+  /api/push:
+    post:
+      summary: Push a model
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: user/gemma3:270m
+              insecure:
+                type: boolean
+                default: false
+              stream:
+                type: boolean
+                default: false
+  /api/create:
+    post:
+      summary: Create a model
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: gemma3-custom
+              from:
+                type: string
+                example: gemma3:270m
+              system:
+                type: string
+                example: You are helpful.
+              stream:
+                type: boolean
+                default: false
+  /v1/models:
+    get:
+      summary: List models, OpenAI compatible
+      responses:
+        '200':
+          description: ok
+  /v1/chat/completions:
+    post:
+      summary: Chat completions, OpenAI compatible
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: gemma3:270m
+              messages:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    role:
+                      type: string
+                      enum:
+                        - user
+                        - assistant
+                        - system
+                    content:
+                      type: string
+                      example: Hello
+              stream:
+                type: boolean
+                default: false
+              temperature:
+                type: number
+                default: 0.8
+              max_tokens:
+                type: integer
+                default: 16
+              seed:
+                type: integer
+                default: 0
+  /v1/completions:
+    post:
+      summary: Completions, OpenAI compatible
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: gemma3:270m
+              prompt:
+                type: string
+                example: Why is the sky blue?
+              stream:
+                type: boolean
+                default: false
+              max_tokens:
+                type: integer
+                default: 16
+  /v1/embeddings:
+    post:
+      summary: Embeddings, OpenAI compatible
+      responses:
+        '200':
+          description: ok
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              model:
+                type: string
+                example: gemma3:270m
+              input:
+                type: string
+                example: Why is the sky blue?

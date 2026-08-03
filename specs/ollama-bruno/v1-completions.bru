@@ -1,0 +1,23 @@
+meta {
+  name: v1-completions
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/v1/completions
+  body: json
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "model": "{{model}}",
+    "prompt": "Why is the sky blue?",
+    "stream": false,
+    "max_tokens": 16
+  }
+}

@@ -1,0 +1,23 @@
+meta {
+  name: api-create
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/create
+  body: json
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "model": "{{model}}",
+    "from": "gemma3:270m",
+    "system": "You are helpful.",
+    "stream": false
+  }
+}

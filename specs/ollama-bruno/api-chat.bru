@@ -1,0 +1,41 @@
+meta {
+  name: api-chat
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/chat
+  body: json
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "model": "{{model}}",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello",
+        "images": [
+          ""
+        ]
+      }
+    ],
+    "stream": false,
+    "think": false,
+    "format": "json",
+    "keep_alive": "5m",
+    "tools": [
+      {}
+    ],
+    "options": {
+      "temperature": 0.8,
+      "num_predict": 16,
+      "seed": 0
+    }
+  }
+}

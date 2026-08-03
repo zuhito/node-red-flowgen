@@ -1,0 +1,24 @@
+meta {
+  name: api-embed
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/embed
+  body: json
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "model": "{{model}}",
+    "input": "Why is the sky blue?",
+    "truncate": true,
+    "keep_alive": "5m",
+    "options": {}
+  }
+}

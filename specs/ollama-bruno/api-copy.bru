@@ -1,0 +1,21 @@
+meta {
+  name: api-copy
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/copy
+  body: json
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "source": "gemma3:270m",
+    "destination": "gemma3:270m-copy"
+  }
+}
