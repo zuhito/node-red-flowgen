@@ -92,9 +92,21 @@ jobs:
           BROWSERS: ${{ matrix.browser }}
         run: npm run test:browser
 
+  live:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.x'
+      - run: npm install
+      - name: Call real public APIs through Node-RED
+        run: npm run test:live
+
   release:
     runs-on: ubuntu-latest
-    needs: [test, browser]
+    needs: [test, browser, live]
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write

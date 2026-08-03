@@ -37,7 +37,8 @@
     "test:nodered": "node --test tests/test-nodered.js",
     "test:plugin": "node --test tests/test-plugin.js",
     "test:all": "node --test tests/test.js tests/test-cli.js tests/test-bruno.js tests/test-ui.js tests/test-nodered.js tests/test-plugin.js",
-    "test:browser": "node --test --test-timeout 180000 tests/test-browser.js"
+    "test:browser": "node --test --test-timeout 180000 tests/test-browser.js",
+    "test:live": "node tests/test-live.js"
   },
   "devDependencies": {
     "express": "5.2.1",
