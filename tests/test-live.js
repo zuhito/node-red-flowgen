@@ -820,7 +820,17 @@ async function main() {
           ' -> invalid JavaScript: ' + err.message);
         continue;
       }
-      if (!/^msg\.url = `[^`]*`;$/m.test(code)) {
+      let built = null;
+      try {
+        built = new Function('msg', code).call(null, {}) || {};
+      } catch (err) {
+        bad++;
+        failures++;
+        note('error', source.name + ' ' + op.method + ' ' + op.path +
+          ' -> the generated code threw: ' + err.message);
+        continue;
+      }
+      if (typeof built.url !== 'string' || !built.url) {
         bad++;
         failures++;
         note('error', source.name + ' ' + op.method + ' ' + op.path + ' -> no msg.url');
@@ -859,17 +869,24 @@ async function main() {
         note('error', label + ' -> generated invalid JavaScript: ' + err.message);
         continue;
       }
-      const urlLine = source.match(/msg\.url = `([^`]*)`;/);
-      if (!urlLine) {
+      let built = null;
+      try {
+        built = new Function('msg', source).call(null, {}) || {};
+      } catch (err) {
+        failures++;
+        note('error', label + ' -> the generated code threw: ' + err.message);
+        continue;
+      }
+      if (typeof built.url !== 'string' || !built.url) {
         failures++;
         note('error', label + ' -> no msg.url was generated');
         continue;
       }
       try {
-        new URL(urlLine[1]);
+        new URL(built.url);
       } catch (err) {
         failures++;
-        note('error', label + ' -> generated an invalid URL: ' + urlLine[1]);
+        note('error', label + ' -> generated an invalid URL: ' + built.url);
         continue;
       }
 
