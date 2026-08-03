@@ -353,3 +353,143 @@ test('an auth block with no recognised type is ignored', () => {
   const code = flowgen.generate(flowgen.parseDocument(yml), 'get', '/open');
   assert.ok(!/authorization/.test(code));
 });
+
+test('a bru text body becomes a string payload', () => {
+  const doc = flowgen.parseDocument([
+    'meta {', '  name: Text', '}', '',
+    'post {', '  url: https://api.example.test/text', '  body: text', '}', '',
+    'body:text {', '  hello world', '}', ''
+  ].join('\n'));
+  const code = flowgen.generate(doc, 'post', '/text');
+  assert.match(code, /msg\.payload = `hello world`;/);
+});
+
+test('an exported json body is parsed when it is a string', () => {
+  const doc = flowgen.parseDocument(JSON.stringify({
+    items: [{ name: 'J', request: { method: 'POST', url: 'https://t.test/j',
+      body: { mode: 'json', json: '{"a":1}' } } }]
+  }));
+  assert.match(flowgen.generate(doc, 'post', '/j'), /msg\.payload = \{\n  'a': 1\n\};/);
+});
+
+test('an exported json body may already be an object', () => {
+  const doc = flowgen.parseDocument(JSON.stringify({
+    items: [{ name: 'J', request: { method: 'POST', url: 'https://t.test/j',
+      body: { type: 'json', data: { a: 2 } } } }]
+  }));
+  assert.match(flowgen.generate(doc, 'post', '/j'), /'a': 2/);
+});
+
+test('an unparsable exported json body is kept as text', () => {
+  const doc = flowgen.parseDocument(JSON.stringify({
+    items: [{ name: 'J', request: { method: 'POST', url: 'https://t.test/j',
+      body: { mode: 'json', json: 'not json' } } }]
+  }));
+  assert.match(flowgen.generate(doc, 'post', '/j'), /msg\.payload = `not json`;/);
+});
+
+test('exported text and form bodies are understood', () => {
+  const text = flowgen.parseDocument(JSON.stringify({
+    items: [{ name: 'T', request: { method: 'POST', url: 'https://t.test/t',
+      body: { mode: 'text', data: 'plain' } } }]
+  }));
+  assert.match(flowgen.generate(text, 'post', '/t'), /msg\.payload = `plain`;/);
+
+  const form = flowgen.parseDocument(JSON.stringify({
+    items: [{ name: 'F', request: { method: 'POST', url: 'https://t.test/f',
+      body: { mode: 'formUrlEncoded', data: [
+        { name: 'a', value: '1' }, { name: 'skip', value: 'x', enabled: false }] } } }]
+  }));
+  const code = flowgen.generate(form, 'post', '/f');
+  assert.match(code, /'a': `1`/);
+  assert.ok(!/skip/.test(code));
+});
+
+test('an exported multipart body uses the file upload shape', () => {
+  const doc = flowgen.parseDocument(JSON.stringify({
+    items: [{ name: 'M', request: { method: 'POST', url: 'https://t.test/m',
+      body: { mode: 'multipartForm', data: [
+        { name: 'file', type: 'file' },
+        { name: 'note', value: 'hi' },
+        { name: 'off', value: 'x', enabled: false }] } } }]
+  }));
+  const code = flowgen.generate(doc, 'post', '/m');
+  assert.match(code, /'value': `FILE_CONTENTS`/);
+  assert.match(code, /'note': `hi`/);
+  assert.ok(!/'off'/.test(code));
+});
+
+test('exported headers may be an object and disabled ones are dropped', () => {
+  const doc = flowgen.parseDocument(JSON.stringify({
+    items: [{ name: 'H', request: { method: 'GET', url: 'https://t.test/h',
+      headers: { 'X-One': 'a' } } }]
+  }));
+  assert.match(flowgen.generate(doc, 'get', '/h'), /'X-One': `a`/);
+
+  const arr = flowgen.parseDocument(JSON.stringify({
+    items: [{ name: 'H', request: { method: 'GET', url: 'https://t.test/h',
+      headers: [{ name: 'X-Two', value: 'b' },
+                { name: 'X-Off', value: 'c', enabled: false }] } }]
+  }));
+  const code = flowgen.generate(arr, 'get', '/h');
+  assert.match(code, /'X-Two': `b`/);
+  assert.ok(!/X-Off/.test(code));
+});
+
+test('nested folders in an export are walked', () => {
+  const doc = flowgen.parseDocument(JSON.stringify({
+    items: [{ name: 'folder', items: [
+      { name: 'Deep', request: { method: 'GET', url: 'https://t.test/deep' } }] }]
+  }));
+  assert.strictEqual(flowgen.listOperations(doc).count, 1);
+  assert.match(flowgen.generate(doc, 'get', '/deep'), /t\.test\/deep/);
+});
+
+test('a yaml environment file supplies variables', () => {
+  const doc = flowgen.parseCollection([
+    { path: 'environments/dev.yml',
+      text: 'vars:\n  - name: host\n    value: https://env.test\n' },
+    { path: 'r.yml',
+      text: 'info:\n  name: R\nhttp:\n  method: GET\n  url: "{{host}}/ping"\n' }
+  ]);
+  assert.match(flowgen.generate(doc, 'get', '/ping'), /msg\.url = `https:\/\/env\.test\/ping`;/);
+});
+
+test('a mapping style environment file also supplies variables', () => {
+  const doc = flowgen.parseCollection([
+    { path: 'environments/dev.yml', text: 'vars:\n  host: https://map.test\n' },
+    { path: 'r.yml',
+      text: 'info:\n  name: R\nhttp:\n  method: GET\n  url: "{{host}}/ping"\n' }
+  ]);
+  assert.match(flowgen.generate(doc, 'get', '/ping'), /https:\/\/map\.test\/ping/);
+});
+
+test('an unreadable environment file is ignored', () => {
+  const doc = flowgen.parseCollection([
+    { path: 'environments/bad.yml', text: '\tnot: [valid' },
+    { path: 'r.yml',
+      text: 'info:\n  name: R\nhttp:\n  method: GET\n  url: "{{host}}/ping"\n' }
+  ]);
+  const id = flowgen.listOperations(doc).operations[0].path;
+  assert.strictEqual(id, '{host}/ping');
+  assert.match(flowgen.generate(doc, 'get', id), /msg\.url = `\{host\}\/ping`;/);
+});
+
+test('collection level vars are read from collection.bru', () => {
+  const doc = flowgen.parseCollection([
+    { path: 'collection.bru', text: 'vars {\n  host: https://col.test\n}\n' },
+    { path: 'r.yml',
+      text: 'info:\n  name: R\nhttp:\n  method: GET\n  url: "{{host}}/ping"\n' }
+  ]);
+  assert.match(flowgen.generate(doc, 'get', '/ping'), /https:\/\/col\.test\/ping/);
+});
+
+test('a colon style path variable is shown in braces', () => {
+  const doc = flowgen.parseDocument([
+    'meta {', '  name: C', '}', '',
+    'get {', '  url: https://api.example.test/users/:id/posts', '}', ''
+  ].join('\n'));
+  assert.deepStrictEqual(flowgen.listOperations(doc).operations[0].path, '/users/{id}/posts');
+  assert.match(flowgen.generate(doc, 'get', '/users/{id}/posts'),
+    /msg\.url = `https:\/\/api\.example\.test\/users\/\{id\}\/posts`;/);
+});

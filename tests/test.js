@@ -863,3 +863,148 @@ test('a basePath without a host still gets a baseUrl placeholder', () => {
     paths: { '/a': { get: {} } } };
   assert.match(flowgen.generate(doc, 'get', '/a'), /msg\.url = `\{baseUrl\}\/v2\/a`;/);
 });
+
+test('a parameter examples map supplies candidate values', () => {
+  const doc = v3({ '/x': { get: { parameters: [{ name: 'q', in: 'query',
+    examples: { first: { value: 'one' }, second: { value: 'two' }, broken: 'ignored' } }] } } });
+  const lines = flowgen.generate(doc, 'get', '/x').split('\n').filter(l => /msg\.url/.test(l));
+  assert.match(lines[0], /\?q=one`/);
+  assert.match(lines[1], /^\/\/ msg\.url = .*\?q=two`/);
+});
+
+test('a server variable falls back to its enum when no default exists', () => {
+  const doc = {
+    openapi: '3.0.0', info: { title: 'T', version: '1' },
+    servers: [{ url: 'https://{region}.test/v1',
+      variables: { region: { enum: ['eu', 'us'] } } }],
+    paths: { '/x': { get: {} } }
+  };
+  assert.match(flowgen.generate(doc, 'get', '/x'), /msg\.url = `https:\/\/eu\.test\/v1\/x`;/);
+});
+
+test('a server variable with no default or enum is left in place', () => {
+  const doc = {
+    openapi: '3.0.0', info: { title: 'T', version: '1' },
+    servers: [{ url: 'https://{region}.test/v1', variables: { region: {} } }],
+    paths: { '/x': { get: {} } }
+  };
+  assert.match(flowgen.generate(doc, 'get', '/x'), /\{region\}\.test/);
+});
+
+test('allOf schemas are merged into one sample body', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { allOf: [
+      { type: 'object', properties: { a: { type: 'string' } } },
+      { type: 'object', properties: { b: { type: 'integer' } } }
+    ] } } } } } } });
+  const msg = run(flowgen.generate(doc, 'post', '/x'));
+  assert.deepStrictEqual(msg.payload, { a: '', b: 0 });
+});
+
+test('an array schema samples a single element', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { type: 'array', items: { type: 'object',
+      properties: { id: { type: 'integer' } } } } } } } } } });
+  assert.deepStrictEqual(run(flowgen.generate(doc, 'post', '/x')).payload, [{ id: 0 }]);
+});
+
+test('items without an explicit array type are still treated as an array', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { items: { type: 'string' } } } } } } } });
+  assert.deepStrictEqual(run(flowgen.generate(doc, 'post', '/x')).payload, ['']);
+});
+
+test('a reference outside the document resolves to an empty schema', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { $ref: 'other.yaml#/Thing' } } } } } } });
+  const code = flowgen.generate(doc, 'post', '/x');
+  assert.doesNotThrow(() => new Function(code));
+  assert.strictEqual(run(code).payload, '');
+});
+
+test('escaped reference tokens are decoded', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { $ref: '#/components/schemas/a~1b' } } } } } } }, {
+    components: { schemas: { 'a/b': { type: 'object',
+      properties: { ok: { type: 'boolean' } } } } }
+  });
+  assert.deepStrictEqual(run(flowgen.generate(doc, 'post', '/x')).payload, { ok: false });
+});
+
+test('a recursive reference terminates', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { $ref: '#/components/schemas/Node' } } } } } } }, {
+    components: { schemas: { Node: { type: 'object',
+      properties: { child: { $ref: '#/components/schemas/Node' } } } } }
+  });
+  assert.doesNotThrow(() => flowgen.generate(doc, 'post', '/x'));
+});
+
+test('null, boolean and number schema types sample sensibly', () => {
+  const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+    schema: { type: 'object', properties: {
+      n: { type: 'null' }, b: { type: 'boolean' },
+      i: { type: 'integer' }, f: { type: 'number' } } } } } } } } });
+  assert.deepStrictEqual(run(flowgen.generate(doc, 'post', '/x')).payload,
+    { n: null, b: false, i: 0, f: 0 });
+});
+
+test('a text or binary request body becomes an empty string', () => {
+  for (const type of ['text/plain', 'application/octet-stream']) {
+    const doc = v3({ '/x': { post: { requestBody: { content: { [type]: {} } } } } });
+    assert.strictEqual(run(flowgen.generate(doc, 'post', '/x')).payload, '');
+  }
+});
+
+test('swagger 2.0 merges allOf and samples arrays and refs', () => {
+  const doc = v2({ '/x': { post: {
+    consumes: ['application/json'],
+    parameters: [{ name: 'body', in: 'body', schema: {
+      allOf: [{ type: 'object', properties: { a: { type: 'string' } } },
+              { type: 'object', properties: { b: { type: 'integer' } } }] } }]
+  } } });
+  assert.deepStrictEqual(run(flowgen.generate(doc, 'post', '/x')).payload, { a: '', b: 0 });
+
+  const arr = v2({ '/y': { post: {
+    consumes: ['application/json'],
+    parameters: [{ name: 'body', in: 'body',
+      schema: { type: 'array', items: { type: 'string' } } }]
+  } } });
+  assert.deepStrictEqual(run(flowgen.generate(arr, 'post', '/y')).payload, ['']);
+});
+
+test('swagger 2.0 resolves definitions and escaped reference tokens', () => {
+  const doc = v2({ '/x': { post: {
+    consumes: ['application/json'],
+    parameters: [{ name: 'body', in: 'body',
+      schema: { $ref: '#/definitions/a~1b' } }]
+  } } }, { definitions: { 'a/b': { type: 'object',
+    properties: { ok: { type: 'boolean' } } } } });
+  assert.deepStrictEqual(run(flowgen.generate(doc, 'post', '/x')).payload, { ok: false });
+});
+
+test('swagger 2.0 terminates on a recursive definition', () => {
+  const doc = v2({ '/x': { post: {
+    consumes: ['application/json'],
+    parameters: [{ name: 'body', in: 'body', schema: { $ref: '#/definitions/Node' } }]
+  } } }, { definitions: { Node: { type: 'object',
+    properties: { child: { $ref: '#/definitions/Node' } } } } });
+  assert.doesNotThrow(() => flowgen.generate(doc, 'post', '/x'));
+});
+
+test('swagger 2.0 uses an enum as the sample value', () => {
+  const doc = v2({ '/x': { post: {
+    consumes: ['application/json'],
+    parameters: [{ name: 'body', in: 'body', schema: { type: 'object',
+      properties: { kind: { type: 'string', enum: ['first', 'second'] } } } }]
+  } } });
+  assert.deepStrictEqual(run(flowgen.generate(doc, 'post', '/x')).payload, { kind: 'first' });
+});
+
+test('swagger 2.0 ignores a reference outside the document', () => {
+  const doc = v2({ '/x': { post: {
+    consumes: ['application/json'],
+    parameters: [{ name: 'body', in: 'body', schema: { $ref: 'other.yaml#/Thing' } }]
+  } } });
+  assert.doesNotThrow(() => new Function(flowgen.generate(doc, 'post', '/x')));
+});

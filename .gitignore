@@ -4,3 +4,5 @@ flows.json
 .DS_Store
 *.tgz
 package-lock.json
+coverage/
+.nyc_output/

@@ -130,3 +130,20 @@ test('deprecated operations are refused by the CLI', async () => {
   assert.strictEqual(result.code, 1);
   assert.ok(!/findByTags/.test(result.stderr.split('available:')[1] || ''));
 });
+
+test('a single bru file can be given to the CLI', async () => {
+  const file = path.join(os.tmpdir(), 'one-' + process.pid + '.bru');
+  fs.writeFileSync(file, [
+    'meta {', '  name: Ping', '}', '',
+    'get {', '  url: https://api.example.test/ping', '}', ''
+  ].join('\n'));
+
+  const listed = await run([file, '--list']);
+  assert.strictEqual(listed.code, 0, listed.stderr);
+  assert.match(listed.stdout, /get \/ping\s+# Ping/);
+
+  const generated = await run([file, 'get', '/ping']);
+  fs.unlinkSync(file);
+  assert.strictEqual(generated.code, 0, generated.stderr);
+  assert.match(generated.stdout, /msg\.url = `https:\/\/api\.example\.test\/ping`;/);
+});
