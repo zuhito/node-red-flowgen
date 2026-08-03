@@ -198,10 +198,11 @@ function parseCollection(files) {
 
 function brunoParts(doc, req) {
   const todo = [];
-  const url = colonToBrace(String(req.url).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) => {
-    if (doc.vars[name] !== undefined && String(doc.vars[name]) !== '') return String(doc.vars[name]);
-    return '{' + name + '}';
-  }));
+  const url = String(req.url)
+    .replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
+      doc.vars[name] !== undefined && String(doc.vars[name]) !== ''
+        ? String(doc.vars[name]) : '{' + name + '}')
+    .replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
   for (const token of url.match(/\{[^}]+\}/g) || []) {
     const name = token.slice(1, -1);
     if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
@@ -221,14 +222,12 @@ function brunoParts(doc, req) {
   };
 }
 
-function colonToBrace(text) {
-  return String(text).replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
-}
-
 function brunoPath(req, vars) {
-  const clean = colonToBrace(String(req.url).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
-    vars && vars[name] !== undefined && String(vars[name]) !== ''
-      ? String(vars[name]) : '{' + name + '}'));
+  const clean = String(req.url)
+    .replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
+      vars && vars[name] !== undefined && String(vars[name]) !== ''
+        ? String(vars[name]) : '{' + name + '}')
+    .replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
   const noProto = clean.replace(/^https?:\/\/[^/]*/, '');
   const path = noProto.split('?')[0];
   return path || '/';
@@ -277,7 +276,7 @@ function generate(doc, method, target) {
         found = req;
       }
     }
-    if (!found) throw notFound(method, target, available);
+    if (!found) throw new Error('not found: ' + method + ' ' + target + '\navailable:\n  ' + available.join('\n  '));
     return assemble(brunoParts(bruno, found));
   }
   if (format === 'swagger2') return generateSwagger2(doc, method, target);
@@ -310,10 +309,6 @@ function literal(value, indent) {
   }
   if (typeof value === 'string') return quote(value);
   return String(value);
-}
-
-function pairsLiteral(list) {
-  return literal(list.reduce((acc, entry) => (acc[entry[0]] = entry[1], acc), {}), 0);
 }
 
 function typeOf(schema) {
@@ -434,7 +429,7 @@ function assemble(parts) {
     const empty = blank(pairs);
     lines.push('');
     if (empty.length) lines.push('// Fill in ' + phrase(empty) + ' below.');
-    lines.push('msg.' + key + ' = ' + pairsLiteral(pairs) + ';');
+    lines.push('msg.' + key + ' = ' + literal(pairs.reduce((acc, e) => (acc[e[0]] = e[1], acc), {}), 0) + ';');
   }
   if (parts.hasBody) {
     lines.push('', parts.multipart
@@ -444,11 +439,6 @@ function assemble(parts) {
   }
   lines.push('return msg;');
   return lines.join('\n');
-}
-
-function notFound(method, target, available) {
-  return new Error('not found: ' + method + ' ' + target +
-    '\navailable:\n  ' + available.join('\n  '));
 }
 
 function generateOpenApi3(doc, rawMethod, target) {
@@ -481,7 +471,7 @@ function generateOpenApi3(doc, rawMethod, target) {
       found = { path: rawPath, item: item, op: item[method] };
     }
   }
-  if (!found) throw notFound(method, target, available);
+  if (!found) throw new Error('not found: ' + method + ' ' + target + '\navailable:\n  ' + available.join('\n  '));
   const path = found.path, item = found.item, op = found.op;
 
   const params = [];
@@ -646,7 +636,7 @@ function generateSwagger2(doc, rawMethod, target) {
       found = { path: rawPath, item: item, op: item[method] };
     }
   }
-  if (!found) throw notFound(method, target, available);
+  if (!found) throw new Error('not found: ' + method + ' ' + target + '\navailable:\n  ' + available.join('\n  '));
   const path = found.path, item = found.item, op = found.op;
 
   const params = [];
@@ -764,37 +754,17 @@ function generateSwagger2(doc, rawMethod, target) {
   });
 }
 
-function estimateLabelWidth(text) {
+function nodeWidth(label, hasInput) {
+  if (!label) return 100;
   let width = 0;
-  for (const ch of String(text)) {
+  for (const ch of String(label)) {
     if (/[ijl.,:;'|!]/.test(ch)) width += 4;
     else if (/[ftr()\[\]{}\/]/.test(ch)) width += 5.5;
     else if (/[A-Z@#%&]/.test(ch)) width += 10;
     else if (/[mwMW]/.test(ch)) width += 12;
     else width += 8;
   }
-  return width;
-}
-
-function nodeWidth(label, hasInput) {
-  const DEFAULT_WIDTH = 100;
-  if (!label) return DEFAULT_WIDTH;
-  const text = estimateLabelWidth(label) + 50 + (hasInput ? 7 : 0);
-  return Math.max(DEFAULT_WIDTH, 20 * Math.ceil(text / 20));
-}
-
-function layout(labels) {
-  const GRID = 20;
-  const GAP = 2 * GRID;
-  const xs = [];
-  let left = 3 * GRID;
-  for (const entry of labels) {
-    const width = nodeWidth(entry.label, entry.hasInput);
-    const centre = GRID * Math.round((left + width / 2) / GRID);
-    xs.push(centre);
-    left = centre + width / 2 + GAP;
-  }
-  return xs;
+  return Math.max(100, 20 * Math.ceil((width + 50 + (hasInput ? 7 : 0)) / 20));
 }
 
 function buildFlow(doc, method, target, options) {
@@ -808,12 +778,15 @@ function buildFlow(doc, method, target, options) {
     shown = (withoutHost.split('?')[0]) || String(target);
   }
   const name = String(method).toUpperCase() + ' ' + shown;
-  const xs = layout([
-    { label: 'timestamp', hasInput: false },
-    { label: name, hasInput: true },
-    { label: 'http request', hasInput: true },
-    { label: 'msg.payload', hasInput: true }
-  ]);
+  const xs = [];
+  let left = 60;
+  for (const entry of [['timestamp', false], [name, true],
+    ['http request', true], ['msg.payload', true]]) {
+    const width = nodeWidth(entry[0], entry[1]);
+    const centre = 20 * Math.round((left + width / 2) / 20);
+    xs.push(centre);
+    left = centre + width / 2 + 40;
+  }
   const nodes = [
     {
       id: tab, type: 'tab', label: name,

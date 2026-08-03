@@ -15,6 +15,7 @@ const SPEC_SOURCES = [
   { name: 'petstore-v2', url: 'https://petstore.swagger.io/v2/swagger.json' },
   { name: 'petstore-v3', url: 'https://petstore3.swagger.io/api/v3/openapi.json' },
   { name: 'httpbin', url: 'https://httpbin.org/spec.json' },
+  { name: 'httpbingo', url: 'https://httpbingo.org/spec.json' },
   { name: 'apis-guru',
     url: 'https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/apis.guru/2.2.0/openapi.yaml' },
   { name: 'apis-guru-v2',
@@ -23,7 +24,21 @@ const SPEC_SOURCES = [
 
 const BRUNO_SOURCES = [
   { name: 'bruno-starter-guide',
-    git: 'https://github.com/bruno-collections/bruno-starter-guide.git' }
+    git: 'https://github.com/bruno-collections/bruno-starter-guide.git' },
+  { name: 'cyberark-apis', git: 'https://github.com/strick-j/CyberArk-APIs.git' },
+  { name: 'stripe-bruno', git: 'https://github.com/rreyn-bruno/Stripe-Bruno-Collection.git' },
+  { name: 'trustpilot-docs',
+    git: 'https://github.com/trustpilot/documentation-bruno-collection.git' },
+  { name: 'readwise-bruno', git: 'https://github.com/Scarvy/readwise-bruno.git' },
+  { name: 'odk-central',
+    git: 'https://github.com/CEN-Nouvelle-Aquitaine/bruno-API-ODKCentral.git' },
+  { name: 'joomla-api', git: 'https://github.com/renekreijveld/bruno-joomla-api.git' },
+  { name: 'udm-api', git: 'https://github.com/sirkirby/bruno-udm-api.git' },
+  { name: 'eventsourcingdb',
+    git: 'https://github.com/thenativeweb/eventsourcingdb-client-bruno.git' },
+  { name: 'cupra-weconnect',
+    git: 'https://github.com/Timwun/Cupra-WeConnect-Bruno-Collection.git' },
+  { name: 'cyberark-rest', git: 'https://github.com/IAM-Jah/CyberArk-REST-API-Bruno.git' }
 ];
 
 const CASES = [
@@ -52,6 +67,19 @@ const CASES = [
   { source: 'httpbin', method: 'get', path: '/basic-auth/{user}/{passwd}',
     fill: { user: 'u', passwd: 'p' },
     addAuth: { authorization: 'Basic dTpw' }, expect: 200 },
+  { source: 'httpbingo', method: 'get', path: '/get' },
+  { source: 'httpbingo', method: 'post', path: '/post' },
+  { source: 'httpbingo', method: 'get', path: '/headers' },
+  { source: 'httpbingo', method: 'get', path: '/bearer',
+    addAuth: { authorization: 'Bearer live-test-token' }, expect: 200 },
+  { source: 'httpbingo', method: 'get', path: '/basic-auth/{user}/{passwd}',
+    fill: { user: 'u', passwd: 'p' },
+    addAuth: { authorization: 'Basic dTpw' }, expect: 200 },
+  { source: 'httpbingo', method: 'get', path: '/hidden-basic-auth/{user}/{passwd}',
+    fill: { user: 'u', passwd: 'p' },
+    addAuth: { authorization: 'Basic dTpw' }, expect: 200 },
+  { source: 'httpbingo', method: 'get', path: '/status/{code}', fill: { code: '204' },
+    expect: 204 },
   { source: 'apis-guru', method: 'get', path: '/providers.json' },
   { source: 'apis-guru', method: 'get', path: '/metrics.json' },
   { source: 'apis-guru', method: 'get', path: '/list.json' },
@@ -292,6 +320,42 @@ async function main() {
     } else {
       note('notice', label + ' -> no response within 30s (upstream did not answer)');
     }
+  }
+
+  for (const source of BRUNO_SOURCES) {
+    const doc = docs[source.name];
+    if (!doc) continue;
+    const list = flowgen.listOperations(doc);
+    let bad = 0;
+    for (const op of list.operations) {
+      let code;
+      try {
+        code = flowgen.generate(doc, op.method, op.path);
+      } catch (err) {
+        bad++;
+        failures++;
+        note('error', source.name + ' ' + op.method + ' ' + op.path +
+          ' -> generation failed: ' + err.message);
+        continue;
+      }
+      try {
+        new Function(code);
+      } catch (err) {
+        bad++;
+        failures++;
+        note('error', source.name + ' ' + op.method + ' ' + op.path +
+          ' -> invalid JavaScript: ' + err.message);
+        continue;
+      }
+      if (!/^msg\.url = `[^`]*`;$/m.test(code)) {
+        bad++;
+        failures++;
+        note('error', source.name + ' ' + op.method + ' ' + op.path + ' -> no msg.url');
+      }
+    }
+    ran += list.count;
+    note('notice', source.name + ' -> ' + list.count + ' requests generated, ' +
+      bad + ' problems');
   }
 
   if (process.env.LIVE_CORPUS) {
