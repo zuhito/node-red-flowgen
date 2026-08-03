@@ -560,9 +560,31 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     okButton(false);
   }
 
+  function uninstall() {
+    if (isActive) { hide('red-ui-clipboard-dialog-import-tab-clipboard'); }
+    resetAll();
+    $('#red-ui-tab-' + TAB_ID).remove();
+    $('#' + TAB_ID).remove();
+    $('#red-ui-clipboard-dialog').off('dialogclose.flowgen');
+    var ok = document.getElementById('red-ui-clipboard-dialog-ok');
+    if (ok) { ok.removeAttribute('data-flowgen-bound'); }
+    if (!$('#red-ui-clipboard-dialog-import-tabs li.active').length) {
+      $('#red-ui-tab-red-ui-clipboard-dialog-import-tab-clipboard').addClass('active');
+      $('#red-ui-clipboard-dialog-import-tabs-content').children().hide();
+      $('#red-ui-clipboard-dialog-import-tab-clipboard').show();
+    }
+  }
+
+  function available() {
+    return fetch(apiRoot() + 'flowgen/flowgen.js', { method: 'HEAD' })
+      .then(function (res) { return res.ok; })
+      .catch(function () { return false; });
+  }
+
   function install() {
     var tabs = $('#red-ui-clipboard-dialog-import-tabs');
-    if (!tabs.length || tabs.find('#flowgen-tab-link').length) { return; }
+    if (!tabs.length) { return; }
+    if (tabs.find('#flowgen-tab-link').length) { return; }
 
     var li = $('<li>').attr('id', 'red-ui-tab-' + TAB_ID).addClass('red-ui-tab')
       .append($('<a>').attr({ id: 'flowgen-tab-link', href: '#' })
@@ -600,9 +622,12 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
   RED.plugins.registerPlugin('node-red-flowgen', {
     onadd: function () {
       $(document).on('dialogopen', function (ev) {
-        if (ev.target && ev.target.id === 'red-ui-clipboard-dialog') {
-          setTimeout(install, 0);
-        }
+        if (!ev.target || ev.target.id !== 'red-ui-clipboard-dialog') { return; }
+        setTimeout(function () {
+          available().then(function (ok) {
+            if (ok) { install(); } else { uninstall(); }
+          });
+        }, 0);
       });
     }
   });

@@ -425,6 +425,32 @@ for (const engine of ENGINES) {
       await page.close();
     });
 
+    test('the tab disappears when the runtime stops serving the plugin', async () => {
+      const page = await browser.newPage();
+      await openImport(page);
+      assert.strictEqual((await page.$$('#flowgen-tab-link')).length, 1);
+
+      await page.route('**/flowgen/flowgen.js', route => route.fulfill({ status: 404, body: '' }));
+
+      await page.evaluate(() => $('#red-ui-clipboard-dialog').dialog('close'));
+      await page.waitForTimeout(300);
+      await page.evaluate(() => window.RED.actions.invoke('core:show-import-dialog'));
+      await page.waitForTimeout(1200);
+
+      assert.strictEqual((await page.$$('#flowgen-tab-link')).length, 0,
+        'the API Spec tab must be gone');
+      assert.strictEqual((await page.$$('#red-ui-clipboard-dialog-import-tab-apispec')).length, 0);
+
+      const labels = await page.$$eval('#red-ui-clipboard-dialog-import-tabs li a',
+        els => els.map(e => e.textContent.trim()));
+      assert.ok(!labels.includes('API Spec'), labels.join(','));
+
+      const shown = await page.$$eval('#red-ui-clipboard-dialog-import-tabs-content > div',
+        els => els.filter(e => e.offsetParent !== null).map(e => e.id));
+      assert.ok(shown.length >= 1, 'another tab is visible');
+      await page.close();
+    });
+
     test('a spec URL is fetched through the runtime, not the browser', async () => {
       const page = await browser.newPage();
       const direct = [];

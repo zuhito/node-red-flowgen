@@ -46,7 +46,7 @@ const DIALOG = `
   </div>
 </div>`;
 
-let dom, win, $, RED, imported, dialogClosed, okDefaultRuns, submits;
+let dom, win, $, RED, imported, dialogClosed, okDefaultRuns, submits, pluginServed;
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -104,11 +104,19 @@ async function boot() {
     return Promise.resolve();
   };
 
+  pluginServed = true;
+  win.fetch = (url, options) => {
+    if (options && options.method === 'HEAD') {
+      return Promise.resolve({ ok: pluginServed, status: pluginServed ? 200 : 404 });
+    }
+    return Promise.reject(new Error('no stub for ' + url));
+  };
+
   const script = PLUGIN_HTML.replace(/[\s\S]*?<script[^>]*>/, '').replace(/<\/script>[\s\S]*/, '');
   win.eval(script);
 
   $('#red-ui-clipboard-dialog').trigger('dialogopen');
-  await wait(20);
+  await wait(60);
 }
 
 const clickOk = () => win.document.getElementById('red-ui-clipboard-dialog-ok')
@@ -145,7 +153,7 @@ test('the API Spec tab is appended after the built-in tabs', () => {
 
 test('the tab is only installed once, however often the dialog opens', async () => {
   for (let i = 0; i < 3; i++) { $('#red-ui-clipboard-dialog').trigger('dialogopen'); }
-  await wait(20);
+  await wait(80);
   assert.strictEqual($('#flowgen-tab-link').length, 1);
   assert.strictEqual($('#red-ui-clipboard-dialog-import-tab-apispec').length, 1);
 });
@@ -263,7 +271,8 @@ test('a pasted url is fetched and replaces the text area', async () => {
   await wait(20);
 
   let requested = null;
-  win.fetch = url => {
+  win.fetch = (url, options) => {
+    if (options && options.method === 'HEAD') return Promise.resolve({ ok: true, status: 200 });
     requested = String(url);
     return Promise.resolve({ ok: true, status: 200,
       json: () => Promise.resolve({ text: SPEC_V2 }) });
@@ -858,7 +867,7 @@ test('reopening after a close cannot import the previous selection', async () =>
   $('#red-ui-clipboard-dialog').trigger('dialogclose');
 
   $('#red-ui-clipboard-dialog').trigger('dialogopen');
-  await wait(30);
+  await wait(60);
   specTab().trigger('click');
   await wait(30);
 
@@ -1057,4 +1066,84 @@ test('the row tints are pale enough to read text over', async () => {
     assert.ok((r + g + b) / 3 > 220, hex + ' is too dark for a row tint');
   }
   assert.ok(!/rgba\(/.test(styles), 'tints are solid colours, not alpha blends');
+});
+
+test('the tab disappears once the plugin is no longer served', async () => {
+  assert.strictEqual($('#flowgen-tab-link').length, 1);
+
+  pluginServed = false;
+  $('#red-ui-clipboard-dialog').trigger('dialogopen');
+  await wait(80);
+
+  assert.strictEqual($('#flowgen-tab-link').length, 0, 'the tab must be removed');
+  assert.strictEqual($('#red-ui-tab-red-ui-clipboard-dialog-import-tab-apispec').length, 0);
+  assert.strictEqual($('#red-ui-clipboard-dialog-import-tab-apispec').length, 0,
+    'the panel must be removed too');
+
+  const labels = $('#red-ui-clipboard-dialog-import-tabs li a')
+    .map((i, el) => $(el).text()).get();
+  assert.strictEqual(labels.join(','), 'Clipboard,Local,Examples');
+});
+
+test('removing the tab leaves the Clipboard tab usable', async () => {
+  specTab().trigger('click');
+  await wait(30);
+  assert.strictEqual(shown(), 'paste');
+
+  pluginServed = false;
+  $('#red-ui-clipboard-dialog').trigger('dialogopen');
+  await wait(80);
+
+  const visible = $(CONTENT).children()
+    .filter((i, el) => $(el).css('display') !== 'none').map((i, el) => el.id).get().join(',');
+  assert.strictEqual(visible, 'red-ui-clipboard-dialog-import-tab-clipboard');
+  assert.strictEqual($('#red-ui-clipboard-dialog-import-tabs li.active').length, 1);
+});
+
+test('the built-in Import works again after the plugin is removed', async () => {
+  await openSpecTab(SPEC_V3);
+  $('#flowgen-select-btn').trigger('click');
+  $('#flowgen-op-list .flowgen-op').first().trigger('click');
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
+
+  pluginServed = false;
+  $('#red-ui-clipboard-dialog').trigger('dialogopen');
+  await wait(80);
+
+  clickOk();
+  assert.strictEqual(imported.length, 0, 'the plugin must not hijack Import any more');
+  assert.strictEqual(okDefaultRuns, 1, 'the built-in handler runs again');
+});
+
+test('the tab comes back when the plugin is served again', async () => {
+  pluginServed = false;
+  $('#red-ui-clipboard-dialog').trigger('dialogopen');
+  await wait(80);
+  assert.strictEqual($('#flowgen-tab-link').length, 0);
+
+  pluginServed = true;
+  $('#red-ui-clipboard-dialog').trigger('dialogopen');
+  await wait(80);
+  assert.strictEqual($('#flowgen-tab-link').length, 1);
+
+  specTab().trigger('click');
+  await wait(30);
+  assert.strictEqual(shown(), 'paste');
+});
+
+test('a removed plugin does not leave stale state behind', async () => {
+  await openSpecTab(SPEC_V3);
+  pluginServed = false;
+  $('#red-ui-clipboard-dialog').trigger('dialogopen');
+  await wait(80);
+
+  pluginServed = true;
+  $('#red-ui-clipboard-dialog').trigger('dialogopen');
+  await wait(80);
+  specTab().trigger('click');
+  await wait(30);
+
+  assert.strictEqual($('#flowgen-spec-text').val(), '');
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true);
+  assert.strictEqual($('#flowgen-op-list .flowgen-op').length, 0);
 });
