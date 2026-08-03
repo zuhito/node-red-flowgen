@@ -43,12 +43,15 @@ const CASES = [
   { source: 'httpbin', method: 'get', path: '/status/{codes}', fill: { codes: '200' } },
   { source: 'httpbin', method: 'get', path: '/bearer', expect: [200, 401] },
   { source: 'httpbin', method: 'get', path: '/bearer',
-    auth: { authorization: 'Bearer live-test-token' }, expect: 200 },
+    addAuth: { authorization: 'Bearer live-test-token' }, expect: 200 },
   { source: 'bruno-starter-guide', method: 'get', path: '/users/usebruno' },
   { source: 'bruno-starter-guide', method: 'get', path: '/basic-auth/usebruno/1234',
     expect: [200, 401] },
   { source: 'bruno-starter-guide', method: 'get', path: '/basic-auth/usebruno/1234',
     auth: { authorization: 'Basic dXNlYnJ1bm86MTIzNA==' }, expect: 200 },
+  { source: 'httpbin', method: 'get', path: '/basic-auth/{user}/{passwd}',
+    fill: { user: 'u', passwd: 'p' },
+    addAuth: { authorization: 'Basic dTpw' }, expect: 200 },
   { source: 'apis-guru', method: 'get', path: '/providers.json' },
   { source: 'apis-guru', method: 'get', path: '/metrics.json' },
   { source: 'apis-guru', method: 'get', path: '/list.json' },
@@ -144,6 +147,14 @@ function applyFill(code, fill) {
   return out;
 }
 
+function addHeaders(code, headers) {
+  const extra = Object.entries(headers)
+    .map(([name, value]) => '  ' + JSON.stringify(name) + ': ' + JSON.stringify(value))
+    .join(',\n');
+  return code.replace(/return msg;\s*$/,
+    'msg.headers = Object.assign(msg.headers || {}, {\n' + extra + '\n});\nreturn msg;');
+}
+
 function applyAuth(code, headers) {
   let out = code;
   for (const [name, value] of Object.entries(headers || {})) {
@@ -219,10 +230,12 @@ async function main() {
     }
     ran++;
 
-    if (testCase.auth) {
+    if (testCase.auth || testCase.addAuth) {
       const fn = nodes.find(n => n.type === 'function');
       try {
-        fn.func = applyAuth(fn.func, testCase.auth);
+        if (testCase.auth) { fn.func = applyAuth(fn.func, testCase.auth); }
+        if (testCase.addAuth) { fn.func = addHeaders(fn.func, testCase.addAuth); }
+        new Function(fn.func);
       } catch (err) {
         failures++;
         note('error', label + ' -> ' + err.message);
