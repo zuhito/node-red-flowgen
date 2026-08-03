@@ -251,3 +251,51 @@ test('the collection endpoint unpacks an uploaded zip', async () => {
   assert.deepStrictEqual(files.map(f => f.path), ['req.bru']);
   assert.match(files[0].text, /api\.example\.test\/ping/);
 });
+
+test('the collection endpoint reports a bad zip rather than crashing', async () => {
+  const body = Buffer.from('this is not a zip file');
+  const res = await new Promise((resolve, reject) => {
+    const req = http.request({
+      host: '127.0.0.1', port: port, path: '/flowgen/source', method: 'POST',
+      headers: { 'content-type': 'application/zip', 'content-length': body.length }
+    }, r => {
+      const chunks = [];
+      r.on('data', c => chunks.push(c));
+      r.on('end', () => resolve({ status: r.statusCode, body: Buffer.concat(chunks).toString() }));
+    });
+    req.on('error', reject);
+    req.end(body);
+  });
+  assert.strictEqual(res.status, 400);
+  assert.match(JSON.parse(res.body).error, /zip/i);
+});
+
+test('a git clone failure is reported with the git message', async () => {
+  const res = await get('/flowgen/source?url=' +
+    encodeURIComponent('http://127.0.0.1:1/nope.git'));
+  assert.strictEqual(res.status, 502);
+  assert.match(JSON.parse(res.body).error, /git clone failed/);
+});
+
+test('the served plugin markup contains the panel and its handlers', async () => {
+  const res = await get('/plugins');
+  assert.strictEqual(res.status, 200);
+  for (const marker of ['flowgen-spec-text', 'flowgen-select-btn', 'flowgen-back-btn',
+    'flowgen-op-list', 'dialogclose.flowgen', 'flowgen/source']) {
+    assert.ok(res.body.indexOf(marker) !== -1, 'missing ' + marker);
+  }
+});
+
+test('the packaged module carries no test or development files', () => {
+  const installed = path.join(userDir, 'node_modules', 'node-red-flowgen');
+  assert.ok(!fs.existsSync(path.join(installed, 'tests')));
+  assert.ok(fs.existsSync(path.join(installed, 'LICENSE')));
+  assert.ok(!fs.existsSync(path.join(installed, '.github')));
+});
+
+test('the runtime exposes only the documented routes', async () => {
+  assert.strictEqual((await get('/flowgen/flowgen.js')).status, 200);
+  assert.strictEqual((await get('/flowgen/js-yaml.min.js')).status, 200);
+  assert.strictEqual((await get('/flowgen/../package.json')).status, 404);
+  assert.strictEqual((await get('/flowgen/')).status, 404);
+});
