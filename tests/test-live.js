@@ -41,8 +41,19 @@ const CASES = [
     expect: [200, 401] }
 ];
 
+const summary = [];
+
 function note(level, text) {
-  process.stdout.write('::' + level + '::' + String(text).replace(/\r?\n/g, ' ') + '\n');
+  const line = String(text).replace(/\r?\n/g, ' ');
+  process.stdout.write('::' + level + '::' + line + '\n');
+  summary.push((level === 'error' ? 'FAIL | ' : 'ok   | ') + line);
+}
+
+function writeSummary() {
+  const file = process.env.GITHUB_STEP_SUMMARY;
+  if (!file) return;
+  fs.appendFileSync(file,
+    '## Live API results\n\n```\n' + summary.join('\n') + '\n```\n');
 }
 
 function download(url, redirects) {
@@ -201,10 +212,15 @@ async function main() {
   }
 
   note('notice', 'live cases run: ' + ran + ', failures: ' + failures);
+  writeSummary();
   await RED.stop();
   await new Promise(resolve => server.close(resolve));
   fs.rmSync(userDir, { recursive: true, force: true });
   process.exit(failures ? 1 : 0);
 }
 
-main().catch(err => { note('error', 'live run crashed: ' + err.message); process.exit(1); });
+main().catch(err => {
+  note('error', 'live run crashed: ' + err.message);
+  writeSummary();
+  process.exit(1);
+});
