@@ -288,6 +288,46 @@ for (const engine of ENGINES) {
       await page.close();
     });
 
+    test('a Bruno git URL is cloned by the runtime and stays in the text area', async () => {
+      const { execFileSync } = require('child_process');
+      const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'br-git-'));
+      fs.writeFileSync(path.join(repo, 'get-user.yml'),
+        'info:\n  name: Get user\nhttp:\n  method: GET\n  url: https://api.example.test/users/1\n');
+      execFileSync('git', ['init', '-q', repo]);
+      execFileSync('git', ['-C', repo, 'add', '-A']);
+      execFileSync('git', ['-C', repo, '-c', 'user.email=t@t', '-c', 'user.name=t',
+        'commit', '-qm', 'x']);
+      execFileSync('git', ['-C', repo, 'update-server-info']);
+
+      const statics = express();
+      statics.use(express.static(repo, { dotfiles: 'allow' }));
+      const gitServer = http.createServer(statics);
+      await new Promise(resolve => gitServer.listen(0, '127.0.0.1', resolve));
+      const gitUrl = 'http://127.0.0.1:' + gitServer.address().port + '/.git';
+
+      const page = await browser.newPage();
+      await openImport(page);
+      await paste(page, gitUrl);
+      await page.waitForTimeout(3000);
+
+      assert.strictEqual(await page.inputValue('#flowgen-spec-text'), gitUrl,
+        'the pasted git URL is left untouched');
+      await waitOk(page, false);
+
+      await click(page, '#red-ui-clipboard-dialog-ok');
+      await page.waitForTimeout(600);
+      const code = await page.evaluate(() => {
+        let src = '';
+        window.RED.nodes.eachNode(n => { if (n.type === 'function') src = n.func; });
+        return src;
+      });
+      assert.match(code, /api\.example\.test\/users\/1/);
+
+      await new Promise(resolve => gitServer.close(resolve));
+      fs.rmSync(repo, { recursive: true, force: true });
+      await page.close();
+    });
+
     test('a spec URL is fetched through the runtime, not the browser', async () => {
       const page = await browser.newPage();
       const direct = [];
