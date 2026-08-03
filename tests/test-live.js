@@ -14,7 +14,11 @@ const ONLY = process.env.LIVE_ONLY || '';
 const SPEC_SOURCES = [
   { name: 'petstore-v2', url: 'https://petstore.swagger.io/v2/swagger.json' },
   { name: 'petstore-v3', url: 'https://petstore3.swagger.io/api/v3/openapi.json' },
-  { name: 'httpbin', url: 'https://httpbin.org/spec.json' }
+  { name: 'httpbin', url: 'https://httpbin.org/spec.json' },
+  { name: 'apis-guru',
+    url: 'https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/apis.guru/2.2.0/openapi.yaml' },
+  { name: 'apis-guru-v2',
+    url: 'https://api.apis.guru/v2/openapi.yaml' }
 ];
 
 const BRUNO_SOURCES = [
@@ -38,7 +42,12 @@ const CASES = [
   { source: 'httpbin', method: 'get', path: '/bearer', expect: [200, 401] },
   { source: 'bruno-starter-guide', method: 'get', path: '/users/usebruno' },
   { source: 'bruno-starter-guide', method: 'get', path: '/basic-auth/usebruno/1234',
-    expect: [200, 401] }
+    expect: [200, 401] },
+  { source: 'apis-guru', method: 'get', path: '/providers.json' },
+  { source: 'apis-guru', method: 'get', path: '/metrics.json' },
+  { source: 'apis-guru', method: 'get', path: '/list.json' },
+  { source: 'apis-guru-v2', method: 'get', path: '/providers.json' },
+  { source: 'apis-guru-v2', method: 'get', path: '/list.json' }
 ];
 
 const summary = [];
