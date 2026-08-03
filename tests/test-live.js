@@ -28,6 +28,8 @@ const BRUNO_SOURCES = [
 
 const CASES = [
   { source: 'petstore-v2', method: 'get', path: '/store/inventory' },
+  { source: 'petstore-v2', method: 'get', path: '/store/inventory',
+    auth: { api_key: 'special-key' } },
   { source: 'petstore-v2', method: 'get', path: '/pet/findByStatus' },
   { source: 'petstore-v2', method: 'get', path: '/pet/{petId}', fill: { petId: '1' },
     expect: [200, 404] },
@@ -40,9 +42,13 @@ const CASES = [
   { source: 'httpbin', method: 'post', path: '/post' },
   { source: 'httpbin', method: 'get', path: '/status/{codes}', fill: { codes: '200' } },
   { source: 'httpbin', method: 'get', path: '/bearer', expect: [200, 401] },
+  { source: 'httpbin', method: 'get', path: '/bearer',
+    auth: { authorization: 'Bearer live-test-token' }, expect: 200 },
   { source: 'bruno-starter-guide', method: 'get', path: '/users/usebruno' },
   { source: 'bruno-starter-guide', method: 'get', path: '/basic-auth/usebruno/1234',
     expect: [200, 401] },
+  { source: 'bruno-starter-guide', method: 'get', path: '/basic-auth/usebruno/1234',
+    auth: { authorization: 'Basic dXNlYnJ1bm86MTIzNA==' }, expect: 200 },
   { source: 'apis-guru', method: 'get', path: '/providers.json' },
   { source: 'apis-guru', method: 'get', path: '/metrics.json' },
   { source: 'apis-guru', method: 'get', path: '/list.json' },
@@ -138,6 +144,19 @@ function applyFill(code, fill) {
   return out;
 }
 
+function applyAuth(code, headers) {
+  let out = code;
+  for (const [name, value] of Object.entries(headers || {})) {
+    const pattern = new RegExp("('" + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+      "': )`[^`]*`");
+    if (!pattern.test(out)) {
+      throw new Error('no placeholder for header ' + name);
+    }
+    out = out.replace(pattern, '$1`' + value + '`');
+  }
+  return out;
+}
+
 async function loadSources() {
   const docs = {};
   for (const source of SPEC_SOURCES) {
@@ -202,7 +221,9 @@ async function main() {
 
     for (const node of nodes) {
       if (node.type === 'inject') { node.once = true; node.onceDelay = 0.1; }
-      if (node.type === 'function') { node.func = applyFill(node.func, testCase.fill); }
+      if (node.type === 'function') {
+        node.func = applyAuth(applyFill(node.func, testCase.fill), testCase.auth);
+      }
       if (node.type === 'http request') { node.ret = 'obj'; node.senderr = true; }
     }
     const probe = nodes.find(n => n.type === 'debug');
