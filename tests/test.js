@@ -733,3 +733,101 @@ test('the petstore list order matches the document order like Swagger UI', async
   assert.ok(!list.operations.some(o => o.path === '/pet/findByTags'),
     'findByTags is deprecated in the petstore and must be hidden');
 });
+
+test('every export is a function with the documented arity', () => {
+  for (const name of ['parseDocument', 'detectFormat', 'generate', 'generateOpenApi3',
+    'generateSwagger2', 'listOperations', 'buildFlow', 'formatList', 'isUrl',
+    'nodeWidth', 'parseCollection']) {
+    assert.strictEqual(typeof flowgen[name], 'function', name);
+  }
+});
+
+test('parseDocument accepts JSON, YAML and a byte order mark', () => {
+  const doc = { openapi: '3.0.0', info: { title: 'T', version: '1' }, paths: {} };
+  assert.strictEqual(flowgen.detectFormat(flowgen.parseDocument(JSON.stringify(doc))), 'openapi3');
+  assert.strictEqual(
+    flowgen.detectFormat(flowgen.parseDocument('\ufeff' + JSON.stringify(doc))), 'openapi3');
+  assert.strictEqual(flowgen.detectFormat(
+    flowgen.parseDocument('openapi: 3.0.0\ninfo:\n  title: T\n  version: "1"\npaths: {}\n')),
+    'openapi3');
+});
+
+test('detectFormat rejects documents that are not API definitions', () => {
+  for (const bad of ['{"just":"json"}', 'plain: mapping\n']) {
+    assert.throws(() => flowgen.detectFormat(flowgen.parseDocument(bad)), /unknown format/);
+  }
+});
+
+test('generateOpenApi3 and generateSwagger2 match what generate dispatches to', () => {
+  const three = v3({ '/x': { get: {} } });
+  assert.strictEqual(flowgen.generate(three, 'get', '/x'),
+    flowgen.generateOpenApi3(three, 'get', '/x'));
+  const two = v2({ '/x': { get: {} } });
+  assert.strictEqual(flowgen.generate(two, 'get', '/x'),
+    flowgen.generateSwagger2(two, 'get', '/x'));
+});
+
+test('formatList renders a stable, re-usable table', () => {
+  const doc = v3({
+    '/a': { get: { summary: 'First' } },
+    '/bbbbbbbbbbbbbb': { post: {} }
+  });
+  const text = flowgen.formatList(flowgen.listOperations(doc));
+  const lines = text.split('\n').filter(Boolean);
+  assert.strictEqual(lines.length, 2);
+  assert.match(lines[0], /^get \/a\s+# First$/);
+  assert.strictEqual(lines[1].trim(), 'post /bbbbbbbbbbbbbb');
+});
+
+test('nodeWidth grows with the label and snaps to the grid', () => {
+  assert.strictEqual(flowgen.nodeWidth(null, false) % 20, 0);
+  assert.strictEqual(flowgen.nodeWidth('short', true) % 20, 0);
+  assert.ok(flowgen.nodeWidth('a very much longer node label here', true) >
+    flowgen.nodeWidth('short', true));
+  assert.ok(flowgen.nodeWidth('x', true) >= 100);
+});
+
+test('every method verb is generated with the right msg.method', () => {
+  const paths = {};
+  for (const method of ['get', 'put', 'post', 'delete', 'options', 'head', 'patch']) {
+    paths['/' + method] = { [method]: {} };
+  }
+  const doc = v3(paths);
+  for (const method of Object.keys(paths).map(p => p.slice(1))) {
+    const code = flowgen.generate(doc, method, '/' + method);
+    assert.match(code, new RegExp('msg\\.method = `' + method.toUpperCase() + '`;'));
+  }
+});
+
+test('bodyless methods never carry a payload', () => {
+  for (const method of ['get', 'head']) {
+    const doc = v3({ '/x': { [method]: { requestBody: {
+      content: { 'application/json': { schema: { type: 'object' } } } } } } });
+    assert.ok(!/msg\.payload/.test(flowgen.generate(doc, method, '/x')));
+  }
+});
+
+test('generated code is valid JavaScript for every petstore operation', async () => {
+  for (const label of ['v2', 'v3']) {
+    const doc = flowgen.parseDocument(await specs.spec(label));
+    for (const op of flowgen.listOperations(doc).operations) {
+      const code = flowgen.generate(doc, op.method, op.path);
+      assert.doesNotThrow(() => new Function(code), label + ' ' + op.method + ' ' + op.path);
+      assert.match(code, /^msg\.method = `/);
+      assert.match(code, /return msg;$/);
+    }
+  }
+});
+
+test('string values use backticks while object keys stay quoted', () => {
+  const doc = v3({ '/x': { post: {
+    parameters: [{ name: 'X-Key', in: 'header' }],
+    requestBody: { content: { 'application/json': {
+      schema: { type: 'object', properties: { name: { type: 'string' } } } } } }
+  } } });
+  const code = flowgen.generate(doc, 'post', '/x');
+  assert.match(code, /msg\.url = `/);
+  assert.match(code, /'X-Key': ``/);
+  assert.ok(!/msg\.url = '/.test(code), 'no single quoted url');
+  assert.doesNotThrow(() => new Function(code));
+});

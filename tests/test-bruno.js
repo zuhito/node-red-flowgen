@@ -232,3 +232,81 @@ test('a stored (uncompressed) zip is read as well as a deflated one', async () =
     assert.match(listed.stdout, /get \/ping/);
   }
 });
+
+test('query strings in a bruno url are preserved', () => {
+  const doc = flowgen.parseDocument([
+    'meta {', '  name: Search', '}', '',
+    'get {', '  url: https://api.example.test/search?q=cats&page=2', '}', ''
+  ].join('\n'));
+  const code = flowgen.generate(doc, 'get', '/search');
+  assert.match(code, /msg\.url = `https:\/\/api\.example\.test\/search\?q=cats&page=2`;/);
+});
+
+test('every bruno http verb is recognised', () => {
+  for (const method of ['get', 'post', 'put', 'delete', 'patch', 'head', 'options']) {
+    const doc = flowgen.parseDocument([
+      'meta {', '  name: X', '}', '',
+      method + ' {', '  url: https://api.example.test/thing', '}', ''
+    ].join('\n'));
+    const list = flowgen.listOperations(doc);
+    assert.strictEqual(list.count, 1, method);
+    assert.strictEqual(list.operations[0].method, method);
+    assert.match(flowgen.generate(doc, method, '/thing'),
+      new RegExp('msg\\.method = `' + method.toUpperCase() + '`;'));
+  }
+});
+
+test('a bruno collection builds a flow with the usual four nodes', () => {
+  const doc = flowgen.parseDocument(YML);
+  const nodes = flowgen.buildFlow(doc, 'get', '/users/1', { tab: false });
+  assert.deepStrictEqual(nodes.map(n => n.type),
+    ['inject', 'function', 'http request', 'debug']);
+  assert.strictEqual(nodes.find(n => n.type === 'http request').ret, 'obj');
+  assert.strictEqual(nodes.find(n => n.type === 'function').name, 'GET /users/1');
+});
+
+test('a form urlencoded body becomes a flat payload', () => {
+  const doc = flowgen.parseDocument([
+    'meta {', '  name: Form', '}', '',
+    'post {', '  url: https://api.example.test/form', '  body: formUrlEncoded', '}', '',
+    'body:form-urlencoded {', '  user: bruno', '  role: admin', '}', ''
+  ].join('\n'));
+  const code = flowgen.generate(doc, 'post', '/form');
+  assert.match(code, /'user': `bruno`/);
+  assert.match(code, /'role': `admin`/);
+  assert.ok(!/FILE_CONTENTS/.test(code));
+});
+
+test('basic auth produces an authorization header to fill in', () => {
+  const doc = flowgen.parseDocument([
+    'meta {', '  name: Basic', '}', '',
+    'get {', '  url: https://api.example.test/secret', '  auth: basic', '}', '',
+    'auth:basic {', '  username: u', '  password: p', '}', ''
+  ].join('\n'));
+  const code = flowgen.generate(doc, 'get', '/secret');
+  assert.match(code, /'authorization': `Basic `/);
+  assert.match(code, /\/\/ Fill in 'authorization' below\./);
+});
+
+test('an empty collection is rejected with a clear message', () => {
+  assert.throws(() => flowgen.parseCollection([
+    { path: 'opencollection.yml', text: 'opencollection: 1.0.0\n' }
+  ]), /no requests found/);
+});
+
+test('files that are not requests are ignored rather than failing', () => {
+  const doc = flowgen.parseCollection([
+    { path: 'readme.json', text: '{"unrelated":true}' },
+    { path: 'get-user.yml', text: YML }
+  ]);
+  assert.strictEqual(flowgen.listOperations(doc).count, 1);
+});
+
+test('generated bruno code is valid JavaScript', () => {
+  const doc = flowgen.parseCollection([
+    { path: 'a.bru', text: BRU }, { path: 'b.yml', text: YML }]);
+  for (const op of flowgen.listOperations(doc).operations) {
+    const code = flowgen.generate(doc, op.method, op.path);
+    assert.doesNotThrow(() => new Function(code), op.method + ' ' + op.path);
+  }
+});
