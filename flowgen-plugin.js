@@ -17,8 +17,8 @@ module.exports = function (RED) {
   }
 
   const assets = {
-    'flowgen.js': path.join(__dirname, 'flowgen.js'),
-    'js-yaml.min.js': browserYaml()
+    'generator.js': path.join(__dirname, 'flowgen.js'),
+    'yaml-parser.js': browserYaml()
   };
 
   RED.plugins.registerPlugin('node-red-flowgen', {
@@ -151,7 +151,7 @@ module.exports = function (RED) {
     });
   });
 
-  RED.httpAdmin.get('/flowgen/editor-script/:asset', function (req, res) {
+  RED.httpAdmin.get('/flowgen/:asset', function (req, res) {
     const file = assets[req.params.asset];
     if (!file) return res.status(404).end();
     res.type('application/javascript').sendFile(file);
