@@ -1,106 +1,106 @@
 <style>
 #red-ui-clipboard-dialog-import-tab-apispec {
-  display: none;
-  height: 100%;
-  max-height: 100%;
-  padding: 10px;
-  box-sizing: border-box;
-  overflow: hidden;
+    display: none;
+    height: 100%;
+    max-height: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 #red-ui-clipboard-dialog-import-tab-apispec.flowgen-shown {
-  display: flex !important;
-  flex-direction: column;
+    display: flex !important;
+    flex-direction: column;
 }
 #flowgen-paste-view, #flowgen-select-view {
-  display: none;
-  flex: 1 1 auto;
-  min-height: 0;
-  flex-direction: column;
+    display: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    flex-direction: column;
 }
 #flowgen-paste-view.flowgen-on, #flowgen-select-view.flowgen-on { display: flex; }
 .flowgen-grow { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
 .flowgen-bar {
-  flex: 0 0 auto;
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
 }
 .flowgen-bar > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .flowgen-bar .flowgen-spacer { flex: 1 1 auto; }
 a#flowgen-select-btn.red-ui-button {
-  background: #ad1625 !important;
-  border: 1px solid #ad1625 !important;
-  color: #fff !important;
+    background: #ad1625 !important;
+    border: 1px solid #ad1625 !important;
+    color: #fff !important;
 }
 a#flowgen-select-btn.red-ui-button:hover,
 a#flowgen-select-btn.red-ui-button:focus,
 a#flowgen-select-btn.red-ui-button:active {
-  background: #6e1018 !important;
-  border-color: #6e1018 !important;
-  color: #fff !important;
+    background: #6e1018 !important;
+    border-color: #6e1018 !important;
+    color: #fff !important;
 }
 a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
-  color: #fff !important;
+    color: #fff !important;
 }
 #flowgen-spec-text {
-  width: 100%;
-  height: 100%;
-  resize: none;
-  font-family: var(--red-ui-monospace-font, monospace);
-  font-size: 13px;
-  line-height: 1.3em;
-  padding: 6px 10px;
-  box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    resize: none;
+    font-family: var(--red-ui-monospace-font, monospace);
+    font-size: 13px;
+    line-height: 1.3em;
+    padding: 6px 10px;
+    box-sizing: border-box;
 }
 #flowgen-op-list {
-  width: 100%;
-  height: 100%;
-  border: 1px solid var(--red-ui-secondary-border-color, #ccc);
-  overflow-y: auto;
-  overflow-x: hidden;
-  box-sizing: border-box;
-  outline: none;
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--red-ui-secondary-border-color, #ccc);
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    outline: none;
 }
 #flowgen-op-list .flowgen-op {
-  display: flex;
-  align-items: center;
-  margin: 0 0 4px 0;
-  padding: 5px;
-  cursor: pointer;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  background: #e7f0f9;
-  border-color: #97b7d8;
-  font-family: sans-serif;
+    display: flex;
+    align-items: center;
+    margin: 0 0 4px 0;
+    padding: 5px;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: #e7f0f9;
+    border-color: #97b7d8;
+    font-family: sans-serif;
 }
 #flowgen-op-list .flowgen-op .flowgen-method {
-  flex: 0 0 auto;
-  min-width: 80px;
-  padding: 6px 0;
-  text-align: center;
-  border-radius: 3px;
-  background: #1d72c9;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  font-family: var(--red-ui-primary-font, sans-serif);
+    flex: 0 0 auto;
+    min-width: 80px;
+    padding: 6px 0;
+    text-align: center;
+    border-radius: 3px;
+    background: #1d72c9;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: var(--red-ui-primary-font, sans-serif);
 }
 #flowgen-op-list .flowgen-op .flowgen-path {
-  flex: 0 0 auto;
-  padding: 0 10px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--red-ui-primary-text-color, #333);
-  font-family: var(--red-ui-primary-font, sans-serif);
-  word-break: break-word;
+    flex: 0 0 auto;
+    padding: 0 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--red-ui-primary-text-color, #333);
+    font-family: var(--red-ui-primary-font, sans-serif);
+    word-break: break-word;
 }
 #flowgen-op-list .flowgen-op .flowgen-summary {
-  flex: 1 1 auto;
-  font-size: 13px;
-  color: var(--red-ui-secondary-text-color, #777);
-  font-family: var(--red-ui-primary-font, sans-serif);
+    flex: 1 1 auto;
+    font-size: 13px;
+    color: var(--red-ui-secondary-text-color, #777);
+    font-family: var(--red-ui-primary-font, sans-serif);
 }
 #flowgen-op-list .flowgen-op.flowgen-get    { background: #e7f0f9; border-color: #97b7d8; }
 #flowgen-op-list .flowgen-op.flowgen-get    .flowgen-method { background: #1d72c9; }
@@ -119,20 +119,34 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
 #flowgen-op-list .flowgen-op.flowgen-options .flowgen-method,
 #flowgen-op-list .flowgen-op.flowgen-trace  .flowgen-method { background: #791dc9; }
 #flowgen-op-list .flowgen-op.selected {
-  box-shadow: 0 0 0 2px var(--red-ui-form-input-focus-color, #ad1625) inset;
+    box-shadow: 0 0 0 2px var(--red-ui-form-input-focus-color, #ad1625) inset;
 }
 #flowgen-op-list .flowgen-op.flowgen-hidden { display: none; }
+.flowgen-search-box {
+    flex: 1 1 auto;
+    min-width: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.flowgen-search-box .fa-search {
+    position: absolute;
+    left: 8px;
+    font-size: 12px;
+    color: var(--red-ui-secondary-text-color, #999);
+    pointer-events: none;
+}
 #flowgen-search {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 4px 8px;
-  font-size: 13px;
-  box-sizing: border-box;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 4px 8px 4px 26px;
+    font-size: 13px;
+    box-sizing: border-box;
 }
 #flowgen-count, #flowgen-chosen {
-  flex: 0 0 auto;
-  font-size: 12px;
-  color: var(--red-ui-secondary-text-color, #999);
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: var(--red-ui-secondary-text-color, #999);
 }
 #flowgen-chosen:not(:empty) { color: var(--red-ui-primary-text-color, #333); }
 #flowgen-status { flex: 0 0 auto; margin-top: 6px; min-height: 16px; font-size: 12px; }
@@ -143,515 +157,530 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
 
 <script type="text/javascript">
 (function () {
-  var TAB_ID = 'red-ui-clipboard-dialog-import-tab-apispec';
-  var loading = null;
-  var doc = null;
-  var selected = null;
-  var isActive = false;
-  var fetching = null;
-  var collectionDoc = null;
-  var lastText = null;
+    var TAB_ID = 'red-ui-clipboard-dialog-import-tab-apispec';
+    var loading = null;
+    var doc = null;
+    var selected = null;
+    var isActive = false;
+    var fetching = null;
+    var collectionDoc = null;
+    var lastText = null;
 
-  var PLACEHOLDER = [
-    'openapi: 3.0.4',
-    'info:',
-    '  title: Swagger Petstore',
-    '  version: 1.0.0',
-    'servers:',
-    '  - url: https://petstore3.swagger.io/api/v3',
-    'paths:',
-    '  /pet/{petId}:',
-    '    get:',
-    '      parameters:',
-    '        - name: petId',
-    '          in: path',
-    '          required: true',
-    '',
-    'or',
-    'https://petstore.swagger.io/v2/swagger.json'
-  ].join('\n');
+    var PLACEHOLDER = [
+        'openapi: 3.0.4',
+        'info:',
+        '  title: Swagger Petstore',
+        '  version: 1.0.0',
+        'servers:',
+        '  - url: https://petstore3.swagger.io/api/v3',
+        'paths:',
+        '  /pet/{petId}:',
+        '    get:',
+        '      parameters:',
+        '        - name: petId',
+        '          in: path',
+        '          required: true',
+        '',
+        'or',
+        'https://petstore.swagger.io/v2/swagger.json'
+    ].join('\n');
 
-  function load() {
-    if (loading) { return loading; }
-    var root = (RED.settings.apiRootUrl || '');
-    if (root && !/\/$/.test(root)) { root += '/'; }
-    loading = $.getScript(root + 'flowgen/yaml-parser.js').then(function () {
-      return $.getScript(root + 'flowgen/generator.js');
-    });
-    return loading;
-  }
-
-  function status(text, isError) {
-    $('#flowgen-status').text(text || '').toggleClass('flowgen-error', !!isError);
-  }
-
-  function render() {
-    var list = $('#flowgen-op-list').empty();
-    selected = null;
-    $('#flowgen-select-btn').hide();
-    okButton(false);
-    if (!doc) { return; }
-    var result;
-    try {
-      result = flowgen.listOperations(doc);
-    } catch (err) {
-      status(err.message, true);
-      return;
+    function load() {
+        if (loading) { return loading; }
+        var root = (RED.settings.apiRootUrl || '');
+        if (root && !/\/$/.test(root)) { root += '/'; }
+        loading = $.getScript(root + 'flowgen/yaml-parser.js').then(function () {
+            return $.getScript(root + 'flowgen/generator.js');
+        });
+        return loading;
     }
-    if (!result.count) {
-      status('no operations found in this document', true);
-      return;
+
+    function status(text, isError) {
+        $('#flowgen-status').text(text || '').toggleClass('flowgen-error', !!isError);
     }
-    status('');
-    result.operations.forEach(function (op) {
-      $('<div>').addClass('flowgen-op flowgen-' + op.method)
-        .append($('<span>').addClass('flowgen-method').text(op.method.toUpperCase()))
-        .append($('<span>').addClass('flowgen-path').text(op.path))
-        .append($('<span>').addClass('flowgen-summary').text(op.summary || ''))
-        .on('click', function (ev) {
-          choose($(this), op, ev.ctrlKey || ev.metaKey);
-        })
-        .on('dblclick', function () {
-          choose($(this), op);
-          importSelected();
-        })
-        .data('flowgen-op', op)
-        .appendTo(list);
-    });
 
-    $('#flowgen-search').val('');
-    $('#flowgen-count').text('');
-    $('#flowgen-chosen').text('');
-    if (result.count === 1) {
-      selected = result.operations[0];
-      $('#flowgen-op-list .flowgen-op').addClass('selected');
-      okButton(true);
-    } else {
-      $('#flowgen-select-btn').show();
-    }
-  }
-
-  function reset() {
-    doc = null;
-    selected = null;
-    $('#flowgen-op-list').empty();
-    $('#flowgen-select-btn').hide();
-    okButton(false);
-  }
-
-  function apiRoot() {
-    var root = (RED.settings.apiRootUrl || '');
-    if (root && !/\/$/.test(root)) { root += '/'; }
-    return root;
-  }
-
-  function useCollection(files) {
-    try {
-      collectionDoc = flowgen.parseCollection(files);
-      doc = collectionDoc;
-      render();
-    } catch (err) {
-      status(err.message, true);
-    }
-  }
-
-  function fetchGit(url) {
-    if (fetching === url) { return; }
-    fetching = url;
-    status('cloning ' + url);
-    fetch(apiRoot() + 'flowgen/source?url=' + encodeURIComponent(url))
-      .then(function (res) { return res.json().then(function (data) { return { res: res, data: data }; }); })
-      .then(function (got) {
-        fetching = null;
-        if (!got.res.ok) { throw new Error(got.data.error || 'HTTP ' + got.res.status); }
-        useCollection(got.data.files);
-      })
-      .catch(function (err) {
-        fetching = null;
-        status('could not fetch the repository: ' + err.message, true);
-      });
-  }
-
-  function parse(text) {
-    if (lastText !== null && text === lastText && (doc || collectionDoc)) { return; }
-    lastText = text;
-    reset();
-    if (!text || !text.trim()) {
-      if (collectionDoc) { doc = collectionDoc; render(); return; }
-      status('');
-      return;
-    }
-    collectionDoc = null;
-    if (/\.git$/.test(String(text).trim()) && flowgen.isUrl(text)) {
-      return fetchGit(text.trim());
-    }
-    if (flowgen.isUrl(text)) { return fetchSpec(text.trim()); }
-    try {
-      doc = flowgen.parseDocument(text);
-      render();
-    } catch (err) {
-      status(err.message, true);
-    }
-  }
-
-  function pretty(text) {
-    try { return JSON.stringify(JSON.parse(text), null, 2); } catch (err) { return text; }
-  }
-
-  function fetchSpec(url) {
-    if (fetching === url) { return; }
-    fetching = url;
-    status('fetching ' + url);
-    fetch(apiRoot() + 'flowgen/source?url=' + encodeURIComponent(url))
-      .then(function (res) { return res.json().then(function (data) { return { res: res, data: data }; }); })
-      .then(function (got) {
-      fetching = null;
-      if (!got.res.ok) { throw new Error(got.data.error || 'HTTP ' + got.res.status); }
-      var formatted = pretty(got.data.text);
-      $('#flowgen-spec-text').val(formatted);
-      parse(formatted);
-    }).catch(function (err) {
-      fetching = null;
-      status('could not fetch the document: ' + err.message, true);
-    });
-  }
-
-  function content() {
-    var el = $('<div>').attr('id', TAB_ID);
-
-    var paste = $('<div>').attr('id', 'flowgen-paste-view').addClass('flowgen-on').appendTo(el);
-
-    $('<div>').addClass('flowgen-bar').attr('id', 'flowgen-prompt')
-      .append($('<span>').text('Paste an API Specification or its URL, or '))
-      .append($('<a>').addClass('red-ui-button').attr('id', 'flowgen-file-btn')
-        .append('<i class="fa fa-upload"></i> ')
-        .append($('<span>').text('select a file')))
-      .append($('<input>').attr({ type: 'file', id: 'flowgen-file', accept: '.json,.yaml,.yml,.bru,.zip' })
-        .css('display', 'none'))
-      .append($('<span>').addClass('flowgen-spacer'))
-      .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-select-btn', href: '#' })
-        .append($('<span>').text('Select endpoint '))
-        .append('<i class="fa fa-chevron-right"></i>').hide())
-      .on('keydown', function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); } })
-      .appendTo(paste);
-
-    $('<div>').addClass('flowgen-grow')
-      .append($('<textarea>').attr({ id: 'flowgen-spec-text', placeholder: PLACEHOLDER }))
-      .appendTo(paste);
-
-    var select = $('<div>').attr('id', 'flowgen-select-view').appendTo(el);
-
-    $('<div>').addClass('flowgen-bar')
-      .append($('<input>').attr({ type: 'text', id: 'flowgen-search',
-        placeholder: 'Search by method, path or summary' }))
-      .append($('<span>').attr('id', 'flowgen-count'))
-      .append($('<span>').attr('id', 'flowgen-chosen'))
-      .append($('<span>').addClass('flowgen-spacer'))
-      .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-back-btn', href: '#' })
-        .css({ background: '#fff', border: '1px solid #ccc', color: '#888' })
-        .append('<i class="fa fa-chevron-left"></i> ')
-        .append($('<span>').text('Back')))
-      .appendTo(select);
-
-    $('<div>').addClass('flowgen-grow')
-      .append($('<div>').attr({ id: 'flowgen-op-list', tabindex: '0' })
-        .on('keydown', onListKey))
-      .appendTo(select);
-
-    $('<div>').attr('id', 'flowgen-status').appendTo(el);
-
-    el.find('#flowgen-search')
-      .on('keydown', function (ev) {
-        if (ev.keyCode === 40 || ev.keyCode === 38) {
-          ev.preventDefault();
-          moveSelection(ev.keyCode === 40 ? 1 : -1);
-        } else if (ev.keyCode === 13) {
-          ev.preventDefault();
-          if (selected) { importSelected(); }
-        } else if (ev.keyCode === 27) {
-          ev.preventDefault();
-          if ($(this).val()) { $(this).val(''); filter(); } else { view('paste'); }
+    function render() {
+        var list = $('#flowgen-op-list').empty();
+        selected = null;
+        $('#flowgen-select-btn').hide();
+        okButton(false);
+        if (!doc) { return; }
+        var result;
+        try {
+            result = flowgen.listOperations(doc);
+        } catch (err) {
+            status(err.message, true);
+            return;
         }
-      })
-      .on('input', filter);
+        if (!result.count) {
+            status('no operations found in this document', true);
+            return;
+        }
+        status('');
+        result.operations.forEach(function (op) {
+            $('<div>').addClass('flowgen-op flowgen-' + op.method)
+                .append($('<span>').addClass('flowgen-method').text(op.method.toUpperCase()))
+                .append($('<span>').addClass('flowgen-path').text(op.path))
+                .append($('<span>').addClass('flowgen-summary').text(op.summary || ''))
+                .on('click', function (ev) {
+                    choose($(this), op, ev.ctrlKey || ev.metaKey);
+                })
+                .on('dblclick', function () {
+                    choose($(this), op);
+                    importSelected();
+                })
+                .data('flowgen-op', op)
+                .appendTo(list);
+        });
 
-    el.find('#flowgen-select-btn').on('click', function (ev) {
-      ev.preventDefault();
-      view('select');
-      $('#flowgen-search').trigger('focus');
-    });
-    el.find('#flowgen-back-btn').on('click', function (ev) {
-      ev.preventDefault();
-      view('paste');
-    });
+        $('#flowgen-search').val('');
+        $('#flowgen-count').text('');
+        $('#flowgen-chosen').text('');
+        if (result.count === 1) {
+            selected = result.operations[0];
+            $('#flowgen-op-list .flowgen-op').addClass('selected');
+            okButton(true);
+        } else {
+            $('#flowgen-select-btn').show();
+        }
+    }
 
-    el.find('#flowgen-file-btn').on('click', function (ev) {
-      ev.preventDefault();
-      el.find('#flowgen-file').val('').trigger('click');
-    });
-    el.find('#flowgen-file').on('change', function () {
-      var file = this.files && this.files[0];
-      if (!file) { return; }
-      if (/\.zip$/i.test(file.name)) {
-        var zipReader = new FileReader();
-        zipReader.onload = function (ev) {
-          status('reading ' + file.name);
-          fetch(apiRoot() + 'flowgen/source', {
-            method: 'POST', body: ev.target.result
-          }).then(function (res) {
-            return res.json().then(function (data) { return { res: res, data: data }; });
-          }).then(function (got) {
+    function reset() {
+        doc = null;
+        selected = null;
+        $('#flowgen-op-list').empty();
+        $('#flowgen-select-btn').hide();
+        okButton(false);
+    }
+
+    function apiRoot() {
+        var root = (RED.settings.apiRootUrl || '');
+        if (root && !/\/$/.test(root)) { root += '/'; }
+        return root;
+    }
+
+    function useCollection(files) {
+        try {
+            collectionDoc = flowgen.parseCollection(files);
+            doc = collectionDoc;
+            render();
+        } catch (err) {
+            status(err.message, true);
+        }
+    }
+
+    function fetchGit(url) {
+        if (fetching === url) { return; }
+        fetching = url;
+        status('cloning ' + url);
+        fetch(apiRoot() + 'flowgen/source?url=' + encodeURIComponent(url))
+            .then(function (res) { return res.json().then(function (data) { return { res: res, data: data }; }); })
+            .then(function (got) {
+                fetching = null;
+                if (!got.res.ok) { throw new Error(got.data.error || 'HTTP ' + got.res.status); }
+                useCollection(got.data.files);
+            })
+            .catch(function (err) {
+                fetching = null;
+                status('could not fetch the repository: ' + err.message, true);
+            });
+    }
+
+    function parse(text) {
+        if (lastText !== null && text === lastText && (doc || collectionDoc)) { return; }
+        lastText = text;
+        reset();
+        if (!text || !text.trim()) {
+            if (collectionDoc) { doc = collectionDoc; render(); return; }
+            status('');
+            return;
+        }
+        collectionDoc = null;
+        if (/\.git$/.test(String(text).trim()) && flowgen.isUrl(text)) {
+            return fetchGit(text.trim());
+        }
+        if (flowgen.isUrl(text)) { return fetchSpec(text.trim()); }
+        try {
+            doc = flowgen.parseDocument(text);
+            render();
+        } catch (err) {
+            status(err.message, true);
+        }
+    }
+
+    function pretty(text) {
+        try { return JSON.stringify(JSON.parse(text), null, 2); } catch (err) { return text; }
+    }
+
+    function fetchSpec(url) {
+        if (fetching === url) { return; }
+        fetching = url;
+        status('fetching ' + url);
+        fetch(apiRoot() + 'flowgen/source?url=' + encodeURIComponent(url))
+            .then(function (res) { return res.json().then(function (data) { return { res: res, data: data }; }); })
+            .then(function (got) {
+            fetching = null;
             if (!got.res.ok) { throw new Error(got.data.error || 'HTTP ' + got.res.status); }
-            $('#flowgen-spec-text').val('');
-            reset();
-            useCollection(got.data.files);
-          }).catch(function (err) {
-            status('could not read the zip file: ' + err.message, true);
-          });
-        };
-        zipReader.readAsArrayBuffer(file);
-        return;
-      }
-      var reader = new FileReader();
-      reader.onload = function (ev) {
-        var formatted = pretty(ev.target.result);
-        $('#flowgen-spec-text').val(formatted);
-        parse(formatted);
-      };
-      reader.readAsText(file);
+            var formatted = pretty(got.data.text);
+            $('#flowgen-spec-text').val(formatted);
+            parse(formatted);
+        }).catch(function (err) {
+            fetching = null;
+            status('could not fetch the document: ' + err.message, true);
+        });
+    }
+
+    function content() {
+        var el = $('<div>').attr('id', TAB_ID);
+
+        var paste = $('<div>').attr('id', 'flowgen-paste-view').addClass('flowgen-on').appendTo(el);
+
+        $('<div>').addClass('flowgen-bar').attr('id', 'flowgen-prompt')
+            .append($('<span>').text('Paste an API Specification or its URL, or '))
+            .append($('<a>').addClass('red-ui-button').attr('id', 'flowgen-file-btn')
+                .append('<i class="fa fa-upload"></i> ')
+                .append($('<span>').text('select a file')))
+            .append($('<input>').attr({ type: 'file', id: 'flowgen-file', accept: '.json,.yaml,.yml,.bru,.zip' })
+                .css('display', 'none'))
+            .append($('<span>').addClass('flowgen-spacer'))
+            .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-select-btn', href: '#' })
+                .append($('<span>').text('Select endpoint '))
+                .append('<i class="fa fa-chevron-right"></i>').hide())
+            .on('keydown', function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); } })
+            .appendTo(paste);
+
+        $('<div>').addClass('flowgen-grow')
+            .append($('<textarea>').attr({ id: 'flowgen-spec-text', placeholder: PLACEHOLDER }))
+            .appendTo(paste);
+
+        var select = $('<div>').attr('id', 'flowgen-select-view').appendTo(el);
+
+        $('<div>').addClass('flowgen-bar')
+            .append($('<span>').addClass('flowgen-search-box')
+                .append('<i class="fa fa-search"></i>')
+                .append($('<input>').attr({ type: 'text', id: 'flowgen-search',
+                    placeholder: 'Search by method, path or summary' })))
+            .append($('<span>').attr('id', 'flowgen-count'))
+            .append($('<span>').attr('id', 'flowgen-chosen'))
+            .append($('<span>').addClass('flowgen-spacer'))
+            .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-back-btn', href: '#' })
+                .css({ background: '#fff', border: '1px solid #ccc', color: '#888' })
+                .append('<i class="fa fa-chevron-left"></i> ')
+                .append($('<span>').text('Back')))
+            .appendTo(select);
+
+        $('<div>').addClass('flowgen-grow')
+            .append($('<div>').attr({ id: 'flowgen-op-list', tabindex: '0' })
+                .on('keydown', onListKey))
+            .appendTo(select);
+
+        $('<div>').attr('id', 'flowgen-status').appendTo(el);
+
+        el.find('#flowgen-search')
+            .on('keydown', function (ev) {
+                if (ev.keyCode === 40 || ev.keyCode === 38) {
+                    ev.preventDefault();
+                    moveSelection(ev.keyCode === 40 ? 1 : -1);
+                } else if (ev.keyCode === 13) {
+                    ev.preventDefault();
+                    if (selected) { importSelected(); }
+                } else if (ev.keyCode === 27) {
+                    ev.preventDefault();
+                    if ($(this).val()) { $(this).val(''); filter(); } else { view('paste'); }
+                }
+            })
+            .on('input', filter);
+
+        el.find('#flowgen-select-btn').on('click', function (ev) {
+            ev.preventDefault();
+            view('select');
+            $('#flowgen-search').trigger('focus');
+        });
+        el.find('#flowgen-back-btn').on('click', function (ev) {
+            ev.preventDefault();
+            $('#flowgen-op-list .flowgen-op').removeClass('selected');
+            refreshChoice();
+            view('paste');
+        });
+
+        el.find('#flowgen-file-btn').on('click', function (ev) {
+            ev.preventDefault();
+            el.find('#flowgen-file').val('').trigger('click');
+        });
+        el.find('#flowgen-file').on('change', function () {
+            var file = this.files && this.files[0];
+            if (!file) { return; }
+            if (/\.zip$/i.test(file.name)) {
+                var zipReader = new FileReader();
+                zipReader.onload = function (ev) {
+                    status('reading ' + file.name);
+                    fetch(apiRoot() + 'flowgen/source', {
+                        method: 'POST', body: ev.target.result
+                    }).then(function (res) {
+                        return res.json().then(function (data) { return { res: res, data: data }; });
+                    }).then(function (got) {
+                        if (!got.res.ok) { throw new Error(got.data.error || 'HTTP ' + got.res.status); }
+                        $('#flowgen-spec-text').val('');
+                        reset();
+                        useCollection(got.data.files);
+                    }).catch(function (err) {
+                        status('could not read the zip file: ' + err.message, true);
+                    });
+                };
+                zipReader.readAsArrayBuffer(file);
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function (ev) {
+                var formatted = pretty(ev.target.result);
+                $('#flowgen-spec-text').val(formatted);
+                parse(formatted);
+            };
+            reader.readAsText(file);
+        });
+        el.find('#flowgen-spec-text').on('change paste keyup', function () {
+            var text = $(this).val();
+            clearTimeout(el.data('timer'));
+            el.data('timer', setTimeout(function () { parse(text); }, 250));
+        });
+
+        return el;
+    }
+
+    function chosen() {
+        return $('#flowgen-op-list .flowgen-op.selected').map(function () {
+            return $(this).data('flowgen-op');
+        }).get();
+    }
+
+    function refreshChoice() {
+        var count = chosen().length;
+        selected = count ? chosen()[0] : null;
+        okButton(count > 0);
+        $('#flowgen-chosen').text(count > 1 ? count + ' selected' : '');
+    }
+
+    function choose(row, op, add) {
+        if (!add) { $('#flowgen-op-list .flowgen-op').removeClass('selected'); }
+        row.toggleClass('selected', add ? !row.hasClass('selected') : true);
+        refreshChoice();
+        if (row[0] && row[0].scrollIntoView) { row[0].scrollIntoView({ block: 'nearest' }); }
+    }
+
+    function onListKey(ev) {
+        if (ev.keyCode === 40) { ev.preventDefault(); moveSelection(1); }
+        if (ev.keyCode === 38) { ev.preventDefault(); moveSelection(-1); }
+        if (ev.keyCode === 32) {
+            ev.preventDefault();
+            var row = $('#flowgen-op-list .flowgen-op.selected').last();
+            var next = row.length ? row.nextAll('.flowgen-op').not('.flowgen-hidden').first() : null;
+            if (row.length) { row.addClass('selected'); }
+            if (next && next.length) { choose(next, next.data('flowgen-op'), true); }
+            return;
+        }
+        if (ev.keyCode === 13 && selected) { ev.preventDefault(); importSelected(); }
+    }
+
+    function filter() {
+        var term = String($('#flowgen-search').val() || '').trim().toLowerCase();
+        var rows = $('#flowgen-op-list .flowgen-op');
+        var shown = 0;
+        rows.each(function () {
+            var row = $(this);
+            var op = row.data('flowgen-op');
+            var text = (op.method + ' ' + op.path + ' ' + (op.summary || '')).toLowerCase();
+            var match = !term || term.split(/\s+/).every(function (part) {
+                return text.indexOf(part) !== -1;
+            });
+            row.toggleClass('flowgen-hidden', !match);
+            if (match) { shown++; }
+        });
+
+        $('#flowgen-count').text(term ? shown + ' of ' + rows.length : '');
+        rows.filter('.selected.flowgen-hidden').removeClass('selected');
+        refreshChoice();
+        if (!selected && shown === 1) {
+            var only = rows.not('.flowgen-hidden').first();
+            choose(only, only.data('flowgen-op'));
+        }
+    }
+
+    function moveSelection(delta) {
+        var rows = $('#flowgen-op-list .flowgen-op').not('.flowgen-hidden');
+        if (!rows.length) { return; }
+        var at = rows.index(rows.filter('.selected'));
+        var next = at === -1 ? (delta > 0 ? 0 : rows.length - 1) : at + delta;
+        if (next < 0 || next >= rows.length) { return; }
+        var row = rows.eq(next);
+        choose(row, row.data('flowgen-op'));
+    }
+
+    function view(name) {
+        $('#flowgen-paste-view').toggleClass('flowgen-on', name === 'paste');
+        $('#flowgen-select-view').toggleClass('flowgen-on', name === 'select');
+    }
+
+    function active() {
+        return isActive && $('#' + TAB_ID).length > 0;
+    }
+
+    function okButton(enabled) {
+        var ok = $('#red-ui-clipboard-dialog-ok');
+        if (ok.button && ok.data('ui-button')) {
+            ok.button(enabled ? 'enable' : 'disable');
+        } else {
+            ok.prop('disabled', !enabled);
+        }
+    }
+
+    function dismissDialogPopovers() {
+        var text = $('#red-ui-clipboard-dialog-import-text');
+        var popover = text.data('red-ui-popover');
+        if (popover && popover.close) { popover.close(true); }
+        text.removeData('red-ui-popover');
+        $('.red-ui-popover').filter(function () {
+                return $(this).closest('#' + TAB_ID).length === 0;
+        }).remove();
+    }
+
+    function show() {
+        dismissDialogPopovers();
+        $('#red-ui-clipboard-dialog-import-tabs-content').children().hide();
+        $('#' + TAB_ID).css('display', 'flex').addClass('flowgen-shown');
+        isActive = true;
+    }
+
+    function hide(targetContentId) {
+        isActive = false;
+        $('#' + TAB_ID).hide().removeClass('flowgen-shown');
+        if (targetContentId) { $('#' + targetContentId).show(); }
+        okButton(false);
+        $('#red-ui-clipboard-dialog-import-text').trigger('keyup');
+    }
+
+    function importSelected() {
+        var targets = chosen();
+        if (!doc || !targets.length) { return; }
+        var nodes;
+        try {
+            nodes = flowgen.buildFlows(doc, targets, { tab: false });
+        } catch (err) {
+            status(err.message, true);
+            return;
+        }
+        var newFlow = $('#red-ui-clipboard-dialog-import-opt > a.selected')
+            .attr('id') === 'red-ui-clipboard-dialog-import-opt-new';
+        RED.view.importNodes(nodes, { generateIds: true, addFlow: newFlow });
+        $('#red-ui-clipboard-dialog').dialog('close');
+        RED.view.focus();
+    }
+
+    function preventSubmit() {
+        $('#red-ui-clipboard-dialog').find('form').off('submit.flowgen')
+            .on('submit.flowgen', function (ev) { ev.preventDefault(); });
+    }
+
+    function interceptOk() {
+        var ok = document.getElementById('red-ui-clipboard-dialog-ok');
+        if (!ok || ok.getAttribute('data-flowgen-bound')) { return; }
+        ok.setAttribute('data-flowgen-bound', 'true');
+        ok.addEventListener('click', function (ev) {
+            if (!active()) { return; }
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (ev.stopImmediatePropagation) { ev.stopImmediatePropagation(); }
+            importSelected();
+        }, true);
+    }
+
+    function resetAll() {
+        isActive = false;
+        doc = null;
+        collectionDoc = null;
+        lastText = null;
+        selected = null;
+        fetching = null;
+        $('#flowgen-spec-text').val('');
+        $('#flowgen-op-list').empty();
+        $('#flowgen-search').val('');
+        $('#flowgen-count').text('');
+        $('#flowgen-chosen').text('');
+        $('#flowgen-select-btn').hide();
+        $('#flowgen-status').text('').removeClass('flowgen-error');
+        view('paste');
+        okButton(false);
+    }
+
+    function uninstall() {
+        if (isActive) { hide('red-ui-clipboard-dialog-import-tab-clipboard'); }
+        resetAll();
+        $('#red-ui-tab-' + TAB_ID).remove();
+        $('#' + TAB_ID).remove();
+        $('#red-ui-clipboard-dialog').off('dialogclose.flowgen');
+        var ok = document.getElementById('red-ui-clipboard-dialog-ok');
+        if (ok) { ok.removeAttribute('data-flowgen-bound'); }
+        if (!$('#red-ui-clipboard-dialog-import-tabs li.active').length) {
+            $('#red-ui-tab-red-ui-clipboard-dialog-import-tab-clipboard').addClass('active');
+            $('#red-ui-clipboard-dialog-import-tabs-content').children().hide();
+            $('#red-ui-clipboard-dialog-import-tab-clipboard').show();
+        }
+    }
+
+    function available() {
+        return fetch(apiRoot() + 'flowgen/generator.js', { method: 'HEAD' })
+            .then(function (res) { return res.ok; })
+            .catch(function () { return false; });
+    }
+
+    function install() {
+        var tabs = $('#red-ui-clipboard-dialog-import-tabs');
+        if (!tabs.length) { return; }
+        if (tabs.find('#flowgen-tab-link').length) { return; }
+
+        var li = $('<li>').attr('id', 'red-ui-tab-' + TAB_ID).addClass('red-ui-tab')
+            .append($('<a>').attr({ id: 'flowgen-tab-link', href: '#' })
+                .addClass('red-ui-tab-label').text('API Spec'))
+            .appendTo(tabs);
+
+        content().appendTo('#red-ui-clipboard-dialog-import-tabs-content');
+
+        interceptOk();
+        preventSubmit();
+        $('#red-ui-clipboard-dialog').off('dialogclose.flowgen')
+            .on('dialogclose.flowgen', function () { resetAll(); });
+
+        li.on('click', function (ev) {
+            ev.preventDefault();
+            tabs.find('li').removeClass('active');
+            li.addClass('active');
+            show();
+            view(selected || !doc ? 'paste' : 'select');
+            okButton(!!selected);
+            load().then(function () {
+                parse($('#flowgen-spec-text').val());
+            }).catch(function (err) {
+                status('failed to load flowgen: ' + err, true);
+            });
+        });
+
+        tabs.on('click', 'li', function () {
+            if (this === li[0]) { return; }
+            li.removeClass('active');
+            hide(String(this.id || '').replace(/^red-ui-tab-/, ''));
+        });
+    }
+
+    RED.plugins.registerPlugin('node-red-flowgen', {
+        onadd: function () {
+            $(document).on('dialogopen', function (ev) {
+                if (!ev.target || ev.target.id !== 'red-ui-clipboard-dialog') { return; }
+                setTimeout(function () {
+                    available().then(function (ok) {
+                        if (ok) { install(); } else { uninstall(); }
+                    });
+                }, 0);
+            });
+        }
     });
-    el.find('#flowgen-spec-text').on('change paste keyup', function () {
-      var text = $(this).val();
-      clearTimeout(el.data('timer'));
-      el.data('timer', setTimeout(function () { parse(text); }, 250));
-    });
-
-    return el;
-  }
-
-  function chosen() {
-    return $('#flowgen-op-list .flowgen-op.selected').map(function () {
-      return $(this).data('flowgen-op');
-    }).get();
-  }
-
-  function refreshChoice() {
-    var count = chosen().length;
-    selected = count ? chosen()[0] : null;
-    okButton(count > 0);
-    $('#flowgen-chosen').text(count > 1 ? count + ' selected' : '');
-  }
-
-  function choose(row, op, add) {
-    if (!add) { $('#flowgen-op-list .flowgen-op').removeClass('selected'); }
-    row.toggleClass('selected', add ? !row.hasClass('selected') : true);
-    refreshChoice();
-    if (row[0] && row[0].scrollIntoView) { row[0].scrollIntoView({ block: 'nearest' }); }
-  }
-
-  function onListKey(ev) {
-    if (ev.keyCode === 40) { ev.preventDefault(); moveSelection(1); }
-    if (ev.keyCode === 38) { ev.preventDefault(); moveSelection(-1); }
-    if (ev.keyCode === 32) {
-      ev.preventDefault();
-      var row = $('#flowgen-op-list .flowgen-op.selected').last();
-      var next = row.length ? row.nextAll('.flowgen-op').not('.flowgen-hidden').first() : null;
-      if (row.length) { row.addClass('selected'); }
-      if (next && next.length) { choose(next, next.data('flowgen-op'), true); }
-      return;
-    }
-    if (ev.keyCode === 13 && selected) { ev.preventDefault(); importSelected(); }
-  }
-
-  function filter() {
-    var term = String($('#flowgen-search').val() || '').trim().toLowerCase();
-    var rows = $('#flowgen-op-list .flowgen-op');
-    var shown = 0;
-    rows.each(function () {
-      var row = $(this);
-      var op = row.data('flowgen-op');
-      var text = (op.method + ' ' + op.path + ' ' + (op.summary || '')).toLowerCase();
-      var match = !term || term.split(/\s+/).every(function (part) {
-        return text.indexOf(part) !== -1;
-      });
-      row.toggleClass('flowgen-hidden', !match);
-      if (match) { shown++; }
-    });
-
-    $('#flowgen-count').text(term ? shown + ' of ' + rows.length : '');
-    rows.filter('.selected.flowgen-hidden').removeClass('selected');
-    refreshChoice();
-    if (!selected && shown === 1) {
-      var only = rows.not('.flowgen-hidden').first();
-      choose(only, only.data('flowgen-op'));
-    }
-  }
-
-  function moveSelection(delta) {
-    var rows = $('#flowgen-op-list .flowgen-op').not('.flowgen-hidden');
-    if (!rows.length) { return; }
-    var at = rows.index(rows.filter('.selected'));
-    var next = at === -1 ? (delta > 0 ? 0 : rows.length - 1) : at + delta;
-    if (next < 0 || next >= rows.length) { return; }
-    var row = rows.eq(next);
-    choose(row, row.data('flowgen-op'));
-  }
-
-  function view(name) {
-    $('#flowgen-paste-view').toggleClass('flowgen-on', name === 'paste');
-    $('#flowgen-select-view').toggleClass('flowgen-on', name === 'select');
-  }
-
-  function active() {
-    return isActive && $('#' + TAB_ID).length > 0;
-  }
-
-  function okButton(enabled) {
-    var ok = $('#red-ui-clipboard-dialog-ok');
-    if (ok.button && ok.data('ui-button')) {
-      ok.button(enabled ? 'enable' : 'disable');
-    } else {
-      ok.prop('disabled', !enabled);
-    }
-  }
-
-  function show() {
-    $('#red-ui-clipboard-dialog-import-tabs-content').children().hide();
-    $('#' + TAB_ID).css('display', 'flex').addClass('flowgen-shown');
-    isActive = true;
-  }
-
-  function hide(targetContentId) {
-    isActive = false;
-    $('#' + TAB_ID).hide().removeClass('flowgen-shown');
-    if (targetContentId) { $('#' + targetContentId).show(); }
-    okButton(false);
-    $('#red-ui-clipboard-dialog-import-text').trigger('keyup');
-  }
-
-  function importSelected() {
-    var targets = chosen();
-    if (!doc || !targets.length) { return; }
-    var nodes;
-    try {
-      nodes = flowgen.buildFlows(doc, targets, { tab: false });
-    } catch (err) {
-      status(err.message, true);
-      return;
-    }
-    var newFlow = $('#red-ui-clipboard-dialog-import-opt > a.selected')
-      .attr('id') === 'red-ui-clipboard-dialog-import-opt-new';
-    RED.view.importNodes(nodes, { generateIds: true, addFlow: newFlow });
-    $('#red-ui-clipboard-dialog').dialog('close');
-    RED.view.focus();
-  }
-
-  function preventSubmit() {
-    $('#red-ui-clipboard-dialog').find('form').off('submit.flowgen')
-      .on('submit.flowgen', function (ev) { ev.preventDefault(); });
-  }
-
-  function interceptOk() {
-    var ok = document.getElementById('red-ui-clipboard-dialog-ok');
-    if (!ok || ok.getAttribute('data-flowgen-bound')) { return; }
-    ok.setAttribute('data-flowgen-bound', 'true');
-    ok.addEventListener('click', function (ev) {
-      if (!active()) { return; }
-      ev.preventDefault();
-      ev.stopPropagation();
-      if (ev.stopImmediatePropagation) { ev.stopImmediatePropagation(); }
-      importSelected();
-    }, true);
-  }
-
-  function resetAll() {
-    isActive = false;
-    doc = null;
-    collectionDoc = null;
-    lastText = null;
-    selected = null;
-    fetching = null;
-    $('#flowgen-spec-text').val('');
-    $('#flowgen-op-list').empty();
-    $('#flowgen-search').val('');
-    $('#flowgen-count').text('');
-    $('#flowgen-chosen').text('');
-    $('#flowgen-select-btn').hide();
-    $('#flowgen-status').text('').removeClass('flowgen-error');
-    view('paste');
-    okButton(false);
-  }
-
-  function uninstall() {
-    if (isActive) { hide('red-ui-clipboard-dialog-import-tab-clipboard'); }
-    resetAll();
-    $('#red-ui-tab-' + TAB_ID).remove();
-    $('#' + TAB_ID).remove();
-    $('#red-ui-clipboard-dialog').off('dialogclose.flowgen');
-    var ok = document.getElementById('red-ui-clipboard-dialog-ok');
-    if (ok) { ok.removeAttribute('data-flowgen-bound'); }
-    if (!$('#red-ui-clipboard-dialog-import-tabs li.active').length) {
-      $('#red-ui-tab-red-ui-clipboard-dialog-import-tab-clipboard').addClass('active');
-      $('#red-ui-clipboard-dialog-import-tabs-content').children().hide();
-      $('#red-ui-clipboard-dialog-import-tab-clipboard').show();
-    }
-  }
-
-  function available() {
-    return fetch(apiRoot() + 'flowgen/generator.js', { method: 'HEAD' })
-      .then(function (res) { return res.ok; })
-      .catch(function () { return false; });
-  }
-
-  function install() {
-    var tabs = $('#red-ui-clipboard-dialog-import-tabs');
-    if (!tabs.length) { return; }
-    if (tabs.find('#flowgen-tab-link').length) { return; }
-
-    var li = $('<li>').attr('id', 'red-ui-tab-' + TAB_ID).addClass('red-ui-tab')
-      .append($('<a>').attr({ id: 'flowgen-tab-link', href: '#' })
-        .addClass('red-ui-tab-label').text('API Spec'))
-      .appendTo(tabs);
-
-    content().appendTo('#red-ui-clipboard-dialog-import-tabs-content');
-
-    interceptOk();
-    preventSubmit();
-    $('#red-ui-clipboard-dialog').off('dialogclose.flowgen')
-      .on('dialogclose.flowgen', function () { resetAll(); });
-
-    li.on('click', function (ev) {
-      ev.preventDefault();
-      tabs.find('li').removeClass('active');
-      li.addClass('active');
-      show();
-      view(selected || !doc ? 'paste' : 'select');
-      okButton(!!selected);
-      load().then(function () {
-        parse($('#flowgen-spec-text').val());
-      }).catch(function (err) {
-        status('failed to load flowgen: ' + err, true);
-      });
-    });
-
-    tabs.on('click', 'li', function () {
-      if (this === li[0]) { return; }
-      li.removeClass('active');
-      hide(String(this.id || '').replace(/^red-ui-tab-/, ''));
-    });
-  }
-
-  RED.plugins.registerPlugin('node-red-flowgen', {
-    onadd: function () {
-      $(document).on('dialogopen', function (ev) {
-        if (!ev.target || ev.target.id !== 'red-ui-clipboard-dialog') { return; }
-        setTimeout(function () {
-          available().then(function (ok) {
-            if (ok) { install(); } else { uninstall(); }
-          });
-        }, 0);
-      });
-    }
-  });
 })();
 </script>
