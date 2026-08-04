@@ -76,7 +76,7 @@ test('the packed module installs into Node-RED', () => {
 });
 
 test('the plugin runtime is loaded by Node-RED', async () => {
-  const res = await get('/flowgen/lib/flowgen.js');
+  const res = await get('/flowgen/editor-script/flowgen.js');
   assert.strictEqual(res.status, 200,
     'the asset route only exists if the plugin runtime ran');
 });
@@ -90,7 +90,7 @@ test('the editor receives the plugin markup', async () => {
 });
 
 test('the shared flowgen.js is served to the browser', async () => {
-  const res = await get('/flowgen/lib/flowgen.js');
+  const res = await get('/flowgen/editor-script/flowgen.js');
   assert.strictEqual(res.status, 200);
   assert.ok(res.body.replace(/^#![^\n]*\n/, '').startsWith('(function (root'), 'not the UMD build');
   const normalise = text => text.replace(/\r\n/g, '\n');
@@ -100,18 +100,18 @@ test('the shared flowgen.js is served to the browser', async () => {
 });
 
 test('js-yaml is served for browser side parsing', async () => {
-  const res = await get('/flowgen/lib/js-yaml.min.js');
+  const res = await get('/flowgen/editor-script/js-yaml.min.js');
   assert.strictEqual(res.status, 200);
   assert.ok(res.body.length > 1000);
 });
 
 test('unknown assets are rejected', async () => {
-  assert.strictEqual((await get('/flowgen/lib/nope.js')).status, 404);
+  assert.strictEqual((await get('/flowgen/editor-script/nope.js')).status, 404);
 });
 
 test('the served flowgen.js works when evaluated as browser code', async () => {
   const vm = require('vm');
-  const source = (await get('/flowgen/lib/flowgen.js')).body;
+  const source = (await get('/flowgen/editor-script/flowgen.js')).body;
   const self = { jsyaml: require('js-yaml') };
   self.self = self;
   vm.runInNewContext(source, self);
@@ -137,7 +137,7 @@ test('the editor payload pulls nothing from the internet', async () => {
 
 test('everything the browser loads is served by the local admin server', async () => {
   for (const asset of ['flowgen.js', 'js-yaml.min.js']) {
-    const res = await get('/flowgen/lib/' + asset);
+    const res = await get('/flowgen/editor-script/' + asset);
     assert.strictEqual(res.status, 200, asset + ' must come from the local server');
     assert.ok(res.body.length > 1000);
   }
@@ -294,8 +294,8 @@ test('the packaged module carries no test or development files', () => {
 });
 
 test('the runtime exposes only the documented routes', async () => {
-  assert.strictEqual((await get('/flowgen/lib/flowgen.js')).status, 200);
-  assert.strictEqual((await get('/flowgen/lib/js-yaml.min.js')).status, 200);
-  assert.strictEqual((await get('/flowgen/lib/../package.json')).status, 404);
-  assert.strictEqual((await get('/flowgen/lib/')).status, 404);
+  assert.strictEqual((await get('/flowgen/editor-script/flowgen.js')).status, 200);
+  assert.strictEqual((await get('/flowgen/editor-script/js-yaml.min.js')).status, 200);
+  assert.strictEqual((await get('/flowgen/editor-script/../package.json')).status, 404);
+  assert.strictEqual((await get('/flowgen/editor-script/')).status, 404);
 });
