@@ -1108,3 +1108,76 @@ test('a required list that matches nothing leaves every property active', () => 
   assert.ok(!/\/\/ '/.test(code), 'the body must never be entirely commented out');
   assert.deepStrictEqual(run(code).payload, { a: '', b: 0 });
 });
+
+test('buildFlows lays several endpoints out in rows without clashing ids', () => {
+  const doc = v3({ '/a': { get: {} }, '/b': { post: {} }, '/c': { delete: {} } });
+  const nodes = flowgen.buildFlows(doc, [
+    { method: 'get', path: '/a' },
+    { method: 'post', path: '/b' },
+    { method: 'delete', path: '/c' }
+  ], { tab: false });
+
+  assert.strictEqual(nodes.length, 12);
+  assert.strictEqual(new Set(nodes.map(n => n.id)).size, 12, 'ids must be unique');
+  assert.ok(!nodes.some(n => 'z' in n));
+
+  const ids = new Set(nodes.map(n => n.id));
+  for (const node of nodes) {
+    for (const wire of [].concat.apply([], node.wires || [])) {
+      assert.ok(ids.has(wire), 'dangling wire ' + wire);
+    }
+  }
+
+  const rows = [...new Set(nodes.map(n => n.y))].sort((a, b) => a - b);
+  assert.deepStrictEqual(rows, [100, 200, 300], 'each endpoint gets its own row');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(nodes)), nodes);
+});
+
+test('buildFlows wires each row only to its own nodes', () => {
+  const doc = v3({ '/a': { get: {} }, '/b': { get: {} } });
+  const nodes = flowgen.buildFlows(doc, [
+    { method: 'get', path: '/a' }, { method: 'get', path: '/b' }
+  ], { tab: false });
+
+  for (const node of nodes) {
+    const row = node.id.slice(node.id.lastIndexOf('-'));
+    for (const wire of [].concat.apply([], node.wires || [])) {
+      assert.strictEqual(wire.slice(wire.lastIndexOf('-')), row,
+        node.id + ' must not wire across rows');
+    }
+  }
+});
+
+test('buildFlows keeps the generated code of each endpoint', () => {
+  const doc = v3({ '/a': { get: {} }, '/b': { post: {} } });
+  const nodes = flowgen.buildFlows(doc, [
+    { method: 'get', path: '/a' }, { method: 'post', path: '/b' }
+  ], { tab: false });
+  const functions = nodes.filter(n => n.type === 'function');
+
+  assert.strictEqual(functions[0].func, flowgen.generate(doc, 'get', '/a'));
+  assert.strictEqual(functions[1].func, flowgen.generate(doc, 'post', '/b'));
+  assert.strictEqual(functions[0].name, 'GET /v1/a');
+  assert.strictEqual(functions[1].name, 'POST /v1/b');
+});
+
+test('buildFlows names the tab after the count when there are several', () => {
+  const doc = v3({ '/a': { get: {} }, '/b': { get: {} } });
+  const many = flowgen.buildFlows(doc, [
+    { method: 'get', path: '/a' }, { method: 'get', path: '/b' }]);
+  assert.strictEqual(many[0].type, 'tab');
+  assert.strictEqual(many[0].label, '2 endpoints');
+  for (const node of many.slice(1)) assert.strictEqual(node.z, many[0].id);
+
+  const one = flowgen.buildFlows(doc, [{ method: 'get', path: '/a' }]);
+  assert.strictEqual(one[0].label, 'GET /a');
+});
+
+test('buildFlows with one endpoint matches buildFlow', () => {
+  const doc = v3({ '/a': { get: {} } });
+  const single = flowgen.buildFlow(doc, 'get', '/a', { tab: false });
+  const many = flowgen.buildFlows(doc, [{ method: 'get', path: '/a' }], { tab: false });
+  assert.deepStrictEqual(many.map(n => n.type), single.map(n => n.type));
+  assert.deepStrictEqual(many.map(n => n.x), single.map(n => n.x));
+  assert.deepStrictEqual(many.map(n => n.y), single.map(n => n.y));
+});

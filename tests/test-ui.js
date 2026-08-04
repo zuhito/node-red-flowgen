@@ -1147,3 +1147,72 @@ test('a removed plugin does not leave stale state behind', async () => {
   assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true);
   assert.strictEqual($('#flowgen-op-list .flowgen-op').length, 0);
 });
+
+test('several endpoints can be selected and imported together', async () => {
+  await openList();
+  const rows = $('#flowgen-op-list .flowgen-op');
+
+  rows.eq(0).trigger('click');
+  rows.eq(2).trigger($.Event('click', { ctrlKey: true }));
+  rows.eq(4).trigger($.Event('click', { metaKey: true }));
+
+  assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 3);
+  assert.strictEqual($('#flowgen-chosen').text(), '3 selected');
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
+
+  clickOk();
+  assert.strictEqual(imported.length, 1, 'one import carries every endpoint');
+  const nodes = imported[0].nodes;
+  assert.strictEqual(nodes.filter(n => n.type === 'function').length, 3);
+  assert.strictEqual(nodes.length, 12);
+  assert.strictEqual(new Set(nodes.map(n => n.id)).size, 12);
+  assert.ok(!nodes.some(n => n.type === 'tab'));
+});
+
+test('a plain click after a multi selection starts over', async () => {
+  await openList();
+  const rows = $('#flowgen-op-list .flowgen-op');
+  rows.eq(0).trigger('click');
+  rows.eq(1).trigger($.Event('click', { ctrlKey: true }));
+  assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 2);
+
+  rows.eq(3).trigger('click');
+  assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 1);
+  assert.strictEqual($('#flowgen-chosen').text(), '');
+});
+
+test('ctrl clicking a selected row removes it again', async () => {
+  await openList();
+  const rows = $('#flowgen-op-list .flowgen-op');
+  rows.eq(0).trigger('click');
+  rows.eq(1).trigger($.Event('click', { ctrlKey: true }));
+  rows.eq(1).trigger($.Event('click', { ctrlKey: true }));
+  assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 1);
+  assert.ok(rows.eq(0).hasClass('selected'));
+});
+
+test('rows hidden by a search drop out of the selection', async () => {
+  await openList();
+  const rows = $('#flowgen-op-list .flowgen-op');
+  rows.eq(0).trigger('click');
+  rows.eq(1).trigger($.Event('click', { ctrlKey: true }));
+
+  $('#flowgen-search').val('definitely-not-there').trigger('input');
+  assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 0);
+  assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true);
+  assert.strictEqual($('#flowgen-chosen').text(), '');
+});
+
+test('the space key extends the selection down the list', async () => {
+  await openList();
+  $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 40 }));
+  $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 32 }));
+  assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 2);
+  assert.strictEqual($('#flowgen-chosen').text(), '2 selected');
+});
+
+test('a single selection still shows no count', async () => {
+  await openList();
+  $('#flowgen-op-list .flowgen-op').first().trigger('click');
+  assert.strictEqual($('#flowgen-chosen').text(), '');
+});

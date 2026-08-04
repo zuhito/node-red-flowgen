@@ -129,11 +129,12 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
   font-size: 13px;
   box-sizing: border-box;
 }
-#flowgen-count {
+#flowgen-count, #flowgen-chosen {
   flex: 0 0 auto;
   font-size: 12px;
   color: var(--red-ui-secondary-text-color, #999);
 }
+#flowgen-chosen:not(:empty) { color: var(--red-ui-primary-text-color, #333); }
 #flowgen-status { flex: 0 0 auto; margin-top: 6px; min-height: 16px; font-size: 12px; }
 #flowgen-status:empty { min-height: 0; margin: 0; }
 #flowgen-status.flowgen-error { color: var(--red-ui-text-color-error, #a33); }
@@ -207,8 +208,8 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         .append($('<span>').addClass('flowgen-method').text(op.method.toUpperCase()))
         .append($('<span>').addClass('flowgen-path').text(op.path))
         .append($('<span>').addClass('flowgen-summary').text(op.summary || ''))
-        .on('click', function () {
-          choose($(this), op);
+        .on('click', function (ev) {
+          choose($(this), op, ev.ctrlKey || ev.metaKey);
         })
         .on('dblclick', function () {
           choose($(this), op);
@@ -220,6 +221,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
 
     $('#flowgen-search').val('');
     $('#flowgen-count').text('');
+    $('#flowgen-chosen').text('');
     if (result.count === 1) {
       selected = result.operations[0];
       $('#flowgen-op-list .flowgen-op').addClass('selected');
@@ -343,6 +345,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
       .append($('<input>').attr({ type: 'text', id: 'flowgen-search',
         placeholder: 'Search by method, path or summary' }))
       .append($('<span>').attr('id', 'flowgen-count'))
+      .append($('<span>').attr('id', 'flowgen-chosen'))
       .append($('<span>').addClass('flowgen-spacer'))
       .append($('<a>').addClass('red-ui-button').attr({ id: 'flowgen-back-btn', href: '#' })
         .css({ background: '#fff', border: '1px solid #ccc', color: '#888' })
@@ -426,17 +429,37 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     return el;
   }
 
-  function choose(row, op) {
-    $('#flowgen-op-list .flowgen-op').removeClass('selected');
-    row.addClass('selected');
-    selected = op;
-    okButton(true);
+  function chosen() {
+    return $('#flowgen-op-list .flowgen-op.selected').map(function () {
+      return $(this).data('flowgen-op');
+    }).get();
+  }
+
+  function refreshChoice() {
+    var count = chosen().length;
+    selected = count ? chosen()[0] : null;
+    okButton(count > 0);
+    $('#flowgen-chosen').text(count > 1 ? count + ' selected' : '');
+  }
+
+  function choose(row, op, add) {
+    if (!add) { $('#flowgen-op-list .flowgen-op').removeClass('selected'); }
+    row.toggleClass('selected', add ? !row.hasClass('selected') : true);
+    refreshChoice();
     if (row[0] && row[0].scrollIntoView) { row[0].scrollIntoView({ block: 'nearest' }); }
   }
 
   function onListKey(ev) {
     if (ev.keyCode === 40) { ev.preventDefault(); moveSelection(1); }
     if (ev.keyCode === 38) { ev.preventDefault(); moveSelection(-1); }
+    if (ev.keyCode === 32) {
+      ev.preventDefault();
+      var row = $('#flowgen-op-list .flowgen-op.selected').last();
+      var next = row.length ? row.nextAll('.flowgen-op').not('.flowgen-hidden').first() : null;
+      if (row.length) { row.addClass('selected'); }
+      if (next && next.length) { choose(next, next.data('flowgen-op'), true); }
+      return;
+    }
     if (ev.keyCode === 13 && selected) { ev.preventDefault(); importSelected(); }
   }
 
@@ -456,11 +479,8 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     });
 
     $('#flowgen-count').text(term ? shown + ' of ' + rows.length : '');
-    if (selected && rows.filter('.selected.flowgen-hidden').length) {
-      $('#flowgen-op-list .flowgen-op').removeClass('selected');
-      selected = null;
-      okButton(false);
-    }
+    rows.filter('.selected.flowgen-hidden').removeClass('selected');
+    refreshChoice();
     if (!selected && shown === 1) {
       var only = rows.not('.flowgen-hidden').first();
       choose(only, only.data('flowgen-op'));
@@ -510,10 +530,11 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
   }
 
   function importSelected() {
-    if (!doc || !selected) { return; }
+    var targets = chosen();
+    if (!doc || !targets.length) { return; }
     var nodes;
     try {
-      nodes = flowgen.buildFlow(doc, selected.method, selected.path, { tab: false });
+      nodes = flowgen.buildFlows(doc, targets, { tab: false });
     } catch (err) {
       status(err.message, true);
       return;
@@ -554,6 +575,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     $('#flowgen-op-list').empty();
     $('#flowgen-search').val('');
     $('#flowgen-count').text('');
+    $('#flowgen-chosen').text('');
     $('#flowgen-select-btn').hide();
     $('#flowgen-status').text('').removeClass('flowgen-error');
     view('paste');

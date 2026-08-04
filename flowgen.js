@@ -816,6 +816,35 @@ function nodeWidth(label, hasInput) {
   return Math.max(100, 20 * Math.ceil((width + 50 + (hasInput ? 7 : 0)) / 20));
 }
 
+function buildFlows(doc, targets, options) {
+  const withTab = !options || options.tab !== false;
+  const nodes = [];
+  let row = 0;
+  for (const entry of targets) {
+    const built = buildFlow(doc, entry.method, entry.path, { tab: false });
+    const offset = row * 100;
+    const suffix = '-' + row;
+    const rename = id => id + suffix;
+    for (const node of built) {
+      node.id = rename(node.id);
+      node.y = node.y + offset;
+      node.wires = (node.wires || []).map(list => list.map(rename));
+      nodes.push(node);
+    }
+    row++;
+  }
+  if (!withTab) { return nodes; }
+  const tab = {
+    id: 'flowgen-tab', type: 'tab',
+    label: targets.length === 1
+      ? String(targets[0].method).toUpperCase() + ' ' + targets[0].path
+      : targets.length + ' endpoints',
+    disabled: false, info: '', env: []
+  };
+  for (const node of nodes) node.z = tab.id;
+  return [tab].concat(nodes);
+}
+
 function buildFlow(doc, method, target, options) {
   const code = generate(doc, method, target);
   const withTab = !options || options.tab !== false;
@@ -921,7 +950,7 @@ function formatList(result) {
 
 return {
   parseDocument, detectFormat, generate, generateOpenApi3, generateSwagger2,
-  listOperations, buildFlow, formatList, isUrl, nodeWidth, parseCollection
+  listOperations, buildFlow, buildFlows, formatList, isUrl, nodeWidth, parseCollection
 };
 }));
 
@@ -1038,9 +1067,90 @@ if (typeof module === 'object' && module.exports && require.main === module) {
       '  node-red-flowgen https://petstore.swagger.io/v2/swagger.json --list\n');
     process.exit(1);
   }
+  const emit = (doc, chosenMethod, chosenPath) => {
+    process.stdout.write(flowMode
+      ? JSON.stringify(buildFlow(doc, chosenMethod, chosenPath), null, 2) + '\n'
+      : generate(doc, chosenMethod, chosenPath) + '\n');
+  };
+
+  const choose = (doc, operations) => new Promise((resolve, reject) => {
+    const out = process.stderr;
+    const rows = Math.max(3, Math.min(15, (process.stdout.rows || 24) - 6));
+    let term = '';
+    let cursor = 0;
+    let top = 0;
+    let painted = 0;
+
+    const matching = () => {
+      const words = term.toLowerCase().split(/\s+/).filter(Boolean);
+      return operations.filter(op => {
+        const text = (op.method + ' ' + op.path + ' ' + (op.summary || '')).toLowerCase();
+        return words.every(word => text.indexOf(word) !== -1);
+      });
+    };
+
+    const paint = () => {
+      const list = matching();
+      if (cursor >= list.length) cursor = Math.max(0, list.length - 1);
+      if (cursor < top) top = cursor;
+      if (cursor >= top + rows) top = cursor - rows + 1;
+
+      let text = painted ? '\x1b[' + painted + 'A\x1b[0J' : '';
+      text += 'Search: ' + term + '\n';
+      const page = list.slice(top, top + rows);
+      for (let i = 0; i < page.length; i++) {
+        const op = page[i];
+        const label = op.method.toUpperCase().padEnd(7) + op.path +
+          (op.summary ? '  ' + op.summary : '');
+        text += (top + i === cursor ? '\x1b[7m> ' + label + '\x1b[0m' : '  ' + label) + '\n';
+      }
+      if (!page.length) text += '  no match\n';
+      text += list.length + ' of ' + operations.length +
+        '   up/down to move, type to filter, enter to choose, esc to cancel\n';
+      painted = page.length + 2 || 3;
+      out.write(text);
+    };
+
+    const stop = () => {
+      process.stdin.removeListener('data', onKey);
+      if (process.stdin.isTTY) process.stdin.setRawMode(false);
+      process.stdin.pause();
+      out.write('\x1b[' + painted + 'A\x1b[0J');
+    };
+
+    const onKey = data => {
+      const key = data.toString();
+      if (key === '\u0003' || key === '\u001b') { stop(); return reject(new Error('cancelled')); }
+      if (key === '\r' || key === '\n') {
+        const list = matching();
+        if (!list.length) return;
+        stop();
+        return resolve(list[cursor]);
+      }
+      if (key === '\u001b[A') { cursor = Math.max(0, cursor - 1); return paint(); }
+      if (key === '\u001b[B') { cursor = Math.min(matching().length - 1, cursor + 1); return paint(); }
+      if (key === '\u001b[C' || key === '\u001b[D') { return; }
+      if (key === '\u007f' || key === '\b') { term = term.slice(0, -1); cursor = 0; return paint(); }
+      const typed = key.replace(/[\u0000-\u001f\u007f]/g, '');
+      if (typed) { term += typed; cursor = 0; return paint(); }
+    };
+
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.on('data', onKey);
+    paint();
+  });
+
   load(file).then(doc => {
-    if (listMode || !method) {
+    if (listMode) {
       process.stdout.write(formatList(listOperations(doc)) + '\n');
+    } else if (!method) {
+      const list = listOperations(doc);
+      if (!process.stdin.isTTY || !list.count) {
+        process.stdout.write(formatList(list) + '\n');
+        return;
+      }
+      return choose(doc, list.operations).then(op => emit(doc, op.method, op.path));
     } else if (flowMode) {
       process.stdout.write(JSON.stringify(buildFlow(doc, method, target), null, 2) + '\n');
     } else {

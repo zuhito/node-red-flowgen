@@ -1,6 +1,6 @@
 {
   "name": "node-red-flowgen",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Generate Node-RED flows and function-node code from OpenAPI 3 / Swagger 2 documents",
   "main": "flowgen.js",
   "license": "Apache-2.0",
@@ -42,7 +42,8 @@
     "coverage": "npx c8 --reporter=text --reporter=text-summary --reporter=lcov --reporter=html --include=flowgen.js --include=flowgen-plugin.js --report-dir=coverage node --test tests/test.js tests/test-cli.js tests/test-bruno.js tests/test-nodered.js tests/test-plugin.js tests/test-plugin-unit.js",
     "test:ollama": "node --test --test-timeout 900000 tests/test-ollama.js",
     "test:plugin:unit": "node --test tests/test-plugin-unit.js",
-    "samples": "node tests/generate-samples.js"
+    "samples": "node tests/generate-samples.js",
+    "test:wizard": "node --test --test-timeout 300000 tests/test-wizard.js"
   },
   "devDependencies": {
     "c8": "10.1.3",
