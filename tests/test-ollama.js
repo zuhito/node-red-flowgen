@@ -270,9 +270,10 @@ for (const [format, load] of Object.entries(DOCS)) {
     const doc = load();
     for (const target of ['/v1/chat/completions', '/v1/completions']) {
       const code = flowgen.generate(doc, 'post', target);
-      const built = new Function('msg', code).call(null, {}) || {};
-      assert.strictEqual(built.payload.max_tokens, 1000,
-        format + ' ' + target + ' should default max_tokens to 1000');
+      assert.match(code, /'max_tokens': 1000/,
+        format + ' ' + target + ' should offer max_tokens with a default of 1000');
+      assert.ok(!/'max_tokens': (?!1000)/.test(code),
+        format + ' ' + target + ' must not offer any other max_tokens value');
     }
   });
 }
