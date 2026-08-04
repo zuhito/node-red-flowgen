@@ -26,7 +26,6 @@ function isUrl(text) {
   return /^https?:\/\/\S+$/i.test(String(text || '').trim());
 }
 
-
 function parseBru(text) {
   const blocks = {};
   const re = /^([\w:.-]+)\s*\{\s*\n([\s\S]*?)\n\}/gm;
