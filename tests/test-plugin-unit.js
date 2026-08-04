@@ -58,7 +58,7 @@ test('the plugin registers itself and logs once', () => {
 });
 
 test('the shared flowgen source is served unchanged', async () => {
-  const res = await get('/flowgen/flowgen.js');
+  const res = await get('/flowgen/lib/flowgen.js');
   assert.strictEqual(res.status, 200);
   assert.match(res.type, /javascript/);
   assert.strictEqual(res.body.replace(/\r\n/g, '\n'),
@@ -66,13 +66,13 @@ test('the shared flowgen source is served unchanged', async () => {
 });
 
 test('the js-yaml browser build is served', async () => {
-  const res = await get('/flowgen/js-yaml.min.js');
+  const res = await get('/flowgen/lib/js-yaml.min.js');
   assert.strictEqual(res.status, 200);
   assert.ok(res.body.length > 1000);
 });
 
 test('an unknown asset is rejected', async () => {
-  assert.strictEqual((await get('/flowgen/nope.js')).status, 404);
+  assert.strictEqual((await get('/flowgen/lib/nope.js')).status, 404);
 });
 
 test('a plain document URL is proxied', async () => {

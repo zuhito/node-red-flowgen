@@ -174,8 +174,8 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     if (loading) { return loading; }
     var root = (RED.settings.apiRootUrl || '');
     if (root && !/\/$/.test(root)) { root += '/'; }
-    loading = $.getScript(root + 'flowgen/js-yaml.min.js').then(function () {
-      return $.getScript(root + 'flowgen/flowgen.js');
+    loading = $.getScript(root + 'flowgen/lib/js-yaml.min.js').then(function () {
+      return $.getScript(root + 'flowgen/lib/flowgen.js');
     });
     return loading;
   }
@@ -576,7 +576,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
   }
 
   function available() {
-    return fetch(apiRoot() + 'flowgen/flowgen.js', { method: 'HEAD' })
+    return fetch(apiRoot() + 'flowgen/lib/flowgen.js', { method: 'HEAD' })
       .then(function (res) { return res.ok; })
       .catch(function () { return false; });
   }

@@ -151,7 +151,7 @@ module.exports = function (RED) {
     });
   });
 
-  RED.httpAdmin.get('/flowgen/:asset', function (req, res) {
+  RED.httpAdmin.get('/flowgen/lib/:asset', function (req, res) {
     const file = assets[req.params.asset];
     if (!file) return res.status(404).end();
     res.type('application/javascript').sendFile(file);

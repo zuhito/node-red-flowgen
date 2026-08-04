@@ -430,7 +430,7 @@ for (const engine of ENGINES) {
       await openImport(page);
       assert.strictEqual((await page.$$('#flowgen-tab-link')).length, 1);
 
-      await page.route('**/flowgen/flowgen.js', route => route.fulfill({ status: 404, body: '' }));
+      await page.route('**/flowgen/lib/flowgen.js', route => route.fulfill({ status: 404, body: '' }));
 
       await page.evaluate(() => $('#red-ui-clipboard-dialog').dialog('close'));
       await page.waitForTimeout(300);
