@@ -679,12 +679,12 @@ function addHeaders(code, headers) {
 function applyAuth(code, headers) {
     let out = code;
     for (const [name, value] of Object.entries(headers || {})) {
-        const pattern = new RegExp("('" + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-            "': )`[^`]*`");
+        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = new RegExp('("' + escapedName + '": )(`[^`]*`|"[^"]*")');
         if (!pattern.test(out)) {
             throw new Error('no placeholder for header ' + name);
         }
-        out = out.replace(pattern, '$1`' + value + '`');
+        out = out.replace(pattern, '$1"' + value + '"');
     }
     return out;
 }

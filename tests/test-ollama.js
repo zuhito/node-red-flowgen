@@ -204,7 +204,7 @@ for (const [format, load] of Object.entries(DOCS)) {
                 const code = flowgen.generate(doc, op.method, op.path);
                 assert.doesNotThrow(() => new Function(code), op.method + ' ' + op.path);
                 assert.match(code, /^msg\.method = "[A-Z]+";/);
-                assert.match(code, /msg\.url = `http:\/\/127\.0\.0\.1:11434/);
+                assert.match(code, /msg\.url = "http:\/\/127\.0\.0\.1:11434/);
                 generated++;
             }
             assert.strictEqual(generated, 17);
@@ -218,7 +218,7 @@ for (const [format, load] of Object.entries(DOCS)) {
                 for (const overrides of variations) {
                     const nodes = flowgen.buildFlow(doc, op.method, op.path);
                     const fn = nodes.find(n => n.type === 'function');
-                    let source = fn.func.replace(/`http:\/\/127\.0\.0\.1:11434/g, '`' + baseUrl);
+                    let source = fn.func.replace(/"http:\/\/127\.0\.0\.1:11434/g, '"' + baseUrl);
 
                     const built = new Function('msg', source).call(null, {}) || {};
                     if (built.payload && typeof built.payload === 'object') {
@@ -249,7 +249,7 @@ for (const [format, load] of Object.entries(DOCS)) {
             const nodes = flowgen.buildFlow(doc, 'post', '/api/chat');
             const fn = nodes.find(n => n.type === 'function');
             fn.func = fn.func
-                .replace(/`http:\/\/127\.0\.0\.1:11434/g, '`' + baseUrl)
+                .replace(/"http:\/\/127\.0\.0\.1:11434/g, '"' + baseUrl)
                 .replace(/msg\.payload = [\s\S]*?\n\};/, 'msg.payload = ' + JSON.stringify({
                     model: MODEL,
                     messages: [{ role: 'user', content: 'Reply with the single word ok.' }],
