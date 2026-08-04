@@ -21,6 +21,10 @@ module.exports = function (RED) {
         'yaml-parser.js': browserYaml()
     };
 
+    const needsPermission = RED.auth && RED.auth.needsPermission
+        ? RED.auth.needsPermission('flows.write')
+        : function (req, res, next) { next(); };
+
     RED.plugins.registerPlugin('node-red-flowgen', {
         onadd: function () {
             RED.log.info('node-red-flowgen: API Spec import tab available');
@@ -95,7 +99,7 @@ module.exports = function (RED) {
         request.on('error', done);
     }
 
-    RED.httpAdmin.get('/flowgen/source', function (req, res) {
+    RED.httpAdmin.get('/flowgen/source', needsPermission, function (req, res) {
         const url = String(req.query.url || '').trim();
         if (!/^https?:\/\/\S+$/i.test(url)) {
             return res.status(400).json({ error: 'only http(s) URLs are accepted' });
@@ -133,7 +137,7 @@ module.exports = function (RED) {
         });
     });
 
-    RED.httpAdmin.post('/flowgen/source', function (req, res) {
+    RED.httpAdmin.post('/flowgen/source', needsPermission, function (req, res) {
         const chunks = [];
         let size = 0;
         req.on('data', function (chunk) {
@@ -151,7 +155,7 @@ module.exports = function (RED) {
         });
     });
 
-    RED.httpAdmin.get('/flowgen/:asset', function (req, res) {
+    RED.httpAdmin.get('/flowgen/:asset', needsPermission, function (req, res) {
         const file = assets[req.params.asset];
         if (!file) return res.status(404).end();
         res.type('application/javascript').sendFile(file);

@@ -180,3 +180,50 @@ test('a corrupt zip is reported rather than throwing', async () => {
     assert.strictEqual(res.status, 400);
     assert.match(JSON.parse(res.body).error, /zip/i);
 });
+
+test('every route demands the flows.write permission', () => {
+    const asked = [];
+    const guard = function (req, res, next) { next(); };
+    const routes = [];
+    const RED = {
+        httpAdmin: {
+            get: (path, ...rest) => routes.push({ method: 'get', path, rest }),
+            post: (path, ...rest) => routes.push({ method: 'post', path, rest })
+        },
+        plugins: { registerPlugin: () => {} },
+        log: { info: () => {} },
+        auth: { needsPermission: permission => { asked.push(permission); return guard; } }
+    };
+    plugin(RED);
+
+    assert.ok(routes.length >= 3, 'the plugin registers its routes');
+    assert.deepStrictEqual([...new Set(asked)], ['flows.write'],
+        'the only permission asked for is flows.write');
+    for (const route of routes) {
+        assert.strictEqual(route.rest[0], guard,
+            route.method.toUpperCase() + ' ' + route.path + ' must be guarded first');
+        assert.strictEqual(route.rest.length, 2, 'guard then handler');
+    }
+});
+
+test('the routes still work when no auth is configured', () => {
+    const routes = [];
+    const RED = {
+        httpAdmin: {
+            get: (path, ...rest) => routes.push({ path, rest }),
+            post: (path, ...rest) => routes.push({ path, rest })
+        },
+        plugins: { registerPlugin: () => {} },
+        log: { info: () => {} }
+    };
+    plugin(RED);
+
+    assert.ok(routes.length >= 3);
+    for (const route of routes) {
+        assert.strictEqual(typeof route.rest[0], 'function',
+            'a pass through guard is installed for ' + route.path);
+        let called = false;
+        route.rest[0]({}, {}, () => { called = true; });
+        assert.strictEqual(called, true, 'the guard calls next when auth is off');
+    }
+});
