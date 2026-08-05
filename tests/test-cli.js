@@ -162,10 +162,10 @@ test('a git source leaves no temporary directory behind', async () => {
     const listed = await run([path.join(repo, '.git'), '--list']);
     const after = fs.readdirSync(os.tmpdir()).filter(n => n.startsWith('flowgen-git-'));
 
-    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     assert.strictEqual(listed.code, 0, listed.stderr);
     assert.match(listed.stdout, /get \/r/);
-    assert.deepStrictEqual(after, before,
+    assert.strictEqual(after.join(','), before.join(','),
         'the clone directory must be removed once the source is read');
 });
 
@@ -175,6 +175,6 @@ test('a failed clone still removes its temporary directory', async () => {
     const after = fs.readdirSync(os.tmpdir()).filter(n => n.startsWith('flowgen-git-'));
 
     assert.strictEqual(result.code, 1);
-    assert.deepStrictEqual(after, before,
+    assert.strictEqual(after.join(','), before.join(','),
         'a failure must not leak the clone directory');
 });

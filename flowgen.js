@@ -1024,7 +1024,13 @@ if (typeof module === 'object' && module.exports && require.main === module) {
                     { stdio: 'pipe' });
                 return parseCollection(gatherDir(tmp));
             } finally {
-                fs.rmSync(tmp, { recursive: true, force: true });
+                try {
+                    fs.rmSync(tmp, {
+                        recursive: true, force: true, maxRetries: 5, retryDelay: 100
+                    });
+                } catch (err) {
+                    process.stderr.write('could not remove ' + tmp + ': ' + err.message + '\n');
+                }
             }
         }
         if (isUrl(source)) return parseDocument(await read(source));

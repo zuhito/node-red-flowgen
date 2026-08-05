@@ -116,14 +116,18 @@ module.exports = function (RED) {
                     }
                     res.json({ files: gather(tmp) });
                 } finally {
-                    fs.rm(tmp, { recursive: true, force: true }, function () {});
+                    fs.rm(tmp, {
+                        recursive: true, force: true, maxRetries: 5, retryDelay: 100
+                    }, function () {});
                 }
             };
             return execFile('git', ['clone', '--quiet', '--depth', '1', url, tmp],
                 { timeout: 60000 }, function (err, stdout, stderr) {
                 if (!err) { return finish(null); }
                 if (!/shallow/i.test(String(stderr))) { return finish(stderr || err.message); }
-                fs.rmSync(tmp, { recursive: true, force: true });
+                fs.rmSync(tmp, {
+                    recursive: true, force: true, maxRetries: 5, retryDelay: 100
+                });
                 fs.mkdirSync(tmp, { recursive: true });
                 execFile('git', ['clone', '--quiet', url, tmp], { timeout: 60000 },
                     function (err2, stdout2, stderr2) {
