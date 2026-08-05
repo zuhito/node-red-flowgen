@@ -816,6 +816,9 @@ async function main() {
             }
         } else if (result.status >= 200 && result.status < 400) {
             note('notice', label + ' -> HTTP ' + result.status);
+        } else if (result.status === 403 || result.status === 429) {
+            note('notice', label + ' -> HTTP ' + result.status +
+                ' (rate limited or forbidden upstream, not a generation fault)');
         } else if (result.status >= 500) {
             note('notice', label + ' -> HTTP ' + result.status +
                 ' (upstream error, not a generation fault)');

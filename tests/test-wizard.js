@@ -19,14 +19,14 @@ const openpty = (() => {
     }
 })();
 
-function throughPty(keys) {
+function throughPty(keys, specFile) {
     const driver = `
 import os, pty, time, select, sys, json
 keys = json.loads(sys.argv[1])
 pid, fd = pty.fork()
 if pid == 0:
         os.execvp(${JSON.stringify(process.execPath)},
-                            [${JSON.stringify(process.execPath)}, ${JSON.stringify(CLI)}, ${JSON.stringify(SPEC)}])
+                            [${JSON.stringify(process.execPath)}, ${JSON.stringify(CLI)}, ${JSON.stringify('SPEC_PLACEHOLDER')}])
 out = b''
 time.sleep(1.5)
 for k in keys:
@@ -51,7 +51,7 @@ os.close(fd)
 sys.stdout.write(out.decode('utf8', 'replace'))
 `;
     const file = path.join(os.tmpdir(), 'flowgen-pty-' + process.pid + '.py');
-    fs.writeFileSync(file, driver);
+    fs.writeFileSync(file, driver.replace('SPEC_PLACEHOLDER', specFile || SPEC));
     try {
         return execFileSync('python3', [file, JSON.stringify(keys)],
             { encoding: 'utf8', timeout: 60000, maxBuffer: 1 << 24 });
@@ -125,4 +125,38 @@ test('without a terminal the list is printed instead', () => {
         { encoding: 'utf8' });
     assert.match(result, /^post \/api\/generate\s+# Generate a completion$/m);
     assert.ok(!/Search:/.test(result), 'no picker without a terminal');
+});
+
+const PETSTORE = path.join(require('os').tmpdir(), 'flowgen-spec-cache', 'v2.yaml');
+const havePetstore = fs.existsSync(PETSTORE);
+
+test('the picker asks for a credential and puts it into the code',
+    { skip: !openpty || !havePetstore }, () => {
+        const text = throughPty(['findByStatus', '\r', 'mytoken', '\r'], PETSTORE);
+        assert.match(text, /Value for token \(enter to skip\): /);
+        assert.match(text, /"authorization": `Bearer mytoken`/);
+        assert.ok(!/Bearer \{token\}/.test(text), 'the placeholder is replaced');
+    });
+
+test('an empty answer leaves the placeholder alone',
+    { skip: !openpty || !havePetstore }, () => {
+        const text = throughPty(['findByStatus', '\r', '\r'], PETSTORE);
+        assert.match(text, /Value for token \(enter to skip\): /);
+        assert.match(text, /"authorization": `Bearer \{token\}`/);
+    });
+
+test('the credential is not echoed to the terminal',
+    { skip: !openpty || !havePetstore }, () => {
+        const text = throughPty(['findByStatus', '\r', 'secret', '\r'], PETSTORE);
+        const prompt = text.slice(text.indexOf('Value for token'));
+        const echoed = prompt.slice(0, prompt.indexOf('\n'));
+        assert.ok(!/secret/.test(echoed), 'the typed value must be masked: ' + echoed);
+        assert.match(echoed, /\*{6}/, 'asterisks stand in for the value');
+        assert.match(text, /"authorization": `Bearer secret`/);
+    });
+
+test('a spec with no credentials asks nothing', { skip: !openpty }, () => {
+    const text = throughPty(['tags', '\r']);
+    assert.ok(!/Value for /.test(text), 'no prompt for a spec without auth');
+    assert.match(text, /msg\.url = "http:\/\/127\.0\.0\.1:11434\/api\/tags";/);
 });

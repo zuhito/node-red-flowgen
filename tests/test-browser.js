@@ -383,6 +383,48 @@ for (const engine of ENGINES) {
             await page.close();
         });
 
+        test('Back clears the selection so nothing can be imported blind', async () => {
+            const page = await browser.newPage();
+            await openImport(page);
+            await paste(page, SPEC);
+            await click(page, '#flowgen-select-btn');
+            await page.waitForSelector('#flowgen-op-list .flowgen-op');
+
+            await click(page, '#flowgen-op-list .flowgen-op:nth-of-type(1)');
+            await waitOk(page, false);
+
+            await click(page, '#flowgen-back-btn');
+            await waitOk(page, true);
+            assert.strictEqual(
+                (await page.$$('#flowgen-op-list .flowgen-op.selected')).length, 0,
+                'the selection must be dropped when going back');
+            await page.close();
+        });
+
+        test('an invalid JSON warning from the Clipboard tab does not linger', async () => {
+            const page = await browser.newPage();
+            await openImport(page);
+
+            await click(page, '#red-ui-tab-red-ui-clipboard-dialog-import-tab-clipboard');
+            await page.fill('#red-ui-clipboard-dialog-import-text', 'https://petstore.swagger.io');
+            await page.waitForTimeout(300);
+            await click(page, '#red-ui-clipboard-dialog-ok');
+            await page.waitForTimeout(600);
+
+            const warned = await page.evaluate(() =>
+                document.querySelectorAll('.red-ui-popover').length);
+
+            await click(page, '#flowgen-tab-link');
+            await page.waitForTimeout(500);
+
+            const left = await page.evaluate(() => Array.from(
+                document.querySelectorAll('.red-ui-popover'))
+                .filter(el => el.offsetParent !== null).length);
+            assert.strictEqual(left, 0,
+                'the warning must be gone on the API Spec tab (it showed ' + warned + ')');
+            await page.close();
+        });
+
         test('a Bruno git URL is cloned by the runtime and stays in the text area', async () => {
             const { execFileSync } = require('child_process');
             const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'br-git-'));

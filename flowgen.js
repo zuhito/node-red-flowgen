@@ -1095,6 +1095,51 @@ if (typeof module === 'object' && module.exports && require.main === module) {
             : generate(doc, chosenMethod, chosenPath) + '\n');
     };
 
+    const ask = question => new Promise(resolve => {
+        const out = process.stderr;
+        let answer = '';
+        out.write(question);
+        const onKey = data => {
+            const key = data.toString();
+            if (key === '\u0003') { process.stdin.removeListener('data', onKey); out.write('\n'); return resolve(''); }
+            if (key === '\r' || key === '\n') {
+                process.stdin.removeListener('data', onKey);
+                out.write('\n');
+                if (process.stdin.isTTY) process.stdin.setRawMode(false);
+                process.stdin.pause();
+                return resolve(answer);
+            }
+            if (key === '\u007f' || key === '\b') {
+                if (answer) { answer = answer.slice(0, -1); out.write('\b \b'); }
+                return;
+            }
+            const typed = key.replace(/[\u0000-\u001f\u007f]/g, '');
+            if (typed) { answer += typed; out.write('*'.repeat(typed.length)); }
+        };
+        process.stdin.on('data', onKey);
+    });
+
+    const askCredentials = async code => {
+        const wanted = [];
+        for (const match of code.matchAll(/\{(token|credentials|api[_-]?key|apikey)\}/gi)) {
+            if (wanted.indexOf(match[1]) === -1) wanted.push(match[1]);
+        }
+        for (const match of code.matchAll(/"([\w.-]*(?:key|token|secret|auth[\w-]*))":\s*""/gi)) {
+            if (wanted.indexOf(match[1]) === -1) wanted.push(match[1]);
+        }
+        if (!wanted.length) return code;
+
+        let filled = code;
+        for (const name of wanted) {
+            const value = await ask('Value for ' + name + ' (enter to skip): ');
+            if (!value) continue;
+            filled = filled.split('{' + name + '}').join(value);
+            filled = filled.split('"' + name + '": ""')
+                .join('"' + name + '": ' + JSON.stringify(value));
+        }
+        return filled;
+    };
+
     const choose = (doc, operations) => new Promise((resolve, reject) => {
         const out = process.stderr;
         const rows = Math.max(3, Math.min(15, (process.stdout.rows || 24) - 6));
@@ -1133,10 +1178,12 @@ if (typeof module === 'object' && module.exports && require.main === module) {
             out.write(text);
         };
 
-        const stop = () => {
+        const stop = keepOpen => {
             process.stdin.removeListener('data', onKey);
-            if (process.stdin.isTTY) process.stdin.setRawMode(false);
-            process.stdin.pause();
+            if (!keepOpen) {
+                if (process.stdin.isTTY) process.stdin.setRawMode(false);
+                process.stdin.pause();
+            }
             out.write('\x1b[' + painted + 'A\x1b[0J');
         };
 
@@ -1146,7 +1193,7 @@ if (typeof module === 'object' && module.exports && require.main === module) {
             if (key === '\r' || key === '\n') {
                 const list = matching();
                 if (!list.length) return;
-                stop();
+                stop(true);
                 return resolve(list[cursor]);
             }
             if (key === '\u001b[A') { cursor = Math.max(0, cursor - 1); return paint(); }
@@ -1172,7 +1219,15 @@ if (typeof module === 'object' && module.exports && require.main === module) {
                 write(formatList(list) + '\n');
                 return;
             }
-            return choose(doc, list.operations).then(op => emit(doc, op.method, op.path));
+            return choose(doc, list.operations).then(async op => {
+                if (flowMode) {
+                    const nodes = buildFlow(doc, op.method, op.path);
+                    const fn = nodes.find(node => node.type === 'function');
+                    fn.func = await askCredentials(fn.func);
+                    return write(JSON.stringify(nodes, null, 4) + '\n');
+                }
+                write(await askCredentials(generate(doc, op.method, op.path)) + '\n');
+            });
         } else {
             emit(doc, method, target);
         }

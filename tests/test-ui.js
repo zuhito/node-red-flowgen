@@ -524,10 +524,10 @@ test('the endpoint rows carry Swagger UI method colours and typography', async (
     assert.strictEqual(first.find('.flowgen-path').length, 1);
 
     const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
-    assert.match(styles, /\.flowgen-get\s+\.flowgen-method\s*\{\s*background:\s*#1d72c9/);
-    assert.match(styles, /\.flowgen-post\s+\.flowgen-method\s*\{\s*background:\s*#32b378/);
-    assert.match(styles, /\.flowgen-put\s+\.flowgen-method\s*\{\s*background:\s*#c97c1d/);
-    assert.match(styles, /\.flowgen-delete\s+\.flowgen-method\s*\{\s*background:\s*#c91d1d/);
+    assert.match(styles, /\.flowgen-get\s+\.flowgen-method\s*\{\s*background:\s*#9cc2e7/);
+    assert.match(styles, /\.flowgen-post\s+\.flowgen-method\s*\{\s*background:\s*#92cab1/);
+    assert.match(styles, /\.flowgen-put\s+\.flowgen-method\s*\{\s*background:\s*#e3be90/);
+    assert.match(styles, /\.flowgen-delete\s+\.flowgen-method\s*\{\s*background:\s*#e49a9a/);
     assert.match(styles, /\.flowgen-method\s*\{[^}]*font-weight:\s*700/);
     assert.match(styles, /\.flowgen-path\s*\{[^}]*font-size:\s*16px/);
     assert.match(styles, /\.flowgen-path\s*\{[^}]*font-weight:\s*600/);
@@ -1047,12 +1047,13 @@ test('the method colours keep the Swagger hues but the Node-RED intensity', asyn
         assert.ok(after.s <= before.s + 0.5,
             method + ' should not gain saturation: ' +
             Math.round(before.s) + ' -> ' + Math.round(after.s));
-        assert.ok(after.l < before.l,
-            method + ' should be darker than the Swagger colour');
-        assert.ok(after.s >= 40 && after.s <= 90,
-            method + ' saturation ' + Math.round(after.s) + ' is outside the Node-RED range');
-        assert.ok(after.l >= 35 && after.l <= 62,
-            method + ' lightness ' + Math.round(after.l) + ' is outside the Node-RED range');
+        assert.ok(after.l > before.l,
+            method + ' should be lighter than the Swagger colour: ' +
+            Math.round(before.l) + ' -> ' + Math.round(after.l));
+        assert.ok(after.s >= 30 && after.s <= 65,
+            method + ' saturation ' + Math.round(after.s) + ' is outside the calm range');
+        assert.ok(after.l >= 64 && after.l <= 80,
+            method + ' lightness ' + Math.round(after.l) + ' is not whitened enough');
     }
 });
 
@@ -1215,4 +1216,48 @@ test('a single selection still shows no count', async () => {
     await openList();
     $('#flowgen-op-list .flowgen-op').first().trigger('click');
     assert.strictEqual($('#flowgen-chosen').text(), '');
+});
+
+test('Back drops the selection and disables Import', async () => {
+    await openList();
+    $('#flowgen-op-list .flowgen-op').first().trigger('click');
+    assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
+
+    $('#flowgen-back-btn').trigger('click');
+    assert.strictEqual(shown(), 'paste');
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 0);
+    assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true);
+
+    clickOk();
+    assert.strictEqual(imported.length, 0, 'nothing can be imported after Back');
+});
+
+test('Back drops a multi selection too', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(0).trigger('click');
+    rows.eq(1).trigger($.Event('click', { ctrlKey: true }));
+    assert.strictEqual($('#flowgen-chosen').text(), '2 selected');
+
+    $('#flowgen-back-btn').trigger('click');
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 0);
+    assert.strictEqual($('#flowgen-chosen').text(), '');
+});
+
+test('showing the panel clears popovers left by other tabs', async () => {
+    const stray = $('<div>').addClass('red-ui-popover').text('bad JSON')
+        .appendTo(win.document.body);
+    $('#red-ui-clipboard-dialog-import-text').data('red-ui-popover', {
+        closed: false,
+        close: function () { this.closed = true; }
+    });
+
+    specTab().trigger('click');
+    await wait(50);
+
+    assert.strictEqual($('.red-ui-popover').length, 0, 'stray popovers are removed');
+    assert.strictEqual(
+        $('#red-ui-clipboard-dialog-import-text').data('red-ui-popover'), undefined,
+        'the popover reference is dropped');
+    assert.strictEqual(stray.parent().length, 0);
 });
