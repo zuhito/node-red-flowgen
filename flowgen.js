@@ -1018,9 +1018,14 @@ if (typeof module === 'object' && module.exports && require.main === module) {
         const { parseCollection } = module.exports;
         if (/\.git$/.test(String(source).trim())) {
             const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-git-'));
-            execFileSync('git', ['clone', '--quiet', '--depth', '1', String(source).trim(), tmp],
-                { stdio: 'pipe' });
-            return parseCollection(gatherDir(tmp));
+            try {
+                execFileSync('git',
+                    ['clone', '--quiet', '--depth', '1', String(source).trim(), tmp],
+                    { stdio: 'pipe' });
+                return parseCollection(gatherDir(tmp));
+            } finally {
+                fs.rmSync(tmp, { recursive: true, force: true });
+            }
         }
         if (isUrl(source)) return parseDocument(await read(source));
         const stat = fs.statSync(source);

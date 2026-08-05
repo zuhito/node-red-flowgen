@@ -6,7 +6,7 @@ const http = require('http');
 const path = require('path');
 const os = require('os');
 const yaml = require('js-yaml');
-const { execFile } = require('child_process');
+const { execFile, execFileSync } = require('child_process');
 const specs = require('./specs');
 
 let server, base;
@@ -146,4 +146,35 @@ test('a single bru file can be given to the CLI', async () => {
     fs.unlinkSync(file);
     assert.strictEqual(generated.code, 0, generated.stderr);
     assert.match(generated.stdout, /msg\.url = "https:\/\/api\.example\.test\/ping";/);
+});
+
+test('a git source leaves no temporary directory behind', async () => {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-git-'));
+    fs.writeFileSync(path.join(repo, 'r.yml'),
+        'info:\n  name: R\nhttp:\n  method: GET\n  url: https://t.test/r\n');
+    execFileSync('git', ['init', '-q', repo]);
+    execFileSync('git', ['-C', repo, 'add', '-A']);
+    execFileSync('git', ['-C', repo, '-c', 'user.email=t@t', '-c', 'user.name=t',
+        'commit', '-qm', 'x']);
+    execFileSync('git', ['-C', repo, 'update-server-info']);
+
+    const before = fs.readdirSync(os.tmpdir()).filter(n => n.startsWith('flowgen-git-'));
+    const listed = await run([path.join(repo, '.git'), '--list']);
+    const after = fs.readdirSync(os.tmpdir()).filter(n => n.startsWith('flowgen-git-'));
+
+    fs.rmSync(repo, { recursive: true, force: true });
+    assert.strictEqual(listed.code, 0, listed.stderr);
+    assert.match(listed.stdout, /get \/r/);
+    assert.deepStrictEqual(after, before,
+        'the clone directory must be removed once the source is read');
+});
+
+test('a failed clone still removes its temporary directory', async () => {
+    const before = fs.readdirSync(os.tmpdir()).filter(n => n.startsWith('flowgen-git-'));
+    const result = await run(['http://127.0.0.1:1/nope.git', '--list']);
+    const after = fs.readdirSync(os.tmpdir()).filter(n => n.startsWith('flowgen-git-'));
+
+    assert.strictEqual(result.code, 1);
+    assert.deepStrictEqual(after, before,
+        'a failure must not leak the clone directory');
 });
