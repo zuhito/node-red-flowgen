@@ -107,7 +107,8 @@ jobs:
             echo "::notice::${{ matrix.browser }}: attempt ${attempt} failed"
           done
           if [ "$passed" != "1" ]; then
-            grep -E "^\s*(not ok|      error:)" browser.log | head -20 | while read -r line; do
+            (grep -A 14 "not ok" browser.log | head -70; echo "--- tail ---"; \
+             tail -25 browser.log) | while read -r line; do
               echo "::error::${{ matrix.browser }}: ${line}"
             done
             exit 1
