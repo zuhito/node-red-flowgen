@@ -92,27 +92,25 @@ jobs:
       - name: Install the browser
         run: npx playwright install --with-deps ${{ matrix.browser == 'msedge' && 'msedge' || matrix.browser }}
       - name: Editor tests in ${{ matrix.browser }}
+        id: browser-tests
+        continue-on-error: true
         shell: bash
         env:
           BROWSERS: ${{ matrix.browser }}
-          BROWSER_COVERAGE_DIR: ${{ github.workspace }}/browser-coverage
+          BROWSER_COVERAGE_DIR: browser-coverage
+        run: npm run test:browser 2>&1 | tee browser.log
+
+      - name: Show the browser log
+        if: steps.browser-tests.outcome != 'success'
+        shell: bash
         run: |
-          set -o pipefail
-          passed=0
-          for attempt in 1 2; do
-            if npm run test:browser 2>&1 | tee browser.log; then
-              passed=1
-              break
-            fi
-            echo "::notice::${{ matrix.browser }}: attempt ${attempt} failed"
+          echo "===== browser.log ====="
+          cat browser.log || echo "no log produced"
+          echo "===== end ====="
+          tail -40 browser.log | while read -r line; do
+            echo "::error::${{ matrix.browser }}: ${line}"
           done
-          if [ "$passed" != "1" ]; then
-            (grep -A 14 "not ok" browser.log | head -70; echo "--- tail ---"; \
-             tail -25 browser.log) | while read -r line; do
-              echo "::error::${{ matrix.browser }}: ${line}"
-            done
-            exit 1
-          fi
+          exit 1
 
       - name: Report the editor script coverage
         if: matrix.browser == 'chromium'
