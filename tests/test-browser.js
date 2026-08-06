@@ -75,6 +75,7 @@ before(async () => {
 
 after(async () => {
     if (COVERAGE_DIR && collected.length) {
+      try {
         const v8toIstanbul = require('v8-to-istanbul');
         const target = path.join(__dirname, '..', 'flowgen-editor.js');
         const merged = {};
@@ -101,6 +102,10 @@ after(async () => {
         fs.mkdirSync(COVERAGE_DIR, { recursive: true });
         fs.writeFileSync(path.join(COVERAGE_DIR, 'browser-coverage.json'),
             JSON.stringify(merged));
+      } catch (err) {
+        process.stdout.write('::warning::could not write browser coverage: ' +
+            err.message + '\n');
+      }
     }
     await RED.stop();
     await new Promise(resolve => server.close(resolve));
@@ -110,14 +115,19 @@ after(async () => {
 const COVERAGE_DIR = process.env.BROWSER_COVERAGE_DIR || '';
 const pluginSource = fs.readFileSync(path.join(__dirname, '..', 'flowgen-plugin.html'), 'utf8');
 const collected = [];
+let coverageAvailable = true;
 
 async function startCoverage(page) {
     if (!COVERAGE_DIR || !page.coverage) return;
-    await page.coverage.startJSCoverage();
+    try {
+        await page.coverage.startJSCoverage();
+    } catch (err) {
+        coverageAvailable = false;
+    }
 }
 
 async function stopCoverage(page) {
-    if (!COVERAGE_DIR || !page.coverage) return;
+    if (!COVERAGE_DIR || !page.coverage || !coverageAvailable) return;
     let entries;
     try {
         entries = await page.coverage.stopJSCoverage();
