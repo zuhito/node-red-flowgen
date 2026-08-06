@@ -49,7 +49,7 @@ before(async () => {
     userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nr-browser-'));
     fs.mkdirSync(path.join(userDir, 'node_modules', 'node-red-flowgen'), { recursive: true });
     const target = path.join(userDir, 'node_modules', 'node-red-flowgen');
-    for (const file of ['flowgen.js', 'flowgen-editor.js', 'flowgen-plugin.js',
+    for (const file of ['flowgen.js', 'flowgen-plugin.js',
         'flowgen-plugin.html', 'package.json']) {
         fs.copyFileSync(path.join(__dirname, '..', file), path.join(target, file));
     }
@@ -74,71 +74,10 @@ before(async () => {
 });
 
 after(async () => {
-    if (COVERAGE_DIR && collected.length) {
-      try {
-        const v8toIstanbul = require('v8-to-istanbul');
-        const target = path.join(__dirname, '..', 'flowgen-editor.js');
-        const merged = {};
-        for (const entry of collected) {
-            const converter = v8toIstanbul(target, 0, { source: entry.source });
-            await converter.load();
-            converter.applyCoverage(entry.functions);
-            const data = converter.toIstanbul()[target];
-            if (!data) { continue; }
-            if (!merged[target]) { merged[target] = data; continue; }
-            const into = merged[target];
-            for (const key of Object.keys(data.s || {})) {
-                into.s[key] = (into.s[key] || 0) + data.s[key];
-            }
-            for (const key of Object.keys(data.f || {})) {
-                into.f[key] = (into.f[key] || 0) + data.f[key];
-            }
-            for (const key of Object.keys(data.b || {})) {
-                const counts = data.b[key] || [];
-                if (!Array.isArray(into.b[key])) { into.b[key] = counts.slice(); continue; }
-                counts.forEach((n, i) => { into.b[key][i] = (into.b[key][i] || 0) + n; });
-            }
-        }
-        fs.mkdirSync(COVERAGE_DIR, { recursive: true });
-        fs.writeFileSync(path.join(COVERAGE_DIR, 'browser-coverage.json'),
-            JSON.stringify(merged));
-      } catch (err) {
-        process.stdout.write('::warning::could not write browser coverage: ' +
-            err.message + '\n');
-      }
-    }
     await RED.stop();
     await new Promise(resolve => server.close(resolve));
     fs.rmSync(userDir, { recursive: true, force: true });
 });
-
-const COVERAGE_DIR = process.env.BROWSER_COVERAGE_DIR || '';
-const pluginSource = fs.readFileSync(path.join(__dirname, '..', 'flowgen-plugin.html'), 'utf8');
-const collected = [];
-let coverageAvailable = true;
-
-async function startCoverage(page) {
-    if (!COVERAGE_DIR || !page.coverage) return;
-    try {
-        await page.coverage.startJSCoverage();
-    } catch (err) {
-        coverageAvailable = false;
-    }
-}
-
-async function stopCoverage(page) {
-    if (!COVERAGE_DIR || !page.coverage || !coverageAvailable) return;
-    let entries;
-    try {
-        entries = await page.coverage.stopJSCoverage();
-    } catch (err) {
-        return;
-    }
-    for (const entry of entries) {
-        if (!/flowgen\/editor\.js/.test(String(entry.url || ''))) continue;
-        collected.push({ source: entry.source, functions: entry.functions });
-    }
-}
 
 async function openImport(page) {
     await page.goto('http://127.0.0.1:' + port + '/', { waitUntil: 'networkidle' });
@@ -209,19 +148,16 @@ for (const engine of ENGINES) {
 
         test('the API Spec tab is added to the import dialog', async () => {
             const page = await browser.newPage();
-            await startCoverage(page);
             await openImport(page);
             const labels = await page.$$eval('#red-ui-clipboard-dialog-import-tabs li a',
                 els => els.map(e => e.textContent.trim()));
             assert.ok(labels.includes('API Spec'), labels.join(','));
             assert.strictEqual(labels[labels.length - 1], 'API Spec');
-            await stopCoverage(page);
             await page.close();
         });
 
         test('a single endpoint enables Import and adds the four nodes', async () => {
             const page = await browser.newPage();
-            await startCoverage(page);
             await openImport(page);
             await paste(page, ONE);
 
@@ -232,13 +168,11 @@ for (const engine of ENGINES) {
             await page.waitForTimeout(500);
             assert.deepStrictEqual(await nodeTypes(page),
                 ['debug', 'function', 'http request', 'inject']);
-            await stopCoverage(page);
             await page.close();
         });
 
         test('several endpoints go through the select step', async () => {
             const page = await browser.newPage();
-            await startCoverage(page);
             await openImport(page);
             await paste(page, SPEC);
 
@@ -261,13 +195,11 @@ for (const engine of ENGINES) {
             });
             assert.match(code, /msg\.method = "DELETE";/);
             assert.match(code, /\{petId\}/);
-            await stopCoverage(page);
             await page.close();
         });
 
         test('arrow keys and double click work in the endpoint list', async () => {
             const page = await browser.newPage();
-            await startCoverage(page);
             await openImport(page);
             await paste(page, SPEC);
             await click(page, '#flowgen-select-btn');
@@ -284,26 +216,22 @@ for (const engine of ENGINES) {
             assert.ok((await nodeTypes(page)).includes('http request'));
             assert.strictEqual(await page.isVisible('#red-ui-clipboard-dialog'), false,
                 'the dialog closes after a double click');
-            await stopCoverage(page);
             await page.close();
         });
 
         test('the editor never reloads while importing', async () => {
             const page = await browser.newPage();
-            await startCoverage(page);
             await openImport(page);
             await page.evaluate(() => { window.__stayed = true; });
             await paste(page, ONE);
             await click(page, '#red-ui-clipboard-dialog-ok');
             await page.waitForTimeout(500);
             assert.strictEqual(await page.evaluate(() => window.__stayed === true), true);
-            await stopCoverage(page);
             await page.close();
         });
 
         test('reopening the dialog starts from a clean panel', async () => {
             const page = await browser.newPage();
-            await startCoverage(page);
             await openImport(page);
             await paste(page, SPEC);
             await click(page, '#flowgen-select-btn');
@@ -318,13 +246,11 @@ for (const engine of ENGINES) {
             assert.strictEqual(await page.inputValue('#flowgen-spec-text'), '');
             assert.strictEqual(await page.isVisible('#flowgen-select-btn'), false);
             assert.strictEqual(await okDisabled(page), true);
-            await stopCoverage(page);
             await page.close();
         });
 
         test('leaving the tab hides the panel and shows the chosen one', async () => {
             const page = await browser.newPage();
-            await startCoverage(page);
             await openImport(page);
             const shown = () => page.$$eval('#red-ui-clipboard-dialog-import-tabs-content > div',
                 els => els.filter(e => e.offsetParent !== null).map(e => e.id));
@@ -345,13 +271,11 @@ for (const engine of ENGINES) {
             await page.waitForTimeout(400);
             assert.deepStrictEqual(await shown(), ['red-ui-clipboard-dialog-import-tab-apispec'],
                 'returning to the tab shows only our panel');
-            await stopCoverage(page);
             await page.close();
         });
 
         test('the Select endpoint button is red and Back is grey', async () => {
             const page = await browser.newPage();
-            await startCoverage(page);
             await openImport(page);
             await paste(page, SPEC);
             const select = await page.$eval('#flowgen-select-btn',
@@ -362,13 +286,11 @@ for (const engine of ENGINES) {
             const back = await page.$eval('#flowgen-back-btn',
                 el => getComputedStyle(el).backgroundColor);
             assert.strictEqual(back, 'rgb(255, 255, 255)');
-            await stopCoverage(page);
             await page.close();
         });
 
         test('the endpoint list can be searched from the keyboard', async () => {
             const page = await browser.newPage();
-            await startCoverage(page);
             await openImport(page);
             await paste(page, SPEC);
             await click(page, '#flowgen-select-btn');
@@ -395,7 +317,6 @@ for (const engine of ENGINES) {
                 return src;
             });
             assert.match(code, /msg\.method = "DELETE";/);
-            await stopCoverage(page);
             await page.close();
         });
 
@@ -459,7 +380,6 @@ for (const engine of ENGINES) {
             const gitUrl = 'http://127.0.0.1:' + gitServer.address().port + '/.git';
 
             const page = await browser.newPage();
-            await startCoverage(page);
             await openImport(page);
             await paste(page, gitUrl);
             await page.waitForTimeout(3000);
@@ -479,7 +399,6 @@ for (const engine of ENGINES) {
 
             await new Promise(resolve => gitServer.close(resolve));
             fs.rmSync(repo, { recursive: true, force: true });
-            await stopCoverage(page);
             await page.close();
         });
 
@@ -535,7 +454,6 @@ for (const engine of ENGINES) {
                 'the browser must not request the spec itself');
 
             await new Promise(resolve => upstream.close(resolve));
-            await stopCoverage(page);
             await page.close();
         });
     });

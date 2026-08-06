@@ -96,7 +96,6 @@ jobs:
         shell: bash
         env:
           BROWSERS: ${{ matrix.browser }}
-          BROWSER_COVERAGE_DIR: browser-coverage
         run: npm run test:browser 2>&1 | tee browser.log
 
       - name: Show the browser log
@@ -111,21 +110,6 @@ jobs:
           done
           exit 1
 
-      - name: Report the editor script coverage
-        if: matrix.browser == 'chromium'
-        run: node tests/report-browser-coverage.js
-
-      - uses: actions/upload-artifact@v7
-        if: matrix.browser == 'chromium'
-        id: browser-coverage
-        with:
-          name: editor-coverage
-          path: browser-coverage
-
-      - name: Report where to download the editor coverage
-        if: matrix.browser == 'chromium'
-        run: |
-          echo "::notice::Editor coverage: ${{ steps.browser-coverage.outputs.artifact-url }}"
 
   live:
     runs-on: ubuntu-latest

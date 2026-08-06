@@ -1181,3 +1181,48 @@ test('buildFlows with one endpoint matches buildFlow', () => {
     assert.deepStrictEqual(many.map(n => n.x), single.map(n => n.x));
     assert.deepStrictEqual(many.map(n => n.y), single.map(n => n.y));
 });
+
+test('listOperations resolves a path item given as a reference', () => {
+    const doc = {
+        openapi: '3.0.3', info: { title: 'T', version: '1' },
+        servers: [{ url: 'https://api.test/v1' }],
+        paths: { '/x': { $ref: '#/components/pathItems/shared' } },
+        components: { pathItems: { shared: { get: { summary: 'Shared' } } } }
+    };
+    const list = flowgen.listOperations(doc);
+    assert.strictEqual(list.count, 1);
+    assert.deepStrictEqual(list.operations[0],
+        { method: 'get', path: '/x', summary: 'Shared' });
+});
+
+test('listOperations survives a reference that cannot be resolved', () => {
+    for (const ref of ['other.yaml#/Thing', '#/components/pathItems/missing']) {
+        const doc = {
+            openapi: '3.0.3', info: { title: 'T', version: '1' },
+            servers: [{ url: 'https://api.test/v1' }],
+            paths: { '/x': { $ref: ref } }
+        };
+        assert.strictEqual(flowgen.listOperations(doc).count, 0, ref);
+    }
+});
+
+test('listOperations terminates on a self referencing path item', () => {
+    const doc = {
+        openapi: '3.0.3', info: { title: 'T', version: '1' },
+        servers: [{ url: 'https://api.test/v1' }],
+        paths: { '/x': { $ref: '#/components/pathItems/loop' } },
+        components: { pathItems: { loop: { $ref: '#/components/pathItems/loop' } } }
+    };
+    assert.doesNotThrow(() => flowgen.listOperations(doc));
+    assert.strictEqual(flowgen.listOperations(doc).count, 0);
+});
+
+test('listOperations decodes escaped tokens in a path item reference', () => {
+    const doc = {
+        openapi: '3.0.3', info: { title: 'T', version: '1' },
+        servers: [{ url: 'https://api.test/v1' }],
+        paths: { '/x': { $ref: '#/components/pathItems/a~1b' } },
+        components: { pathItems: { 'a/b': { get: { summary: 'Escaped' } } } }
+    };
+    assert.strictEqual(flowgen.listOperations(doc).operations[0].summary, 'Escaped');
+});

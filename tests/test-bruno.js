@@ -561,3 +561,118 @@ test('a backslash and newline in a url survive', () => {
     const id = flowgen.listOperations(doc).operations[0].path;
     assert.strictEqual(evaluate(flowgen.generate(doc, 'get', id)).url, 'https://t.test/a\\b');
 });
+
+test('a bru body that is not valid JSON is kept as text', () => {
+    const doc = flowgen.parseDocument([
+        'meta {', '  name: B', '}', '',
+        'post {', '  url: https://t.test/b', '  body: json', '}', '',
+        'body:json {', '  { not: valid, json', '}', ''
+    ].join('\n'));
+    assert.strictEqual(evaluate(flowgen.generate(doc, 'post', '/b')).payload,
+        '{ not: valid, json');
+});
+
+test('a bearer block with no token falls back to a placeholder', () => {
+    const doc = flowgen.parseDocument([
+        'meta {', '  name: B', '}', '',
+        'get {', '  url: https://t.test/b', '  auth: bearer', '}', '',
+        'auth:bearer {', '  token: ', '}', ''
+    ].join('\n'));
+    assert.match(flowgen.generate(doc, 'get', '/b'), /"authorization": `Bearer \{token\}`/);
+});
+
+test('a multipart file entry without a filename still gets one', () => {
+    const doc = flowgen.parseDocument([
+        'meta {', '  name: M', '}', '',
+        'post {', '  url: https://t.test/m', '  body: multipartForm', '}', '',
+        'body:multipart-form {', '  file: @file()', '}', ''
+    ].join('\n'));
+    const payload = evaluate(flowgen.generate(doc, 'post', '/m')).payload;
+    assert.strictEqual(payload.file.options.filename, 'FILENAME');
+});
+
+test('lines without a colon are ignored inside a bru block', () => {
+    const doc = flowgen.parseDocument([
+        'meta {', '  name: X', '}', '',
+        'get {', '  url: https://t.test/x', '}', '',
+        'headers {', '  just-a-line', '  ~Disabled: no', '  Accept: text/plain', '}', ''
+    ].join('\n'));
+    const msg = evaluate(flowgen.generate(doc, 'get', '/x'));
+    assert.deepStrictEqual(Object.keys(msg.headers), ['Accept']);
+});
+
+test('an exported request may sit under request rather than http', () => {
+    const doc = flowgen.parseDocument(JSON.stringify({
+        items: [{ name: 'R', request: { method: 'PUT', url: 'https://t.test/r' } }]
+    }));
+    assert.match(flowgen.generate(doc, 'put', '/r'), /msg\.method = "PUT";/);
+});
+
+test('an exported request defaults to GET when no method is given', () => {
+    const doc = flowgen.parseDocument(JSON.stringify({
+        items: [{ name: 'R', request: { url: 'https://t.test/r' } }]
+    }));
+    assert.strictEqual(flowgen.listOperations(doc).operations[0].method, 'get');
+});
+
+test('an entry without a url is dropped', () => {
+    const doc = flowgen.parseCollection([
+        { path: 'a.yml', text: 'info:\n  name: A\nhttp:\n  method: GET\n' },
+        { path: 'b.yml', text: 'info:\n  name: B\nhttp:\n  method: GET\n  url: https://t.test/b\n' }
+    ]);
+    assert.strictEqual(flowgen.listOperations(doc).count, 1);
+});
+
+test('an api key auth places its header by default', () => {
+    const withPlacement = flowgen.parseDocument([
+        'info:', '  name: K', '',
+        'http:', '  method: GET', '  url: https://t.test/k',
+        '  auth:', '    type: apikey', '    key: X-Key', '    value: ""', ''
+    ].join('\n'));
+    assert.match(flowgen.generate(withPlacement, 'get', '/k'), /"X-Key": ""/);
+
+    const elsewhere = flowgen.parseDocument([
+        'info:', '  name: K', '',
+        'http:', '  method: GET', '  url: https://t.test/k',
+        '  auth:', '    type: apikey', '    key: X-Key', '    value: ""',
+        '    placement: query', ''
+    ].join('\n'));
+    assert.ok(!/X-Key/.test(flowgen.generate(elsewhere, 'get', '/k')));
+});
+
+test('an api key auth without a key name uses a default', () => {
+    const doc = flowgen.parseDocument([
+        'info:', '  name: K', '',
+        'http:', '  method: GET', '  url: https://t.test/k',
+        '  auth:', '    type: apikey', '    value: ""', ''
+    ].join('\n'));
+    assert.match(flowgen.generate(doc, 'get', '/k'), /"api-key": ""/);
+});
+
+test('an environment file listing variables under variables is read', () => {
+    const doc = flowgen.parseCollection([
+        { path: 'environments/dev.yml',
+          text: 'variables:\n  - name: host\n    value: https://alt.test\n' },
+        { path: 'r.yml',
+          text: 'info:\n  name: R\nhttp:\n  method: GET\n  url: "{{host}}/ping"\n' }
+    ]);
+    assert.match(flowgen.generate(doc, 'get', '/ping'), /alt\.test\/ping/);
+});
+
+test('an empty environment file is tolerated', () => {
+    const doc = flowgen.parseCollection([
+        { path: 'environments/empty.yml', text: '' },
+        { path: 'r.yml',
+          text: 'info:\n  name: R\nhttp:\n  method: GET\n  url: https://t.test/r\n' }
+    ]);
+    assert.strictEqual(flowgen.listOperations(doc).count, 1);
+});
+
+test('a windows style path inside a collection is normalised', () => {
+    const doc = flowgen.parseCollection([
+        { path: 'environments\\local.bru', text: 'vars {\n  host: https://win.test\n}\n' },
+        { path: 'sub\\r.yml',
+          text: 'info:\n  name: R\nhttp:\n  method: GET\n  url: "{{host}}/ping"\n' }
+    ]);
+    assert.match(flowgen.generate(doc, 'get', '/ping'), /win\.test\/ping/);
+});

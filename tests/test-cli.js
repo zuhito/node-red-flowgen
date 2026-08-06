@@ -178,3 +178,88 @@ test('a failed clone still removes its temporary directory', async () => {
     assert.strictEqual(after.join(','), before.join(','),
         'a failure must not leak the clone directory');
 });
+
+test('--output writes the list as well as generated code', async () => {
+    const file = await specs.specFile('v2');
+    const target = path.join(os.tmpdir(), 'out-' + process.pid, 'nested', 'list.txt');
+    fs.rmSync(path.dirname(path.dirname(target)), { recursive: true, force: true });
+
+    const listed = await run([file, '--list', '--output', target]);
+    assert.strictEqual(listed.code, 0, listed.stderr);
+    assert.match(listed.stderr, /written /);
+    assert.strictEqual(listed.stdout, '', 'nothing goes to stdout when a file is given');
+    assert.match(fs.readFileSync(target, 'utf8'), /get \/store\/inventory/);
+
+    fs.rmSync(path.dirname(path.dirname(target)), { recursive: true, force: true });
+});
+
+test('--output creates missing parent directories', async () => {
+    const file = await specs.specFile('v2');
+    const root = path.join(os.tmpdir(), 'outdeep-' + process.pid);
+    const target = path.join(root, 'a', 'b', 'c', 'code.js');
+    fs.rmSync(root, { recursive: true, force: true });
+
+    const result = await run([file, 'get', '/store/inventory', '--output', target]);
+    assert.strictEqual(result.code, 0, result.stderr);
+    assert.ok(fs.existsSync(target));
+    assert.match(fs.readFileSync(target, 'utf8'), /^msg\.method = "GET";/);
+
+    fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('--output overwrites an existing file without asking', async () => {
+    const file = await specs.specFile('v2');
+    const target = path.join(os.tmpdir(), 'overwrite-' + process.pid + '.js');
+    fs.writeFileSync(target, 'previous contents\n');
+
+    const result = await run([file, 'get', '/store/inventory', '-o', target]);
+    const written = fs.readFileSync(target, 'utf8');
+    fs.rmSync(target, { force: true });
+
+    assert.strictEqual(result.code, 0, result.stderr);
+    assert.ok(!/previous contents/.test(written));
+    assert.match(written, /store\/inventory/);
+});
+
+test('--output=file is accepted as one argument', async () => {
+    const file = await specs.specFile('v2');
+    const target = path.join(os.tmpdir(), 'inline-' + process.pid + '.js');
+    fs.rmSync(target, { force: true });
+
+    const result = await run([file, 'get', '/store/inventory', '--output=' + target]);
+    const exists = fs.existsSync(target);
+    const body = exists ? fs.readFileSync(target, 'utf8') : '';
+    fs.rmSync(target, { force: true });
+
+    assert.strictEqual(result.code, 0, result.stderr);
+    assert.ok(exists, 'the inline form must write the file too');
+    assert.match(body, /store\/inventory/);
+});
+
+test('--output works together with --flow', async () => {
+    const file = await specs.specFile('v2');
+    const target = path.join(os.tmpdir(), 'flow-' + process.pid + '.json');
+    fs.rmSync(target, { force: true });
+
+    const result = await run([file, 'get', '/store/inventory', '--flow', '-o', target]);
+    const flow = JSON.parse(fs.readFileSync(target, 'utf8'));
+    fs.rmSync(target, { force: true });
+
+    assert.strictEqual(result.code, 0, result.stderr);
+    assert.strictEqual(flow.map(n => n.type).join(','),
+        'tab,inject,function,http request,debug');
+});
+
+test('a directory of Bruno files can be given to the CLI', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brudir-'));
+    fs.mkdirSync(path.join(dir, 'nested'));
+    fs.writeFileSync(path.join(dir, 'nested', 'ping.bru'),
+        'meta {\n  name: Ping\n}\n\nget {\n  url: https://api.example.test/ping\n}\n');
+    fs.writeFileSync(path.join(dir, 'notes.txt'), 'ignored');
+
+    const listed = await run([dir, '--list']);
+    fs.rmSync(dir, { recursive: true, force: true });
+
+    assert.strictEqual(listed.code, 0, listed.stderr);
+    assert.match(listed.stdout, /get \/ping\s+# Ping/);
+});

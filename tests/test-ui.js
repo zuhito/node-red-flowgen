@@ -9,7 +9,9 @@ const { JSDOM } = require('jsdom');
 const specs = require('./specs');
 
 const PLUGIN_HTML = fs.readFileSync(path.join(__dirname, '..', 'flowgen-plugin.html'), 'utf8');
-const EDITOR_SCRIPT = fs.readFileSync(path.join(__dirname, '..', 'flowgen-editor.js'), 'utf8');
+const EDITOR_SCRIPT = PLUGIN_HTML
+    .replace(/[\s\S]*?<script[^>]*>/, '')
+    .replace(/<\/script>\s*$/, '');
 let SPEC_V3, SPEC_V2;
 const CONTENT = '#red-ui-clipboard-dialog-import-tabs-content';
 

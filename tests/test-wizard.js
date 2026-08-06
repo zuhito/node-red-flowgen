@@ -19,14 +19,14 @@ const openpty = (() => {
     }
 })();
 
-function throughPty(keys, specFile) {
+function throughPty(keys, specFile, extraArgs) {
     const driver = `
 import os, pty, time, select, sys, json
 keys = json.loads(sys.argv[1])
 pid, fd = pty.fork()
 if pid == 0:
         os.execvp(${JSON.stringify(process.execPath)},
-                            [${JSON.stringify(process.execPath)}, ${JSON.stringify(CLI)}, ${JSON.stringify('SPEC_PLACEHOLDER')}])
+                            [${JSON.stringify(process.execPath)}, ${JSON.stringify(CLI)}, ${JSON.stringify('SPEC_PLACEHOLDER')}] + json.loads(sys.argv[2]))
 out = b''
 time.sleep(1.5)
 for k in keys:
@@ -53,12 +53,20 @@ sys.stdout.write(out.decode('utf8', 'replace'))
     const file = path.join(os.tmpdir(), 'flowgen-pty-' + process.pid + '.py');
     fs.writeFileSync(file, driver.replace('SPEC_PLACEHOLDER', specFile || SPEC));
     try {
-        return execFileSync('python3', [file, JSON.stringify(keys)],
+        return execFileSync('python3',
+            [file, JSON.stringify(keys), JSON.stringify(extraArgs || [])],
             { encoding: 'utf8', timeout: 60000, maxBuffer: 1 << 24 });
     } finally {
         fs.unlinkSync(file);
     }
 }
+
+const flowJson = text => {
+    const clean = text.replace(/\r/g, '').replace(/\u001b\[[0-9;]*[A-Za-z]/g, '');
+    const start = clean.indexOf('[\n');
+    assert.ok(start !== -1, 'no flow array in the output');
+    return clean.slice(start, clean.lastIndexOf(']') + 1);
+};
 
 const urlLine = text => {
     const line = text.split('\n').find(l => l.indexOf('msg.url') !== -1);
@@ -160,3 +168,34 @@ test('a spec with no credentials asks nothing', { skip: !openpty }, () => {
     assert.ok(!/Value for /.test(text), 'no prompt for a spec without auth');
     assert.match(text, /msg\.url = "http:\/\/127\.0\.0\.1:11434\/api\/tags";/);
 });
+
+test('the picker can emit a whole flow with --flow',
+    { skip: !openpty || !havePetstore }, () => {
+        const text = throughPty(['store/inventory', '\r', '\r'], PETSTORE, ['--flow']);
+        const flow = JSON.parse(flowJson(text));
+        assert.strictEqual(flow.map(n => n.type).join(','),
+            'tab,inject,function,http request,debug');
+        assert.match(flow.find(n => n.type === 'function').func, /store\/inventory/);
+    });
+
+test('a credential asked for in --flow mode lands in the function node',
+    { skip: !openpty || !havePetstore }, () => {
+        const text = throughPty(['findByStatus', '\r', 'flowtoken', '\r'], PETSTORE, ['--flow']);
+        assert.match(text, /Value for token/);
+        const flow = JSON.parse(flowJson(text));
+        assert.match(flow.find(n => n.type === 'function').func, /Bearer flowtoken/);
+    });
+
+test('backspace corrects a mistyped credential',
+    { skip: !openpty || !havePetstore }, () => {
+        const text = throughPty(
+            ['findByStatus', '\r', 'tokenX', '\u007f', '\r'], PETSTORE);
+        assert.match(text, /"authorization": `Bearer token`/);
+    });
+
+test('an empty valued credential header is offered for input',
+    { skip: !openpty || !havePetstore }, () => {
+        const text = throughPty(['store/inventory', '\r', 'thekey', '\r'], PETSTORE);
+        assert.match(text, /Value for api_key/);
+        assert.match(text, /"api_key": "thekey"/);
+    });
