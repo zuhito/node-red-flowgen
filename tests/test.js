@@ -134,8 +134,8 @@ test('header and cookie parameters become objects', () => {
         '/x': { get: { parameters: [{ name: 'X-A', in: 'header' }, { name: 'sid', in: 'cookie' }] } }
     });
     const msg = run(flowgen.generate(doc, 'get', '/x'));
-    assert.deepStrictEqual(msg.headers, { 'X-A': '' });
-    assert.deepStrictEqual(msg.cookies, { sid: '' });
+    assert.deepStrictEqual(msg.headers, { 'X-A': '{X-A}' });
+    assert.deepStrictEqual(msg.cookies, { sid: '{sid}' });
 });
 
 test('$ref parameters are resolved', () => {
@@ -160,8 +160,8 @@ test('security schemes map to the right msg properties', () => {
         components: { securitySchemes: schemes }
     });
     const msg = run(flowgen.generate(build([{ hdr: [], qry: [], cke: [] }]), 'get', '/x'));
-    assert.deepStrictEqual(msg.headers, { 'X-Key': '' });
-    assert.deepStrictEqual(msg.cookies, { SID: '' });
+    assert.deepStrictEqual(msg.headers, { 'X-Key': '{X-Key}' });
+    assert.deepStrictEqual(msg.cookies, { SID: '{SID}' });
     assert.strictEqual(msg.url, 'https://api.test/v1/x?key={key}');
 
     const auth = s => run(flowgen.generate(build([s]), 'get', '/x')).headers.authorization;
@@ -336,7 +336,7 @@ test('swagger 2.0 security definitions map to msg properties', () => {
     const build = security => v2({ '/x': { get: { security: security } } }, { securityDefinitions: defs });
     assert.strictEqual(run(flowgen.generate(build([{ basic: [] }]), 'get', '/x')).headers.authorization, 'Basic {credentials}');
     assert.strictEqual(run(flowgen.generate(build([{ oauth: [] }]), 'get', '/x')).headers.authorization, 'Bearer {token}');
-    assert.deepStrictEqual(run(flowgen.generate(build([{ key: [] }]), 'get', '/x')).headers, { api_key: '' });
+    assert.deepStrictEqual(run(flowgen.generate(build([{ key: [] }]), 'get', '/x')).headers, { api_key: '{api_key}' });
     assert.strictEqual(run(flowgen.generate(build([{ qry: [] }]), 'get', '/x')).url, 'https://api.test/v1/x?k={k}');
     assert.strictEqual(run(flowgen.generate(build([{ key: [] }]), 'get', '/x')).cookies, undefined);
 });
@@ -410,7 +410,7 @@ test('petstore v3 known operation', async () => {
     const doc = flowgen.parseDocument(await specs.spec('v3'));
     const msg = run(flowgen.generate(doc, 'get', '/pet/{petId}'));
     assert.strictEqual(msg.url, 'https://petstore3.swagger.io/api/v3/pet/{petId}');
-    assert.strictEqual(msg.headers.api_key, '');
+    assert.strictEqual(msg.headers.api_key, '{api_key}');
     assert.strictEqual(msg.headers.accept, 'application/json');
 });
 
@@ -563,16 +563,6 @@ test('the http request node returns a parsed JSON object', () => {
     assert.strictEqual(request.method, 'use');
 });
 
-test('isUrl recognises http and https sources only', () => {
-    assert.strictEqual(flowgen.isUrl('https://petstore.swagger.io/v2/swagger.json'), true);
-    assert.strictEqual(flowgen.isUrl('http://example.test/a.yaml'), true);
-    assert.strictEqual(flowgen.isUrl('  https://example.test/a.yaml  '), true);
-    assert.strictEqual(flowgen.isUrl('spec/petstore-v3.yaml'), false);
-    assert.strictEqual(flowgen.isUrl('openapi: 3.0.0'), false);
-    assert.strictEqual(flowgen.isUrl('ftp://example.test/a.yaml'), false);
-    assert.strictEqual(flowgen.isUrl(''), false);
-    assert.strictEqual(flowgen.isUrl(undefined), false);
-});
 
 function commentsOf(code) {
     return code.split('\n').filter(l => l.startsWith('// ') && !/msg\.url = /.test(l));
@@ -736,7 +726,7 @@ test('the petstore list order matches the document order like Swagger UI', async
 
 test('every export is a function with the documented arity', () => {
     for (const name of ['parseDocument', 'detectFormat', 'generate', 'generateOpenApi3',
-        'generateSwagger2', 'listOperations', 'buildFlow', 'formatList', 'isUrl',
+        'generateSwagger2', 'listOperations', 'buildFlow', 'buildFlows', 'formatList',
         'nodeWidth', 'parseCollection']) {
         assert.strictEqual(typeof flowgen[name], 'function', name);
     }
@@ -827,7 +817,7 @@ test('plain values are double quoted and placeholders keep backticks', () => {
     } } });
     const code = flowgen.generate(doc, 'post', '/x');
     assert.match(code, /msg\.url = "/);
-    assert.match(code, /"X-Key": ""/);
+    assert.match(code, /"X-Key": `\{X-Key\}`/);
     assert.ok(!/msg\.url = '/.test(code), 'no single quoted url');
     assert.doesNotThrow(() => new Function(code));
 });

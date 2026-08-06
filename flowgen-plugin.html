@@ -295,10 +295,13 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
             return;
         }
         collectionDoc = null;
-        if (/\.git$/.test(String(text).trim()) && flowgen.isUrl(text)) {
+        if (/\.git$/.test(String(text).trim()) &&
+                /^https?:\/\/\S+$/i.test(String(text || '').trim())) {
             return fetchGit(text.trim());
         }
-        if (flowgen.isUrl(text)) { return fetchSpec(text.trim()); }
+        if (/^https?:\/\/\S+$/i.test(String(text || '').trim())) {
+            return fetchSpec(text.trim());
+        }
         try {
             doc = flowgen.parseDocument(text);
             render();
@@ -519,10 +522,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         $('#flowgen-select-view').toggleClass('flowgen-on', name === 'select');
     }
 
-    function active() {
-        return isActive && $('#' + TAB_ID).length > 0;
-    }
-
     function okButton(enabled) {
         var ok = $('#red-ui-clipboard-dialog-ok');
         if (ok.button && ok.data('ui-button')) {
@@ -574,17 +573,12 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         RED.view.focus();
     }
 
-    function preventSubmit() {
-        $('#red-ui-clipboard-dialog').find('form').off('submit.flowgen')
-            .on('submit.flowgen', function (ev) { ev.preventDefault(); });
-    }
-
     function interceptOk() {
         var ok = document.getElementById('red-ui-clipboard-dialog-ok');
         if (!ok || ok.getAttribute('data-flowgen-bound')) { return; }
         ok.setAttribute('data-flowgen-bound', 'true');
         ok.addEventListener('click', function (ev) {
-            if (!active()) { return; }
+            if (!isActive || !$('#' + TAB_ID).length) { return; }
             ev.preventDefault();
             ev.stopPropagation();
             if (ev.stopImmediatePropagation) { ev.stopImmediatePropagation(); }
@@ -625,12 +619,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         }
     }
 
-    function available() {
-        return fetch(apiRoot() + 'flowgen/generator.js', { method: 'HEAD' })
-            .then(function (res) { return res.ok; })
-            .catch(function () { return false; });
-    }
-
     function install() {
         var tabs = $('#red-ui-clipboard-dialog-import-tabs');
         if (!tabs.length) { return; }
@@ -644,7 +632,8 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         content().appendTo('#red-ui-clipboard-dialog-import-tabs-content');
 
         interceptOk();
-        preventSubmit();
+        $('#red-ui-clipboard-dialog').find('form').off('submit.flowgen')
+            .on('submit.flowgen', function (ev) { ev.preventDefault(); });
         $('#red-ui-clipboard-dialog').off('dialogclose.flowgen')
             .on('dialogclose.flowgen', function () { resetAll(); });
 
@@ -670,9 +659,12 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     }
 
     function sync() {
-        available().then(function (ok) {
-            if (ok) { install(); } else { uninstall(); }
-        });
+        fetch(apiRoot() + 'flowgen/generator.js', { method: 'HEAD' })
+            .then(function (res) { return res.ok; })
+            .catch(function () { return false; })
+            .then(function (ok) {
+                if (ok) { install(); } else { uninstall(); }
+            });
     }
 
     function listen() {

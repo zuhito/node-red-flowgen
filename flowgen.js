@@ -22,10 +22,6 @@ function parseDocument(text) {
     return doc;
 }
 
-function isUrl(text) {
-    return /^https?:\/\/\S+$/i.test(String(text || '').trim());
-}
-
 function parseBru(text) {
     const blocks = {};
     const re = /^([\w:.-]+)\s*\{\s*\n([\s\S]*?)\n\}/gm;
@@ -195,50 +191,6 @@ function parseCollection(files) {
     return { bruno: true, vars: vars, requests: requests };
 }
 
-function brunoParts(doc, req) {
-    const todo = [];
-    const substitute = text => String(text)
-        .replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
-            doc.vars[name] !== undefined && String(doc.vars[name]) !== ''
-                ? String(doc.vars[name]) : '{' + name + '}');
-    const substituteDeep = value => {
-        if (typeof value === 'string') return substitute(value);
-        if (Array.isArray(value)) return value.map(substituteDeep);
-        if (value && typeof value === 'object') {
-            const out = {};
-            for (const key of Object.keys(value)) out[key] = substituteDeep(value[key]);
-            return out;
-        }
-        return value;
-    };
-    const url = substitute(req.url).replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
-    for (const match of url.matchAll(/(^|[^$])\{([^}]+)\}/g)) {
-        const name = match[2];
-        if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
-    }
-    const headers = req.headers.map(h => [h[0], substitute(h[1])]);
-    return {
-        method: req.method,
-        urls: [url],
-        todo: todo,
-        headers: dedupeHeaders(headers),
-        cookies: [],
-        hasBody: req.hasBody && !BODYLESS.has(req.method),
-        multipart: req.multipart,
-        payload: substituteDeep(req.payload)
-    };
-}
-
-function brunoPath(req, vars) {
-    const clean = String(req.url)
-        .replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
-            vars && vars[name] !== undefined && String(vars[name]) !== ''
-                ? String(vars[name]) : '{' + name + '}')
-        .replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
-    const noProto = clean.replace(/^https?:\/\/[^/]*/, '');
-    const path = noProto.split('?')[0];
-    return path || '/';
-}
 
 function detectFormat(doc) {
     if (doc && doc.bruno === true && Array.isArray(doc.requests)) return 'bruno';
@@ -262,7 +214,13 @@ function toBruno(doc) {
     }
     const seen = {};
     for (const req of bruno.requests) {
-        const base = brunoPath(req, bruno.vars);
+        const vars = bruno.vars;
+        const clean = String(req.url)
+            .replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
+                vars && vars[name] !== undefined && String(vars[name]) !== ''
+                    ? String(vars[name]) : '{' + name + '}')
+            .replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
+        const base = clean.replace(/^https?:\/\/[^/]*/, '').split('?')[0] || '/';
         const id = req.method + ' ' + base;
         seen[id] = (seen[id] || 0) + 1;
         req._path = seen[id] > 1 ? base + '#' + seen[id] : base;
@@ -284,26 +242,53 @@ function generate(doc, method, target) {
             }
         }
         if (!found) throw new Error('not found: ' + method + ' ' + target + '\navailable:\n  ' + available.join('\n  '));
-        return assemble(brunoParts(bruno, found));
+
+        const todo = [];
+        const substitute = text => String(text)
+            .replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
+                bruno.vars[name] !== undefined && String(bruno.vars[name]) !== ''
+                    ? String(bruno.vars[name]) : '{' + name + '}');
+        const substituteDeep = value => {
+            if (typeof value === 'string') return substitute(value);
+            if (Array.isArray(value)) return value.map(substituteDeep);
+            if (value && typeof value === 'object') {
+                const out = {};
+                for (const key of Object.keys(value)) out[key] = substituteDeep(value[key]);
+                return out;
+            }
+            return value;
+        };
+        const url = substitute(found.url).replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
+        for (const match of url.matchAll(/(^|[^$])\{([^}]+)\}/g)) {
+            const name = match[2];
+            if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
+        }
+        const headers = found.headers.map(h => [h[0], substitute(h[1])]);
+        return assemble({
+            method: found.method,
+            urls: [url],
+            todo: todo,
+            headers: dedupeHeaders(headers),
+            cookies: [],
+            hasBody: found.hasBody && !BODYLESS.has(found.method),
+            multipart: found.multipart,
+            payload: substituteDeep(found.payload)
+        });
     }
     if (format === 'swagger2') return generateSwagger2(doc, method, target);
     return generateOpenApi3(doc, method, target);
 }
 
 function quote(value) {
-        const text = String(value);
-        if (!/\{[^}]+\}/.test(text)) {
-                return '"' + text
-                        .replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-                        .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '"';
-        }
-        return '`' + text
-                .replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
-                .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '`';
-}
-
-function keyQuote(value) {
-        return '"' + String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+    const text = String(value);
+    if (!/\{[^}]+\}/.test(text)) {
+        return '"' + text
+            .replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+            .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '"';
+    }
+    return '`' + text
+        .replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
+        .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '`';
 }
 
 function literal(value, indent, schema, resolve) {
@@ -329,7 +314,8 @@ function literal(value, indent, schema, resolve) {
             const child = !optional && resolve && properties[key] ? resolve(properties[key]) : null;
             return {
                 optional: optional,
-                body: inner + keyQuote(key) + ': ' + literal(value[key], indent + 1, child, resolve)
+                body: inner + '"' + String(key).replace(/\\/g, '\\\\').replace(/"/g, '\\"') +
+                    '": ' + literal(value[key], indent + 1, child, resolve)
             };
         });
         let lastActive = -1;
@@ -414,19 +400,6 @@ function urlLines(base, path, params) {
     return urls;
 }
 
-function multipartPayload(schema, resolve, sample) {
-    const out = {};
-    const props = (schema && schema.properties) || {};
-    for (const key of Object.keys(props)) {
-        const prop = resolve(props[key]);
-        const isFile = prop.format === 'binary' ||
-            (prop.type === 'array' && resolve(prop.items || {}).format === 'binary');
-        out[key] = isFile
-            ? { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } }
-            : sample(prop);
-    }
-    return out;
-}
 
 function unresolved(base, path, params) {
     const items = [];
@@ -452,7 +425,7 @@ function assemble(parts) {
     const blank = pairs => pairs
         .filter(e => String(e[1]) === '' || /\s$/.test(String(e[1])) ||
                 /\{[^}]+\}/.test(String(e[1])))
-        .map(e => typed(keyQuote(e[0]), e[2]));
+        .map(e => typed('"' + String(e[0]).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"', e[2]));
 
     const lines = ['msg.method = ' + quote(parts.method.toUpperCase()) + ';'];
     if (parts.todo.length) {
@@ -541,10 +514,10 @@ function generateOpenApi3(doc, rawMethod, target) {
         values: valuesFor(resolve(p.schema || {}), p)
     }));
     for (const p of params.filter(p => p.in === 'header')) {
-        headers.push([p.name, '', typeOf(resolve(p.schema || {}))]);
+        headers.push([p.name, '{' + p.name + '}', typeOf(resolve(p.schema || {}))]);
     }
     for (const p of params.filter(p => p.in === 'cookie')) {
-        cookies.push([p.name, '', typeOf(resolve(p.schema || {}))]);
+        cookies.push([p.name, '{' + p.name + '}', typeOf(resolve(p.schema || {}))]);
     }
 
     const requirements = op.security !== undefined ? op.security : (doc.security || []);
@@ -555,9 +528,9 @@ function generateOpenApi3(doc, rawMethod, target) {
             const scheme = resolve(schemes[name] || {});
             const type = String(scheme.type || '').toLowerCase();
             if (type === 'apikey') {
-                if (scheme.in === 'header') headers.push([scheme.name, '']);
+                if (scheme.in === 'header') headers.push([scheme.name, '{' + scheme.name + '}']);
                 else if (scheme.in === 'query') urlParams.push({ name: scheme.name, in: 'query', values: [] });
-                else if (scheme.in === 'cookie') cookies.push([scheme.name, '']);
+                else if (scheme.in === 'cookie') cookies.push([scheme.name, '{' + scheme.name + '}']);
             } else if (type === 'http') {
                 const s = String(scheme.scheme || '').toLowerCase();
                 headers.push(['authorization',
@@ -616,7 +589,17 @@ function generateOpenApi3(doc, rawMethod, target) {
         payloadSchema = media.schema ? resolve(media.schema) : null;
         const exampleKeys = media.examples ? Object.keys(media.examples) : [];
         if (multipart) {
-            payload = multipartPayload(resolve(media.schema || {}), resolve, sample);
+            const multipartSchema = resolve(media.schema || {});
+            payload = {};
+            const multipartProps = multipartSchema.properties || {};
+            for (const key of Object.keys(multipartProps)) {
+                const prop = resolve(multipartProps[key]);
+                const isFile = prop.format === 'binary' ||
+                    (prop.type === 'array' && resolve(prop.items || {}).format === 'binary');
+                payload[key] = isFile
+                    ? { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } }
+                    : sample(prop);
+            }
         } else if (media.example !== undefined) payload = media.example;
         else if (exampleKeys.length) payload = resolve(media.examples[exampleKeys[0]]).value;
         else if (/^text\//.test(contentType || '') || /octet-stream/.test(contentType || '')) payload = '';
@@ -701,7 +684,7 @@ function generateSwagger2(doc, rawMethod, target) {
         values: valuesFor(p, p)
     }));
     for (const p of params.filter(p => p.in === 'header')) {
-        headers.push([p.name, '', typeOf(p)]);
+        headers.push([p.name, '{' + p.name + '}', typeOf(p)]);
     }
 
     const requirements = op.security !== undefined ? op.security : (doc.security || []);
@@ -712,7 +695,7 @@ function generateSwagger2(doc, rawMethod, target) {
             const def = resolve(defs[name] || {});
             const type = String(def.type || '').toLowerCase();
             if (type === 'apikey') {
-                if (def.in === 'header') headers.push([def.name, '']);
+                if (def.in === 'header') headers.push([def.name, '{' + def.name + '}']);
                 else if (def.in === 'query') urlParams.push({ name: def.name, in: 'query', values: [] });
             } else if (type === 'basic') {
                 headers.push(['authorization', 'Basic {credentials}']);
@@ -956,14 +939,14 @@ function formatList(result) {
 
 return {
     parseDocument, detectFormat, generate, generateOpenApi3, generateSwagger2,
-    listOperations, buildFlow, buildFlows, formatList, isUrl, nodeWidth, parseCollection
+    listOperations, buildFlow, buildFlows, formatList, nodeWidth, parseCollection
 };
 }));
 
 if (typeof module === 'object' && module.exports && require.main === module) {
     const fs = require('fs');
     const {
-        parseDocument, generate, listOperations, buildFlow, formatList, isUrl
+        parseDocument, generate, listOperations, buildFlow, formatList
     } = module.exports;
 
     const path = require('path');
@@ -1033,7 +1016,9 @@ if (typeof module === 'object' && module.exports && require.main === module) {
                 }
             }
         }
-        if (isUrl(source)) return parseDocument(await read(source));
+        if (/^https?:\/\/\S+$/i.test(String(source || '').trim())) {
+            return parseDocument(await read(source));
+        }
         const stat = fs.statSync(source);
         if (stat.isDirectory()) return parseCollection(gatherDir(source));
         if (/\.zip$/i.test(source)) {
@@ -1047,7 +1032,9 @@ if (typeof module === 'object' && module.exports && require.main === module) {
     };
 
     const read = source => new Promise((resolve, reject) => {
-        if (!isUrl(source)) { return resolve(fs.readFileSync(source, 'utf8')); }
+        if (!/^https?:\/\/\S+$/i.test(String(source || '').trim())) {
+            return resolve(fs.readFileSync(source, 'utf8'));
+        }
         const get = (url, redirects) => {
             require(url.startsWith('https:') ? 'https' : 'http').get(url, res => {
                 if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
@@ -1098,12 +1085,6 @@ if (typeof module === 'object' && module.exports && require.main === module) {
         fs.mkdirSync(require('path').dirname(require('path').resolve(output)), { recursive: true });
         fs.writeFileSync(output, text);
         process.stderr.write('written ' + output + '\n');
-    };
-
-    const emit = (doc, chosenMethod, chosenPath) => {
-        write(flowMode
-            ? JSON.stringify(buildFlow(doc, chosenMethod, chosenPath), null, 4) + '\n'
-            : generate(doc, chosenMethod, chosenPath) + '\n');
     };
 
     const ask = question => new Promise(resolve => {
@@ -1240,7 +1221,9 @@ if (typeof module === 'object' && module.exports && require.main === module) {
                 write(await askCredentials(generate(doc, op.method, op.path)) + '\n');
             });
         } else {
-            emit(doc, method, target);
+            write(flowMode
+                ? JSON.stringify(buildFlow(doc, method, target), null, 4) + '\n'
+                : generate(doc, method, target) + '\n');
         }
     }).catch(err => {
         process.stderr.write(err.message + '\n');

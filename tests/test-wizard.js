@@ -197,5 +197,5 @@ test('an empty valued credential header is offered for input',
     { skip: !openpty || !havePetstore }, () => {
         const text = throughPty(['store/inventory', '\r', 'thekey', '\r'], PETSTORE);
         assert.match(text, /Value for api_key/);
-        assert.match(text, /"api_key": "thekey"/);
+        assert.match(text, /"api_key": `thekey`/);
     });
