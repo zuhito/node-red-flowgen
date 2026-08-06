@@ -82,7 +82,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     text-align: center;
     border-radius: 3px;
     background: #9cc2e7;
-    color: var(--red-ui-primary-text-color, #333);
+    color: #fff;
     font-size: 14px;
     font-weight: 700;
     font-family: var(--red-ui-primary-font, sans-serif);
@@ -161,6 +161,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     var doc = null;
     var selected = null;
     var isActive = false;
+    var anchor = null;
     var fetching = null;
     var collectionDoc = null;
     var lastText = null;
@@ -222,7 +223,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
                 .append($('<span>').addClass('flowgen-path').text(op.path))
                 .append($('<span>').addClass('flowgen-summary').text(op.summary || ''))
                 .on('click', function (ev) {
-                    choose($(this), op, ev.ctrlKey || ev.metaKey);
+                    choose($(this), op, ev.ctrlKey || ev.metaKey, ev.shiftKey);
                 })
                 .on('dblclick', function () {
                     choose($(this), op);
@@ -462,9 +463,24 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         $('#flowgen-chosen').text(count > 1 ? count + ' selected' : '');
     }
 
-    function choose(row, op, add) {
+    function choose(row, op, add, extend) {
+        var rows = $('#flowgen-op-list .flowgen-op').not('.flowgen-hidden');
+        if (extend && anchor && anchor.length && rows.index(anchor) !== -1) {
+            var from = rows.index(anchor);
+            var to = rows.index(row);
+            if (to !== -1) {
+                rows.removeClass('selected');
+                rows.slice(Math.min(from, to), Math.max(from, to) + 1).addClass('selected');
+                refreshChoice();
+                if (row[0] && row[0].scrollIntoView) {
+                    row[0].scrollIntoView({ block: 'nearest' });
+                }
+                return;
+            }
+        }
         if (!add) { $('#flowgen-op-list .flowgen-op').removeClass('selected'); }
         row.toggleClass('selected', add ? !row.hasClass('selected') : true);
+        anchor = row;
         refreshChoice();
         if (row[0] && row[0].scrollIntoView) { row[0].scrollIntoView({ block: 'nearest' }); }
     }
@@ -595,6 +611,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         fetching = null;
         $('#flowgen-spec-text').val('');
         $('#flowgen-op-list').empty();
+        anchor = null;
         $('#flowgen-search').val('');
         $('#flowgen-count').text('');
         $('#flowgen-chosen').text('');

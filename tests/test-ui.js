@@ -513,6 +513,14 @@ test('Select endpoint shows a forward chevron', async () => {
     assert.strictEqual($('#flowgen-back-btn i.fa-chevron-left').length, 1);
 });
 
+test('the method badge uses white text like Swagger UI', async () => {
+    const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
+    const rule = styles.match(/\.flowgen-method\s*\{([^}]*)\}/)[1];
+    assert.match(rule, /color:\s*#fff/);
+    assert.ok(!/color:\s*var\(--red-ui-primary-text-color/.test(rule),
+        'the badge text must not fall back to the body colour');
+});
+
 test('the endpoint rows carry Swagger UI method colours and typography', async () => {
     await openSpecTab(SPEC_V3);
     $('#flowgen-select-btn').trigger('click');
@@ -1262,4 +1270,93 @@ test('showing the panel clears popovers left by other tabs', async () => {
         $('#red-ui-clipboard-dialog-import-text').data('red-ui-popover'), undefined,
         'the popover reference is dropped');
     assert.strictEqual(stray.parent().length, 0);
+});
+
+test('shift clicking selects the whole range between two rows', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+
+    rows.eq(1).trigger('click');
+    rows.eq(4).trigger($.Event('click', { shiftKey: true }));
+
+    const selected = $('#flowgen-op-list .flowgen-op.selected');
+    assert.strictEqual(selected.length, 4, 'rows 1 through 4 are selected');
+    for (let i = 1; i <= 4; i++) {
+        assert.ok(rows.eq(i).hasClass('selected'), 'row ' + i + ' should be selected');
+    }
+    assert.ok(!rows.eq(0).hasClass('selected'));
+    assert.strictEqual($('#flowgen-chosen').text(), '4 selected');
+});
+
+test('shift clicking backwards selects the same range', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+
+    rows.eq(5).trigger('click');
+    rows.eq(2).trigger($.Event('click', { shiftKey: true }));
+
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 4);
+    for (let i = 2; i <= 5; i++) {
+        assert.ok(rows.eq(i).hasClass('selected'), 'row ' + i + ' should be selected');
+    }
+});
+
+test('a shift click replaces the previous range rather than adding to it', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+
+    rows.eq(0).trigger('click');
+    rows.eq(3).trigger($.Event('click', { shiftKey: true }));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 4);
+
+    rows.eq(1).trigger($.Event('click', { shiftKey: true }));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 2,
+        'the range is measured from the original anchor');
+    assert.ok(rows.eq(0).hasClass('selected') && rows.eq(1).hasClass('selected'));
+});
+
+test('a plain click moves the anchor for the next shift click', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+
+    rows.eq(0).trigger('click');
+    rows.eq(2).trigger('click');
+    rows.eq(4).trigger($.Event('click', { shiftKey: true }));
+
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 3);
+    assert.ok(!rows.eq(0).hasClass('selected'), 'the earlier anchor no longer applies');
+});
+
+test('shift clicking spans only the rows a search leaves visible', async () => {
+    await openList();
+    $('#flowgen-search').val('pet').trigger('input');
+    const visible = $('#flowgen-op-list .flowgen-op').filter((i, el) =>
+        !$(el).hasClass('flowgen-hidden'));
+    assert.ok(visible.length >= 3);
+
+    visible.eq(0).trigger('click');
+    visible.eq(2).trigger($.Event('click', { shiftKey: true }));
+
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 3);
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected.flowgen-hidden').length, 0,
+        'hidden rows must never be selected');
+});
+
+test('a shift click with no earlier selection just selects that row', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(3).trigger($.Event('click', { shiftKey: true }));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 1);
+    assert.ok(rows.eq(3).hasClass('selected'));
+});
+
+test('a shift selected range imports every endpoint in it', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(0).trigger('click');
+    rows.eq(2).trigger($.Event('click', { shiftKey: true }));
+
+    clickOk();
+    assert.strictEqual(imported.length, 1);
+    assert.strictEqual(imported[0].nodes.filter(n => n.type === 'function').length, 3);
 });

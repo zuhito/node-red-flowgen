@@ -290,7 +290,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" node-red-flowgen.tgz \
             --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
-            --notes "cd ~/.node-red && npm install ./node-red-flowgen.tgz" \
+            --notes "" \
           || gh release upload "$GITHUB_REF_NAME" node-red-flowgen.tgz \
                --repo "$GITHUB_REPOSITORY" --clobber
 
