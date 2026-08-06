@@ -9,6 +9,7 @@ const { JSDOM } = require('jsdom');
 const specs = require('./specs');
 
 const PLUGIN_HTML = fs.readFileSync(path.join(__dirname, '..', 'flowgen-plugin.html'), 'utf8');
+const EDITOR_SCRIPT = fs.readFileSync(path.join(__dirname, '..', 'flowgen-editor.js'), 'utf8');
 let SPEC_V3, SPEC_V2;
 const CONTENT = '#red-ui-clipboard-dialog-import-tabs-content';
 
@@ -112,8 +113,7 @@ async function boot() {
         return Promise.reject(new Error('no stub for ' + url));
     };
 
-    const script = PLUGIN_HTML.replace(/[\s\S]*?<script[^>]*>/, '').replace(/<\/script>[\s\S]*/, '');
-    win.eval(script);
+    win.eval(EDITOR_SCRIPT);
 
     $('#red-ui-clipboard-dialog').trigger('dialogopen');
     await wait(60);

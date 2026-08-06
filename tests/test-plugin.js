@@ -81,12 +81,28 @@ test('the plugin runtime is loaded by Node-RED', async () => {
         'the asset route only exists if the plugin runtime ran');
 });
 
-test('the editor receives the plugin markup', async () => {
+test('the editor receives the styles and a loader for the editor script', async () => {
     const res = await get('/plugins');
     assert.strictEqual(res.status, 200);
     assert.match(res.body, /red-ui-clipboard-dialog-import-tab-apispec/);
-    assert.match(res.body, /API Spec/);
+    assert.match(res.body, /flowgen\/editor\.js/);
+    assert.ok(res.body.indexOf("registerPlugin('node-red-flowgen'") === -1,
+        'our logic itself now lives in the served script');
+    assert.ok(res.body.indexOf('function importSelected') === -1,
+        'the panel logic is not inlined into the markup');
+    assert.match(res.body, /#flowgen-op-list/,
+        'the styles for the panel are still delivered with the markup');
+});
+
+test('the editor script carries the panel and its handlers', async () => {
+    const res = await get('/flowgen/editor.js');
+    assert.strictEqual(res.status, 200);
     assert.match(res.body, /registerPlugin\('node-red-flowgen'/);
+    assert.match(res.body, /API Spec/);
+    for (const marker of ['flowgen-spec-text', 'flowgen-select-btn', 'flowgen-back-btn',
+        'flowgen-op-list', 'dialogclose.flowgen', 'flowgen/source']) {
+        assert.ok(res.body.indexOf(marker) !== -1, 'missing ' + marker);
+    }
 });
 
 test('the shared flowgen.js is served to the browser', async () => {
@@ -277,13 +293,9 @@ test('a git clone failure is reported with the git message', async () => {
     assert.match(JSON.parse(res.body).error, /git clone failed/);
 });
 
-test('the served plugin markup contains the panel and its handlers', async () => {
-    const res = await get('/plugins');
-    assert.strictEqual(res.status, 200);
-    for (const marker of ['flowgen-spec-text', 'flowgen-select-btn', 'flowgen-back-btn',
-        'flowgen-op-list', 'dialogclose.flowgen', 'flowgen/source']) {
-        assert.ok(res.body.indexOf(marker) !== -1, 'missing ' + marker);
-    }
+test('the packaged module ships the editor script', () => {
+    const installed = path.join(userDir, 'node_modules', 'node-red-flowgen');
+    assert.ok(fs.existsSync(path.join(installed, 'flowgen-editor.js')));
 });
 
 test('the packaged module carries no test or development files', () => {

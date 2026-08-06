@@ -18,6 +18,7 @@ module.exports = function (RED) {
 
     const assets = {
         'generator.js': path.join(__dirname, 'flowgen.js'),
+        'editor.js': path.join(__dirname, 'flowgen-editor.js'),
         'yaml-parser.js': browserYaml()
     };
 

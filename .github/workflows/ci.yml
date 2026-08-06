@@ -95,18 +95,52 @@ jobs:
         shell: bash
         env:
           BROWSERS: ${{ matrix.browser }}
+          BROWSER_COVERAGE_DIR: ${{ github.workspace }}/browser-coverage
         run: |
           set -o pipefail
+          passed=0
           for attempt in 1 2; do
             if npm run test:browser 2>&1 | tee browser.log; then
-              exit 0
+              passed=1
+              break
             fi
             echo "::notice::${{ matrix.browser }}: attempt ${attempt} failed"
           done
-          grep -E "^\s*(not ok|      error:)" browser.log | head -20 | while read -r line; do
-            echo "::error::${{ matrix.browser }}: ${line}"
-          done
-          exit 1
+          if [ "$passed" != "1" ]; then
+            grep -E "^\s*(not ok|      error:)" browser.log | head -20 | while read -r line; do
+              echo "::error::${{ matrix.browser }}: ${line}"
+            done
+            exit 1
+          fi
+
+      - name: Report the editor script coverage
+        if: matrix.browser == 'chromium'
+        shell: bash
+        run: |
+          node -e '
+            const fs = require("fs");
+            const file = "browser-coverage/browser-coverage.json";
+            if (!fs.existsSync(file)) { console.log("::warning::no browser coverage"); return; }
+            const data = JSON.parse(fs.readFileSync(file, "utf8"));
+            for (const [name, c] of Object.entries(data)) {
+              const s = Object.values(c.s), f = Object.values(c.f);
+              const pct = a => a.length ? Math.round(a.filter(n => n > 0).length / a.length * 100) : 0;
+              console.log("::notice::" + name.split("/").pop() +
+                " statements " + pct(s) + "% functions " + pct(f) + "%");
+            }
+          '
+
+      - uses: actions/upload-artifact@v7
+        if: matrix.browser == 'chromium'
+        id: browser-coverage
+        with:
+          name: editor-coverage
+          path: browser-coverage
+
+      - name: Report where to download the editor coverage
+        if: matrix.browser == 'chromium'
+        run: |
+          echo "::notice::Editor coverage: ${{ steps.browser-coverage.outputs.artifact-url }}"
 
   live:
     runs-on: ubuntu-latest

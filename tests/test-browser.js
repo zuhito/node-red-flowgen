@@ -49,7 +49,8 @@ before(async () => {
     userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nr-browser-'));
     fs.mkdirSync(path.join(userDir, 'node_modules', 'node-red-flowgen'), { recursive: true });
     const target = path.join(userDir, 'node_modules', 'node-red-flowgen');
-    for (const file of ['flowgen.js', 'flowgen-plugin.js', 'flowgen-plugin.html', 'package.json']) {
+    for (const file of ['flowgen.js', 'flowgen-editor.js', 'flowgen-plugin.js',
+        'flowgen-plugin.html', 'package.json']) {
         fs.copyFileSync(path.join(__dirname, '..', file), path.join(target, file));
     }
     fs.symlinkSync(path.join(__dirname, '..', 'node_modules'),
@@ -75,21 +76,26 @@ before(async () => {
 after(async () => {
     if (COVERAGE_DIR && collected.length) {
         const v8toIstanbul = require('v8-to-istanbul');
-        const target = path.join(__dirname, '..', 'flowgen-plugin.html');
-        const offset = pluginSource.indexOf(collected[0].source);
+        const target = path.join(__dirname, '..', 'flowgen-editor.js');
         const merged = {};
         for (const entry of collected) {
-            const converter = v8toIstanbul(target, offset > 0 ? offset : 0,
-                { source: entry.source });
+            const converter = v8toIstanbul(target, 0, { source: entry.source });
             await converter.load();
             converter.applyCoverage(entry.functions);
             const data = converter.toIstanbul()[target];
-            if (!data) continue;
+            if (!data) { continue; }
             if (!merged[target]) { merged[target] = data; continue; }
-            for (const key of Object.keys(data.s)) merged[target].s[key] += data.s[key];
-            for (const key of Object.keys(data.f)) merged[target].f[key] += data.f[key];
-            for (const key of Object.keys(data.b)) {
-                data.b[key].forEach((n, i) => { merged[target].b[key][i] += n; });
+            const into = merged[target];
+            for (const key of Object.keys(data.s || {})) {
+                into.s[key] = (into.s[key] || 0) + data.s[key];
+            }
+            for (const key of Object.keys(data.f || {})) {
+                into.f[key] = (into.f[key] || 0) + data.f[key];
+            }
+            for (const key of Object.keys(data.b || {})) {
+                const counts = data.b[key] || [];
+                if (!Array.isArray(into.b[key])) { into.b[key] = counts.slice(); continue; }
+                counts.forEach((n, i) => { into.b[key][i] = (into.b[key][i] || 0) + n; });
             }
         }
         fs.mkdirSync(COVERAGE_DIR, { recursive: true });
@@ -119,7 +125,7 @@ async function stopCoverage(page) {
         return;
     }
     for (const entry of entries) {
-        if (!entry.source || entry.source.indexOf('flowgen-select-btn') === -1) continue;
+        if (!/flowgen\/editor\.js/.test(String(entry.url || ''))) continue;
         collected.push({ source: entry.source, functions: entry.functions });
     }
 }
