@@ -12,8 +12,7 @@
     "flowgen-editor.js",
     "flowgen-plugin.js",
     "flowgen-plugin.html",
-    "LICENSE",
-    "implementations.md"
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20.x"
