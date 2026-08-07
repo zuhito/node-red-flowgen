@@ -1243,15 +1243,12 @@ test('the bundled httpbingo definition covers the endpoints the tests need', () 
         path.join(__dirname, '..', 'specs', 'httpbingo-openapi3.yaml'), 'utf8'));
     const paths = flowgen.listOperations(doc).operations.map(o => o.method + ' ' + o.path);
 
-    assert.deepStrictEqual(paths.sort(), [
-        'get /basic-auth/{user}/{passwd}',
-        'get /bearer',
-        'get /get',
-        'get /headers',
-        'get /hidden-basic-auth/{user}/{passwd}',
-        'get /status/{code}',
-        'post /post'
-    ]);
+    for (const required of ['get /get', 'post /post', 'get /headers', 'get /bearer',
+        'get /basic-auth/{user}/{passwd}', 'get /hidden-basic-auth/{user}/{passwd}',
+        'get /status/{code}']) {
+        assert.ok(paths.indexOf(required) !== -1, 'missing ' + required);
+    }
+    assert.ok(paths.length >= 30, 'the definition covers the whole service');
     assert.match(flowgen.generate(doc, 'post', '/post'), /"hello": "world"/);
 
     for (const target of ['/bearer', '/basic-auth/{user}/{passwd}',

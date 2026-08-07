@@ -120,6 +120,9 @@ jobs:
         with:
           node-version: '22.x'
       - run: npm install
+      - name: Check the bundled httpbingo definition against the live service
+        run: npm run check:httpbingo
+
       - name: Call real public APIs through Node-RED
         run: npm run test:live
 
