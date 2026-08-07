@@ -191,7 +191,6 @@ function parseCollection(files) {
     return { bruno: true, vars: vars, requests: requests };
 }
 
-
 function detectFormat(doc) {
     if (doc && doc.bruno === true && Array.isArray(doc.requests)) return 'bruno';
     if (doc && doc.http && doc.http.url) return 'bruno';
@@ -400,7 +399,6 @@ function urlLines(base, path, params) {
     return urls;
 }
 
-
 function unresolved(base, path, params) {
     const items = [];
     if (!/^[a-z]+:\/\//i.test(String(base))) items.push({ name: 'baseUrl', type: null });
@@ -415,7 +413,6 @@ function unresolved(base, path, params) {
     }
     return items.filter((item, i, all) => all.findIndex(x => x.name === item.name) === i);
 }
-
 
 function assemble(parts) {
     const phrase = names => names.length === 1 ? names[0]
