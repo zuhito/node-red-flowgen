@@ -24,7 +24,8 @@ const FILL = {
 
 const CREDENTIALS = {
     bearer: 'Bearer sometoken',
-    basic: 'Basic ' + Buffer.from('someuser:somepass').toString('base64')
+    basic: 'Basic ' + Buffer.from('someuser:somepass').toString('base64'),
+    digest: 'Digest username="someuser", realm="httpbingo", nonce="x", uri="/", response="x"'
 };
 
 function note(level, text) {
@@ -78,6 +79,7 @@ async function main() {
             let filled = String(value);
             if (/^Bearer \{/.test(filled)) { filled = CREDENTIALS.bearer; }
             else if (/^Basic \{/.test(filled)) { filled = CREDENTIALS.basic; }
+            else if (/^Digest \{/.test(filled)) { filled = CREDENTIALS.digest; }
             if (/\{[^}]+\}/.test(filled)) {
                 problems.push(label + ' -> no sample value for header ' + name);
                 filled = null;
