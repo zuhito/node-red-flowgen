@@ -599,9 +599,9 @@ async function main() {
     }
 
     if (process.env.LIVE_CORPUS) {
-        const probeWithCurl = url => new Promise(resolve => {
+        const probeWithCurl = (url, method) => new Promise(resolve => {
             execFile('curl', ['-sS', '-o', '/dev/null', '-w', '%{http_code}',
-                '--max-time', '10', '-X', 'GET', url],
+                '--max-time', '15', '-X', String(method || 'get').toUpperCase(), url],
             { timeout: 15000 }, (err, stdout) => {
                 const code = parseInt(String(stdout).trim(), 10);
                 resolve(Number.isFinite(code) && code > 0 ? code : null);
@@ -662,7 +662,7 @@ async function main() {
 
             let reachable = true;
             for (const entry of prepared) {
-                const code = await probeWithCurl(entry.url);
+                const code = await probeWithCurl(entry.url, entry.op.method);
                 if (!code) {
                     reachable = false;
                     note('notice', 'corpus ' + spec + ' -> dropped, ' + entry.op.method +
@@ -706,7 +706,7 @@ async function main() {
                 ran++;
                 const started = Date.now();
                 let result = null;
-                while (!result && Date.now() - started < 15000) {
+                while (!result && Date.now() - started < 25000) {
                     await new Promise(resolve => setTimeout(resolve, 200));
                     result = context.get('liveResult');
                 }
