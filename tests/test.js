@@ -1216,3 +1216,43 @@ test('listOperations decodes escaped tokens in a path item reference', () => {
     };
     assert.strictEqual(flowgen.listOperations(doc).operations[0].summary, 'Escaped');
 });
+
+test('the bundled specs all parse and generate valid code', async () => {
+    const dir = path.join(__dirname, '..', 'specs');
+    const files = fs.readdirSync(dir).filter(name => /\.ya?ml$/.test(name));
+    assert.ok(files.length >= 3, 'the bundled definitions are present');
+
+    for (const name of files) {
+        const doc = flowgen.parseDocument(fs.readFileSync(path.join(dir, name), 'utf8'));
+        const list = flowgen.listOperations(doc);
+        assert.ok(list.count > 0, name + ' has no operations');
+
+        for (const op of list.operations) {
+            const code = flowgen.generate(doc, op.method, op.path);
+            assert.doesNotThrow(() => new Function(code), name + ' ' + op.method + ' ' + op.path);
+            const msg = run(code);
+            assert.strictEqual(msg.method, op.method.toUpperCase());
+            assert.doesNotThrow(() => new URL(msg.url.replace(/\{[^}]*\}/g, 'x')),
+                name + ' produced ' + msg.url);
+        }
+    }
+});
+
+test('the bundled httpbingo definition covers the endpoints the tests need', () => {
+    const doc = flowgen.parseDocument(fs.readFileSync(
+        path.join(__dirname, '..', 'specs', 'httpbingo-openapi3.yaml'), 'utf8'));
+    const paths = flowgen.listOperations(doc).operations.map(o => o.method + ' ' + o.path);
+
+    assert.deepStrictEqual(paths.sort(), [
+        'get /basic-auth/{user}/{passwd}',
+        'get /bearer',
+        'get /get',
+        'get /headers',
+        'get /hidden-basic-auth/{user}/{passwd}',
+        'get /status/{code}',
+        'post /post'
+    ]);
+    assert.match(flowgen.generate(doc, 'post', '/post'), /"hello": "world"/);
+    assert.match(flowgen.generate(doc, 'get', '/status/{code}'),
+        /Replace \{code\} \(integer\)/);
+});

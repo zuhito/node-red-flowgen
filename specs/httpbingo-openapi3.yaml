@@ -1,0 +1,122 @@
+openapi: 3.0.3
+info:
+  title: httpbingo
+  description: >-
+    A subset of the httpbingo.org service, covering the endpoints the tests use
+    to check authentication headers and status handling end to end.
+  version: 1.0.0
+servers:
+  - url: https://httpbingo.org
+paths:
+  /get:
+    get:
+      summary: Echo a GET request
+      responses:
+        '200':
+          description: Request details
+          content:
+            application/json:
+              schema:
+                type: object
+  /post:
+    post:
+      summary: Echo a POST request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hello
+              properties:
+                hello:
+                  type: string
+                  example: world
+      responses:
+        '200':
+          description: Request details
+          content:
+            application/json:
+              schema:
+                type: object
+  /headers:
+    get:
+      summary: Echo the request headers
+      responses:
+        '200':
+          description: Headers
+          content:
+            application/json:
+              schema:
+                type: object
+  /bearer:
+    get:
+      summary: Require a bearer token
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: No bearer token was supplied
+  /basic-auth/{user}/{passwd}:
+    get:
+      summary: Require basic authentication
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: passwd
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Credentials were missing or wrong
+  /hidden-basic-auth/{user}/{passwd}:
+    get:
+      summary: Require basic authentication without a challenge
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: passwd
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Credentials were missing or wrong
+  /status/{code}:
+    get:
+      summary: Return the given status code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The requested status

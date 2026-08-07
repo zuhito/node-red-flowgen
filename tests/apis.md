@@ -33,7 +33,7 @@ node-red-flowgen specs/ollama-openapi3.yaml post /api/chat --flow -o flow.json
 | 基本 | Petstore v2 | Swagger 2.0 | `https://petstore.swagger.io/v2/swagger.json` |
 | 基本 | Petstore v3 | OpenAPI 3.0 | `https://petstore3.swagger.io/api/v3/openapi.json` |
 | 認証 | httpbin | Swagger 2.0 | `https://httpbin.org/spec.json` |
-| 認証 | httpbingo | OpenAPI 3.0.3 | `tests/test-live.js` に内蔵 |
+| 認証 | httpbingo | OpenAPI 3.0.3 | `specs/httpbingo-openapi3.yaml` |
 | Bruno | 111 コレクション | Bruno | GitHub（`BRUNO_SOURCES`） |
 | コーパス | 93 定義 / 963 エンドポイント | Swagger 2.0 が 34、OpenAPI 3 が 59 | APIs.guru |
 
@@ -164,8 +164,13 @@ node-red-flowgen "$F" delete '/pet/{petId}'
 | `/get`, `/post`, `/headers` | なし | 200 |
 
 httpbin.org は不安定で 503 になることがあるため、同等の定義を
-`tests/test-live.js` に `INLINE_SPECS.httpbingo` として内蔵しています。
-外部から定義を取得できなくても認証経路のテストが必ず動くようにするためです。
+`specs/httpbingo-openapi3.yaml` として同梱しています。外部から定義を取得できなくても
+認証経路のテストが必ず動くようにするためです。手元でもそのまま使えます。
+
+```bash
+node-red-flowgen specs/httpbingo-openapi3.yaml --list
+node-red-flowgen specs/httpbingo-openapi3.yaml get '/basic-auth/{user}/{passwd}'
+```
 
 ## Bruno コレクション（111 件）
 
