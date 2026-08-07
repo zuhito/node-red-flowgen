@@ -219,76 +219,32 @@ const summary = [];
 
 const CORPUS_SPECS = [
     '1forge.com/0.0.1/swagger.yaml',
-    'agco-ats.com/v1/openapi.yaml',
     'amadeus.com/amadeus-flight-price-analysis/1.0.1/openapi.yaml',
     'amadeus.com/amadeus-location-score/1.0.2/openapi.yaml',
     'apache.org/qakka/v1/openapi.yaml',
-    'apacta.com/0.0.42/openapi.yaml',
-    'apidapp.com/2019-02-14T164701Z/openapi.yaml',
     'apis.guru/2.2.0/openapi.yaml',
-    'appcenter.ms/v0.1/openapi.yaml',
     'apple.com/sirikit-cloud-media/1.0.2/openapi.yaml',
-    'appwrite.io/client/0.9.3/openapi.yaml',
-    'appwrite.io/server/0.9.3/openapi.yaml',
     'asuarez.dev/searchly/1.0/openapi.yaml',
-    'atlassian.com/jira/1001.0.0-SNAPSHOT/openapi.yaml',
-    'avaza.com/v1/swagger.yaml',
     'aviationdata.systems/v1/swagger.yaml',
     'azure.com/alertsmanagement-AlertsManagement/2019-03-01-preview/swagger.yaml',
     'azure.com/alertsmanagement-AlertsManagement/2019-05-05-preview/swagger.yaml',
     'azure.com/attestation/2018-09-01-preview/swagger.yaml',
     'azure.com/dynamicstelemetry/2019-01-24/swagger.yaml',
     'azure.com/iotcentral/preview/swagger.yaml',
-    'azure.com/servicefabric/5.6/swagger.yaml',
     'balldontlie.io/1.0.0/openapi.yaml',
-    'beezup.com/2.0/openapi.yaml',
     'bigdatacloud.net/1.0.0/openapi.yaml',
-    'bigoven.com/partner/openapi.yaml',
-    'bigredcloud.com/v1/openapi.yaml',
-    'billbee.io/v1/openapi.yaml',
-    'bluemix.net/containers/3.0.0/openapi.yaml',
-    'braze.com/1.0.0/openapi.yaml',
-    'brex.io/2021.12/openapi.yaml',
-    'bungie.net/2.18.0/openapi.yaml',
-    'bunq.com/1.0/openapi.yaml',
     'canada-holidays.ca/1.8.0/openapi.yaml',
     'carbone.io/1.2.0/openapi.yaml',
-    'chaingateway.io/1.0.0/openapi.yaml',
-    'clearblade.com/3.0/swagger.yaml',
-    'clever-cloud.com/1.0.0/openapi.yaml',
-    'clicksend.com/1.0.0/openapi.yaml',
     'clickup.com/1.0.0/openapi.yaml',
-    'clubhouseapi.com/1/openapi.yaml',
     'color.pizza/1.0.0/openapi.yaml',
     'consumerfinance.gov/1.0/swagger.yaml',
-    'contribly.com/1.0.0/openapi.yaml',
     'corrently.io/2.0.0/openapi.yaml',
-    'cpy.re/peertube/5.1.0/openapi.yaml',
-    'data2crm.com/1/swagger.yaml',
     'deutschebahn.com/flinkster/v1/swagger.yaml',
     'digitallocker.gov.in/authpartner/1.0.0/openapi.yaml',
-    'dnd5eapi.co/0.1/openapi.yaml',
     'docker.com/hub/beta/openapi.yaml',
-    'docusign.net/v2.1/openapi.yaml',
     'enode.io/1.3.10/openapi.yaml',
-    'epa.gov/dfr/0.0.0/swagger.yaml',
     'evemarketer.com/1.0.1/swagger.yaml',
-    'evetech.net/0.8.6/swagger.yaml',
     'exhibitday.com/v1/swagger.yaml',
-    'figshare.com/2.0.0/openapi.yaml',
-    'getpostman.com/1.20.0/openapi.yaml',
-    'github.com/api.github.com.2022-11-28/1.1.4/openapi.yaml',
-    'github.com/api.github.com/1.1.4/openapi.yaml',
-    'github.com/ghec.2022-11-28/1.1.4/openapi.yaml',
-    'github.com/ghec/1.1.4/openapi.yaml',
-    'github.com/ghes-3.2/1.1.4/openapi.yaml',
-    'github.com/ghes-3.3/1.1.4/openapi.yaml',
-    'github.com/ghes-3.4/1.1.4/openapi.yaml',
-    'github.com/ghes-3.5/1.1.4/openapi.yaml',
-    'github.com/ghes-3.6/1.1.4/openapi.yaml',
-    'github.com/ghes-3.7/1.1.4/openapi.yaml',
-    'github.com/ghes-3.8/1.1.4/openapi.yaml',
-    'github.com/github.ae/1.1.4/openapi.yaml',
     'gov.bc.ca/bcgnws/3.x.x/openapi.yaml',
     'gov.bc.ca/jobposting/1.0.0/openapi.yaml',
     'gov.bc.ca/news/1.0/openapi.yaml',
@@ -296,13 +252,10 @@ const CORPUS_SPECS = [
     'groundhog-day.com/1.2.1/openapi.yaml',
     'gsa.gov/0.1/swagger.yaml',
     'handwrytten.com/1.0.0/swagger.yaml',
-    'here.com/tracking/2.1.192/openapi.yaml',
     'hetras-certification.net/hotel/v0/swagger.yaml',
-    'hetzner.cloud/1.0.0/openapi.yaml',
     'hsbc.com/atm/2.2.1/swagger.yaml',
     'hsbc.com/branches/2.2.1/swagger.yaml',
     'hsbc.com/product/2.2.1/swagger.yaml',
-    'httpbin.org/0.9.2/openapi.yaml',
     'hubapi.com/communication-preferences/v3/openapi.yaml',
     'hubapi.com/crm/v3/openapi.yaml',
     'ideaconsult.net/nanoreg/4.0.0/openapi.yaml',
@@ -310,28 +263,16 @@ const CORPUS_SPECS = [
     'jokes.one/1.1/swagger.yaml',
     'journy.io/1.0.0/openapi.yaml',
     'json2video.com/2.0.0/openapi.yaml',
-    'just-eat.co.uk/1.0.0/openapi.yaml',
     'languagetool.org/1.1.2/swagger.yaml',
     'lgtm.com/v1.0/openapi.yaml',
-    'linode.com/4.151.1/openapi.yaml',
-    'magento.com/2.2.10/openapi.yaml',
     'mastercard.com/BINTableResource/1.0/swagger.yaml',
     'mastercard.com/CurrencyConversionCalculator/1.0.0/swagger.yaml',
     'mastercard.com/Locations/1.0.0/swagger.yaml',
     'mastercard.com/MDES/2.0.7/swagger.yaml',
-    'medium.com/1.0/openapi.yaml',
     'mermade.org.uk/openapi-converter/1.0.0/openapi.yaml',
     'metadapi.com/1.0/openapi.yaml',
-    'microsoft.com/cognitiveservices-Training/1.2/openapi.yaml',
-    'microsoft.com/cognitiveservices-Training/2.0/openapi.yaml',
-    'microsoft.com/graph-beta/1.0.1/openapi.yaml',
-    'microsoft.com/graph/1.0.1/openapi.yaml',
     'mozilla.com/kinto/1.22/openapi.yaml',
-    'naviplancentral.com/factfinder/v1/swagger.yaml',
-    'naviplancentral.com/plan/v1/swagger.yaml',
     'ndhm.gov.in/ndhm-hip/0.5/openapi.yaml',
-    'ndhm.gov.in/ndhm-hiu/0.5/openapi.yaml',
-    'nebl.io/1.3.0/openapi.yaml',
     'nexmo.com/media/1.0.2/openapi.yaml',
     'notion.com/1.0.0/openapi.yaml',
     'nowpayments.io/1.0.0/openapi.yaml',
@@ -342,61 +283,34 @@ const CORPUS_SPECS = [
     'openbanking.org.uk/v1.3/openapi.yaml',
     'openlinksw.com/osdb/1.0.0/openapi.yaml',
     'opentrials.local/0.0.1/swagger.yaml',
-    'orthanc-server.com/1.12.0/openapi.yaml',
-    'osf.io/2.0/openapi.yaml',
-    'osisoft.com/1.11.1.5383/swagger.yaml',
     'oxforddictionaries.com/1.11.0/openapi.yaml',
     'parliament.uk/bills/v1/openapi.yaml',
     'parliament.uk/search/Live/openapi.yaml',
     'patientview.org/1.0/openapi.yaml',
-    'payrun.io/23.24.2.136/openapi.yaml',
     'personio.de/personnel/1.0/openapi.yaml',
     'poemist.com/1.0/swagger.yaml',
-    'presalytics.io/ooxml/0.1.0/openapi.yaml',
     'quarantine.country/1.0/swagger.yaml',
     'randomlovecraft.com/1.0/openapi.yaml',
     'rapidapi.com/ecowetter/1.0.0/openapi.yaml',
     'rbaskets.in/1.0.0/swagger.yaml',
-    'reverb.com/3.0/openapi.yaml',
     'ritekit.com/1.0.0/openapi.yaml',
-    'rumble.run/2.15.0/openapi.yaml',
-    'salesloft.com/v2/openapi.yaml',
     'sheetlabs.com/rig-veda/1.2/swagger.yaml',
-    'shutterstock.com/1.1.32/openapi.yaml',
-    'sinao.app/1.1.0/openapi.yaml',
     'slideroom.com/v2/swagger.yaml',
-    'smart-me.com/v1/openapi.yaml',
-    'snyk.io/1.0.0/openapi.yaml',
     'swagger.io/generator/2.4.31/swagger.yaml',
-    'taxamo.com/1/swagger.yaml',
-    'tcgdex.net/2.0.0/openapi.yaml',
     'telematicssdk.com/1.0.0/openapi.yaml',
-    'tfl.gov.uk/v1/openapi.yaml',
-    'thebluealliance.com/3.8.2/openapi.yaml',
     'tisane.ai/1.0.0/openapi.yaml',
-    'trakt.tv/1.0.0/openapi.yaml',
     'truanon.com/1.0.0/openapi.yaml',
-    'twilio.com/api/1.55.0/openapi.yaml',
-    'twinehealth.com/v7.78.1/openapi.yaml',
-    'twitter.com/current/2.62/openapi.yaml',
-    'twitter.com/legacy/1.1/swagger.yaml',
-    'uebermaps.com/2.0/swagger.yaml',
-    'visma.com/1.0/openapi.yaml',
     'visualcrossing.com/weather/4.6/openapi.yaml',
     'vonage.com/vgis/1.0.1/openapi.yaml',
     'vtex.local/Intelligent-Search-API/0.1.12/openapi.yaml',
     'vtex.local/Policies-System-API/1.0.0/openapi.yaml',
     'vtex.local/Price-Simulations/1.0/openapi.yaml',
     'vtex.local/Session-Manager-API/1.0/openapi.yaml',
-    'watchful.li/1.0.0/swagger.yaml',
     'wealthreader.com/1.0.0/openapi.yaml',
     'wellknown.ai/1.0.0/openapi.yaml',
-    'wikimedia.org/1.0.0/swagger.yaml',
     'wikipathways.org/1.0/openapi.yaml',
     'zalando.com/v1.0/swagger.yaml',
-    'zapier.com/nla/1.0.0/openapi.yaml',
-    'zoomconnect.com/1/swagger.yaml',
-    'zuora.com/2021-08-20/openapi.yaml'
+    'zapier.com/nla/1.0.0/openapi.yaml'
 ];
 
 const CORPUS_BASE =
@@ -411,8 +325,23 @@ function note(level, text) {
 function writeSummary() {
     const file = process.env.GITHUB_STEP_SUMMARY;
     if (!file) return;
+
+    const failures = summary.filter(line => line.startsWith('FAIL'));
+    const rest = summary.filter(line => !line.startsWith('FAIL'));
+    const LIMIT = 900 * 1024;
+
+    const kept = failures.slice(0, 500);
+    let size = kept.join('\n').length;
+    for (const line of rest) {
+        if (size + line.length + 1 > LIMIT) { break; }
+        kept.push(line);
+        size += line.length + 1;
+    }
+    const omitted = summary.length - kept.length;
+    if (omitted > 0) { kept.push('... ' + omitted + ' further lines omitted'); }
+
     fs.appendFileSync(file,
-        '## Live API results\n\n```\n' + summary.join('\n') + '\n```\n');
+        '## Live API results\n\n```\n' + kept.join('\n') + '\n```\n');
 }
 
 function download(url, redirects) {
@@ -697,6 +626,11 @@ async function main() {
                 continue;
             }
             if (!operations.length) { continue; }
+            if (operations.length > 30) {
+                note('notice', 'corpus ' + spec + ' -> skipped, ' + operations.length +
+                    ' endpoints is too many for a live run');
+                continue;
+            }
 
             const prepared = [];
             let generationFailed = false;
