@@ -1253,6 +1253,21 @@ test('the bundled httpbingo definition covers the endpoints the tests need', () 
         'post /post'
     ]);
     assert.match(flowgen.generate(doc, 'post', '/post'), /"hello": "world"/);
+
+    for (const target of ['/bearer', '/basic-auth/{user}/{passwd}',
+        '/hidden-basic-auth/{user}/{passwd}']) {
+        const code = flowgen.generate(doc, 'get', target);
+        assert.match(code, /"authorization": `/,
+            target + ' needs credentials, so the code must offer the header');
+        assert.match(code, /\/\/ Fill in "authorization" below\./);
+    }
+    assert.match(flowgen.generate(doc, 'get', '/bearer'),
+        /"authorization": `Bearer \{token\}`/);
+    assert.match(flowgen.generate(doc, 'get', '/basic-auth/{user}/{passwd}'),
+        /"authorization": `Basic \{credentials\}`/);
+
+    assert.ok(!/authorization/.test(flowgen.generate(doc, 'get', '/get')),
+        'an open endpoint must not ask for credentials');
     assert.match(flowgen.generate(doc, 'get', '/status/{code}'),
         /Replace \{code\} \(integer\)/);
 });
