@@ -1268,3 +1268,25 @@ test('the bundled httpbingo definition covers the endpoints the tests need', () 
     assert.match(flowgen.generate(doc, 'get', '/status/{code}'),
         /Replace \{code\} \(integer\)/);
 });
+
+test('every http auth scheme names the value to fill in', () => {
+    const scheme = name => ({
+        openapi: '3.0.3', info: { title: 'T', version: '1' },
+        servers: [{ url: 'https://api.test' }],
+        paths: { '/x': { get: { security: [{ s: [] }] } } },
+        components: { securitySchemes: { s: { type: 'http', scheme: name } } }
+    });
+
+    assert.strictEqual(run(flowgen.generate(scheme('basic'), 'get', '/x')).headers.authorization,
+        'Basic {credentials}');
+    assert.strictEqual(run(flowgen.generate(scheme('bearer'), 'get', '/x')).headers.authorization,
+        'Bearer {token}');
+    assert.strictEqual(run(flowgen.generate(scheme('digest'), 'get', '/x')).headers.authorization,
+        'Digest {credentials}');
+
+    for (const name of ['basic', 'bearer', 'digest', 'negotiate']) {
+        const code = flowgen.generate(scheme(name), 'get', '/x');
+        assert.match(code, /\{[a-z]+\}/, name + ' must leave a named placeholder');
+        assert.match(code, /\/\/ Fill in "authorization" below\./);
+    }
+});

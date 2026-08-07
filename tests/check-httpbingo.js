@@ -91,7 +91,8 @@ async function main() {
         const status = await curl(op.method, url, headers, body);
         results.push({ label: label, url: url, status: status });
 
-        const tolerated = op.path === '/deny' ? [403] : [];
+        const tolerated = op.path === '/deny' ? [403]
+            : /digest-auth/.test(op.path) ? [401] : [];
         if (status === null) {
             problems.push(label + ' -> no response from ' + url);
         } else if (status >= 400 && tolerated.indexOf(status) === -1) {

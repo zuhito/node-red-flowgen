@@ -532,7 +532,8 @@ function generateOpenApi3(doc, rawMethod, target) {
                 const s = String(scheme.scheme || '').toLowerCase();
                 headers.push(['authorization',
                     s === 'basic' ? 'Basic {credentials}' : s === 'bearer' ? 'Bearer {token}' :
-                        s ? s[0].toUpperCase() + s.slice(1) + ' ' : '']);
+                        s ? s[0].toUpperCase() + s.slice(1) + ' {credentials}'
+                            : '{credentials}']);
             } else if (type === 'oauth2' || type === 'openidconnect') {
                 headers.push(['authorization', 'Bearer {token}']);
             }

@@ -15,6 +15,9 @@ components:
     basicAuth:
       type: http
       scheme: basic
+    digestAuth:
+      type: http
+      scheme: digest
 paths:
   /get:
     get:
@@ -416,6 +419,12 @@ paths:
   /digest-auth/{qop}/{user}/{passwd}:
     get:
       summary: Require digest authentication
+      description: >-
+        Digest authentication needs a challenge and response exchange, so a
+        single generated request answers with 401 until the digest header is
+        built from the server nonce.
+      security:
+        - digestAuth: []
       parameters:
         - name: qop
           in: path
