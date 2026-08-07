@@ -7,6 +7,7 @@ const http = require('http');
 const https = require('https');
 const express = require('express');
 const RED = require('node-red');
+const { execFile } = require('child_process');
 const flowgen = require('../flowgen');
 
 const ONLY = process.env.LIVE_ONLY || '';
@@ -216,395 +217,186 @@ const CASES = [
 
 const summary = [];
 
-const CORPUS_CASES = [
-    { spec: 'zoomconnect.com/1/swagger.yaml', path: '/api/rest/v1/account/balance' },
-    { spec: 'zoomconnect.com/1/swagger.yaml', path: '/api/rest/v1/contacts/all' },
-    { spec: 'zoomconnect.com/1/swagger.yaml', path: '/api/rest/v1/groups/all' },
-    { spec: 'rumble.run/2.15.0/openapi.yaml', path: '/releases/agent/version' },
-    { spec: 'rumble.run/2.15.0/openapi.yaml', path: '/releases/platform/version' },
-    { spec: 'rumble.run/2.15.0/openapi.yaml', path: '/releases/scanner/version' },
-    { spec: 'data2crm.com/1/swagger.yaml', path: '/application/entity/account/describe' },
-    { spec: 'data2crm.com/1/swagger.yaml', path: '/application/entity/attachment/describe' },
-    { spec: 'data2crm.com/1/swagger.yaml', path: '/application/entity/call/describe' },
-    { spec: 'ndhm.gov.in/ndhm-hip/0.5/openapi.yaml', path: '/v0.5/.well-known/openid-configuration' },
-    { spec: 'ndhm.gov.in/ndhm-hip/0.5/openapi.yaml', path: '/v0.5/certs' },
-    { spec: 'ndhm.gov.in/ndhm-hip/0.5/openapi.yaml', path: '/v0.5/heartbeat' },
-    { spec: 'ndhm.gov.in/ndhm-hiu/0.5/openapi.yaml', path: '/v0.5/heartbeat' },
-    { spec: 'contribly.com/1.0.0/openapi.yaml', path: '/artifact-formats' },
-    { spec: 'contribly.com/1.0.0/openapi.yaml', path: '/change-log' },
-    { spec: 'contribly.com/1.0.0/openapi.yaml', path: '/contribution-refinement-types' },
-    { spec: 'consumerfinance.gov/1.0/swagger.yaml', path: '/data' },
-    { spec: 'consumerfinance.gov/1.0/swagger.yaml', path: '/data/hmda' },
-    { spec: 'bigdatacloud.net/1.0.0/openapi.yaml', path: '/data/ip-geolocation-full' },
-    { spec: 'bigdatacloud.net/1.0.0/openapi.yaml', path: '/data/ip-geolocation-with-confidence' },
-    { spec: 'thebluealliance.com/3.8.2/openapi.yaml', path: '/status' },
-    { spec: 'avaza.com/v1/swagger.yaml', path: '/api/Currency' },
-    { spec: 'zuora.com/2021-08-20/openapi.yaml', path: '/v1/accounting-codes' },
-    { spec: 'zuora.com/2021-08-20/openapi.yaml', path: '/v1/accounting-periods' },
-    { spec: 'zuora.com/2021-08-20/openapi.yaml', path: '/v1/catalog/products' },
-    { spec: 'asuarez.dev/searchly/1.0/openapi.yaml', path: '/similarity/by_song' },
-    { spec: 'asuarez.dev/searchly/1.0/openapi.yaml', path: '/song/search' },
-    { spec: 'openai.com/1.2.0/openapi.yaml', path: '/files' },
-    { spec: 'openai.com/1.2.0/openapi.yaml', path: '/fine-tunes' },
-    { spec: 'openai.com/1.2.0/openapi.yaml', path: '/models' },
-    { spec: 'httpbin.org/0.9.2/openapi.yaml', path: '/anything' },
-    { spec: 'httpbin.org/0.9.2/openapi.yaml', path: '/brotli' },
-    { spec: 'httpbin.org/0.9.2/openapi.yaml', path: '/cache' },
-    { spec: 'apis.guru/2.2.0/openapi.yaml', path: '/list.json' },
-    { spec: 'apis.guru/2.2.0/openapi.yaml', path: '/metrics.json' },
-    { spec: 'apis.guru/2.2.0/openapi.yaml', path: '/providers.json' },
-    { spec: 'wikipathways.org/1.0/openapi.yaml', path: '/listOrganisms' },
-    { spec: 'lgtm.com/v1.0/openapi.yaml', path: '/openapi' },
-    { spec: 'quarantine.country/1.0/swagger.yaml', path: '/summary/latest' },
-    { spec: 'brex.io/2021.12/openapi.yaml', path: '/api/v1/company/monitoring/changeTypes' },
-    { spec: 'brex.io/2021.12/openapi.yaml', path: '/api/v1/company/monitoring/list' },
-    { spec: 'brex.io/2021.12/openapi.yaml', path: '/api/v1/company/notification/list' },
-    { spec: 'rbaskets.in/1.0.0/swagger.yaml', path: '/api/version' },
-    { spec: 'metadapi.com/1.0/openapi.yaml', path: '/zipc/v1' },
-    { spec: 'metadapi.com/1.0/openapi.yaml', path: '/zipc/v1/distance' },
-    { spec: 'greip.io/1.0.0/openapi.yaml', path: '/ASNLookup' },
-    { spec: 'greip.io/1.0.0/openapi.yaml', path: '/BINLookup' },
-    { spec: 'greip.io/1.0.0/openapi.yaml', path: '/BulkLookup' },
-    { spec: 'openbanking.org.uk/v1.3/openapi.yaml', path: '/atms' },
-    { spec: 'openbanking.org.uk/v1.3/openapi.yaml', path: '/branches' },
-    { spec: 'openbanking.org.uk/v1.3/openapi.yaml', path: '/business-current-accounts' },
-    { spec: 'clickup.com/1.0.0/openapi.yaml', path: '/questions' },
-    { spec: 'deutschebahn.com/flinkster/v1/swagger.yaml', path: '/index' },
-    { spec: 'billbee.io/v1/openapi.yaml', path: '/api/v1/automaticprovision/termsinfo' },
-    { spec: 'billbee.io/v1/openapi.yaml', path: '/api/v1/cloudstorages' },
-    { spec: 'billbee.io/v1/openapi.yaml', path: '/api/v1/enums/orderstates' },
-    { spec: 'mastercard.com/CurrencyConversionCalculator/1.0.0/swagger.yaml', path: '/settlement-currencies' },
-    { spec: 'mastercard.com/MDES/2.0.7/swagger.yaml', path: '/systemstatus' },
-    { spec: 'mastercard.com/Locations/1.0.0/swagger.yaml', path: '/atms/v1/country' },
-    { spec: 'mastercard.com/Locations/1.0.0/swagger.yaml', path: '/merchants/v1/category' },
-    { spec: 'mastercard.com/BINTableResource/1.0/swagger.yaml', path: '/binlisting' },
-    { spec: 'truanon.com/1.0.0/openapi.yaml', path: '/api/get_profile' },
-    { spec: 'bigoven.com/partner/openapi.yaml', path: '/grocerylist' },
-    { spec: 'bigoven.com/partner/openapi.yaml', path: '/me' },
-    { spec: 'bigoven.com/partner/openapi.yaml', path: '/me/preferences/options' },
-    { spec: 'apple.com/sirikit-cloud-media/1.0.2/openapi.yaml', path: '/configuration' },
-    { spec: 'handwrytten.com/1.0.0/swagger.yaml', path: '/cards/list' },
-    { spec: 'handwrytten.com/1.0.0/swagger.yaml', path: '/countries/list' },
-    { spec: 'handwrytten.com/1.0.0/swagger.yaml', path: '/fonts/list' },
-    { spec: 'groundhog-day.com/1.2.1/openapi.yaml', path: '/api/v1' },
-    { spec: 'groundhog-day.com/1.2.1/openapi.yaml', path: '/api/v1/groundhogs' },
-    { spec: 'groundhog-day.com/1.2.1/openapi.yaml', path: '/api/v1/spec' },
-    { spec: 'taxamo.com/1/swagger.yaml', path: '/api/v1/dictionaries/currencies' },
-    { spec: 'taxamo.com/1/swagger.yaml', path: '/api/v1/dictionaries/product_types' },
-    { spec: 'taxamo.com/1/swagger.yaml', path: '/api/v1/geoip' },
-    { spec: 'aviationdata.systems/v1/swagger.yaml', path: '/v1/country_list' },
-    { spec: 'sheetlabs.com/rig-veda/1.2/swagger.yaml', path: '/resources' },
-    { spec: 'zapier.com/nla/1.0.0/openapi.yaml', path: '/api/v1/check/' },
-    { spec: 'zapier.com/nla/1.0.0/openapi.yaml', path: '/api/v1/configuration-link/' },
-    { spec: 'zapier.com/nla/1.0.0/openapi.yaml', path: '/api/v1/exposed/' },
-    { spec: 'chaingateway.io/1.0.0/openapi.yaml', path: '/v2/bitcoin/blocks/number' },
-    { spec: 'chaingateway.io/1.0.0/openapi.yaml', path: '/v2/bitcoin/fees' },
-    { spec: 'chaingateway.io/1.0.0/openapi.yaml', path: '/v2/bitcoin/info' },
-    { spec: 'sinao.app/1.1.0/openapi.yaml', path: '/me' },
-    { spec: 'sinao.app/1.1.0/openapi.yaml', path: '/ping' },
-    { spec: 'sinao.app/1.1.0/openapi.yaml', path: '/refresh' },
-    { spec: 'reverb.com/3.0/openapi.yaml', path: '/articles/categories' },
-    { spec: 'reverb.com/3.0/openapi.yaml', path: '/categories' },
-    { spec: 'reverb.com/3.0/openapi.yaml', path: '/categories/flat' },
-    { spec: 'watchful.li/1.0.0/swagger.yaml', path: '/audits/metadata' },
-    { spec: 'watchful.li/1.0.0/swagger.yaml', path: '/extensions/metadata' },
-    { spec: 'watchful.li/1.0.0/swagger.yaml', path: '/feedbacks/metadata' },
-    { spec: 'microsoft.com/graph/1.0.1/openapi.yaml', path: '/admin' },
-    { spec: 'microsoft.com/graph/1.0.1/openapi.yaml', path: '/admin/serviceAnnouncement' },
-    { spec: 'microsoft.com/graph/1.0.1/openapi.yaml', path: '/appCatalogs' },
-    { spec: 'microsoft.com/cognitiveservices-Training/2.0/openapi.yaml', path: '/domains' },
-    { spec: 'microsoft.com/cognitiveservices-Training/2.0/openapi.yaml', path: '/projects' },
-    { spec: 'microsoft.com/cognitiveservices-Training/1.2/openapi.yaml', path: '/account' },
-    { spec: 'microsoft.com/graph-beta/1.0.1/openapi.yaml', path: '/admin/edge' },
-    { spec: 'microsoft.com/graph-beta/1.0.1/openapi.yaml', path: '/admin/edge/internetExplorerMode' },
-    { spec: 'microsoft.com/graph-beta/1.0.1/openapi.yaml', path: '/admin/reportSettings' },
-    { spec: 'idtbeyond.com/1.1.7/swagger.yaml', path: '/iatu/balance' },
-    { spec: 'idtbeyond.com/1.1.7/swagger.yaml', path: '/iatu/charges/reports/all' },
-    { spec: 'idtbeyond.com/1.1.7/swagger.yaml', path: '/iatu/charges/reports/all.csv' },
-    { spec: 'mermade.org.uk/openapi-converter/1.0.0/openapi.yaml', path: '/badge' },
-    { spec: 'mermade.org.uk/openapi-converter/1.0.0/openapi.yaml', path: '/convert' },
-    { spec: 'mermade.org.uk/openapi-converter/1.0.0/openapi.yaml', path: '/status' },
-    { spec: '1forge.com/0.0.1/swagger.yaml', path: '/quotes' },
-    { spec: '1forge.com/0.0.1/swagger.yaml', path: '/symbols' },
-    { spec: 'shutterstock.com/1.1.32/openapi.yaml', path: '/v2/oauth/authorize' },
-    { spec: 'shutterstock.com/1.1.32/openapi.yaml', path: '/v2/test' },
-    { spec: 'medium.com/1.0/openapi.yaml', path: '/' },
-    { spec: 'braze.com/1.0.0/openapi.yaml', path: '/campaigns/data_series' },
-    { spec: 'braze.com/1.0.0/openapi.yaml', path: '/campaigns/details' },
-    { spec: 'braze.com/1.0.0/openapi.yaml', path: '/campaigns/list' },
-    { spec: 'linode.com/4.151.1/openapi.yaml', path: '/databases/engines' },
-    { spec: 'linode.com/4.151.1/openapi.yaml', path: '/databases/types' },
-    { spec: 'linode.com/4.151.1/openapi.yaml', path: '/linode/kernels' },
-    { spec: 'agco-ats.com/v1/openapi.yaml', path: '/api/v2/AftermarketServices/Certificates' },
-    { spec: 'agco-ats.com/v1/openapi.yaml', path: '/api/v2/AftermarketServices/Hello' },
-    { spec: 'agco-ats.com/v1/openapi.yaml', path: '/api/v2/Authentication/IsAlive' },
-    { spec: 'tcgdex.net/2.0.0/openapi.yaml', path: '/cards' },
-    { spec: 'tcgdex.net/2.0.0/openapi.yaml', path: '/categories' },
-    { spec: 'tcgdex.net/2.0.0/openapi.yaml', path: '/dex-ids' },
-    { spec: 'hetzner.cloud/1.0.0/openapi.yaml', path: '/pricing' },
-    { spec: 'twitter.com/current/2.62/openapi.yaml', path: '/2/openapi.json' },
-    { spec: 'twitter.com/legacy/1.1/swagger.yaml', path: '/friendships/lookup.json' },
-    { spec: 'twitter.com/legacy/1.1/swagger.yaml', path: '/help/configuration.json' },
-    { spec: 'twitter.com/legacy/1.1/swagger.yaml', path: '/help/languages.json' },
-    { spec: 'apache.org/qakka/v1/openapi.yaml', path: '/queues' },
-    { spec: 'apache.org/qakka/v1/openapi.yaml', path: '/status' },
-    { spec: 'hetras-certification.net/hotel/v0/swagger.yaml', path: '/api/hotel/v0/hotels' },
-    { spec: 'amadeus.com/amadeus-location-score/1.0.2/openapi.yaml', path: '/location/analytics/category-rated-areas' },
-    { spec: 'amadeus.com/amadeus-flight-price-analysis/1.0.1/openapi.yaml', path: '/analytics/itinerary-price-metrics' },
-    { spec: 'uebermaps.com/2.0/swagger.yaml', path: '/collaborator_invitations' },
-    { spec: 'uebermaps.com/2.0/swagger.yaml', path: '/maps' },
-    { spec: 'uebermaps.com/2.0/swagger.yaml', path: '/respot_maps' },
-    { spec: 'apacta.com/0.0.42/openapi.yaml', path: '/activities' },
-    { spec: 'apacta.com/0.0.42/openapi.yaml', path: '/integrations' },
-    { spec: 'apacta.com/0.0.42/openapi.yaml', path: '/integrations/contactsSync' },
-    { spec: 'vtex.local/Policies-System-API/1.0.0/openapi.yaml', path: '/api/policy-engine/policies' },
-    { spec: 'vtex.local/Intelligent-Search-API/0.1.12/openapi.yaml', path: '/top_searches' },
-    { spec: 'vtex.local/Price-Simulations/1.0/openapi.yaml', path: '/_v/custom-prices/session/schema' },
-    { spec: 'vtex.local/Session-Manager-API/1.0/openapi.yaml', path: '/segments' },
-    { spec: 'vtex.local/Session-Manager-API/1.0/openapi.yaml', path: '/sessions' },
-    { spec: 'cpy.re/peertube/5.1.0/openapi.yaml', path: '/api/v1/config' },
-    { spec: 'cpy.re/peertube/5.1.0/openapi.yaml', path: '/api/v1/config/about' },
-    { spec: 'cpy.re/peertube/5.1.0/openapi.yaml', path: '/api/v1/custom-pages/homepage/instance' },
-    { spec: 'ideaconsult.net/nanoreg/4.0.0/openapi.yaml', path: '/select' },
-    { spec: 'tisane.ai/1.0.0/openapi.yaml', path: '/hypernyms' },
-    { spec: 'tisane.ai/1.0.0/openapi.yaml', path: '/hyponyms' },
-    { spec: 'tisane.ai/1.0.0/openapi.yaml', path: '/inflections' },
-    { spec: 'o2.cz/mobility/1.2.0/swagger.yaml', path: '/info' },
-    { spec: 'hubapi.com/crm/v3/openapi.yaml', path: '/sample-response' },
-    { spec: 'hubapi.com/communication-preferences/v3/openapi.yaml', path: '/communication-preferences/v3/definitions' },
-    { spec: 'slideroom.com/v2/swagger.yaml', path: '/api/v2/applicant/attributes/names' },
-    { spec: 'slideroom.com/v2/swagger.yaml', path: '/api/v2/application/attributes/names' },
-    { spec: 'presalytics.io/ooxml/0.1.0/openapi.yaml', path: '/Charts/AxisDataTypes' },
-    { spec: 'presalytics.io/ooxml/0.1.0/openapi.yaml', path: '/Charts/PlotType' },
-    { spec: 'presalytics.io/ooxml/0.1.0/openapi.yaml', path: '/Charts/RowCol' },
-    { spec: 'atlassian.com/jira/1001.0.0-SNAPSHOT/openapi.yaml', path: '/rest/atlassian-connect/1/app/module/dynamic' },
-    { spec: 'dnd5eapi.co/0.1/openapi.yaml', path: '/api' },
-    { spec: 'evemarketer.com/1.0.1/swagger.yaml', path: '/marketstat/json' },
-    { spec: 'bigredcloud.com/v1/openapi.yaml', path: '/v1/accounts' },
-    { spec: 'bigredcloud.com/v1/openapi.yaml', path: '/v1/analysisCategories' },
-    { spec: 'bigredcloud.com/v1/openapi.yaml', path: '/v1/bankAccounts' },
-    { spec: 'visualcrossing.com/weather/4.6/openapi.yaml', path: '/VisualCrossingWebServices/rest/services/weatherdata/forecast' },
-    { spec: 'visualcrossing.com/weather/4.6/openapi.yaml', path: '/VisualCrossingWebServices/rest/services/weatherdata/history' },
-    { spec: 'clearblade.com/3.0/swagger.yaml', path: '/admin/database/status' },
-    { spec: 'clearblade.com/3.0/swagger.yaml', path: '/api/about' },
-    { spec: 'tfl.gov.uk/v1/openapi.yaml', path: '/AirQuality' },
-    { spec: 'tfl.gov.uk/v1/openapi.yaml', path: '/BikePoint' },
-    { spec: 'tfl.gov.uk/v1/openapi.yaml', path: '/Journey/Meta/Modes' },
-    { spec: 'clever-cloud.com/1.0.0/openapi.yaml', path: '//openapi' },
-    { spec: 'clever-cloud.com/1.0.0/openapi.yaml', path: '/events/event-socket' },
-    { spec: 'clever-cloud.com/1.0.0/openapi.yaml', path: '/github' },
-    { spec: 'opentrials.local/0.0.1/swagger.yaml', path: '/document_categories' },
-    { spec: 'opentrials.local/0.0.1/swagger.yaml', path: '/documents' },
-    { spec: 'opentrials.local/0.0.1/swagger.yaml', path: '/fda_applications' },
-    { spec: 'github.com/api.github.com/1.1.4/openapi.yaml', path: '/' },
-    { spec: 'github.com/api.github.com/1.1.4/openapi.yaml', path: '/app' },
-    { spec: 'github.com/api.github.com/1.1.4/openapi.yaml', path: '/app/hook/config' },
-    { spec: 'github.com/ghes-3.5/1.1.4/openapi.yaml', path: '/' },
-    { spec: 'github.com/ghes-3.5/1.1.4/openapi.yaml', path: '/admin/hooks' },
-    { spec: 'github.com/ghes-3.5/1.1.4/openapi.yaml', path: '/admin/pre-receive-environments' },
-    { spec: 'github.com/ghec/1.1.4/openapi.yaml', path: '/app' },
-    { spec: 'github.com/ghec/1.1.4/openapi.yaml', path: '/app/hook/config' },
-    { spec: 'github.com/ghec/1.1.4/openapi.yaml', path: '/codes_of_conduct' },
-    { spec: 'github.com/api.github.com.2022-11-28/1.1.4/openapi.yaml', path: '/emojis' },
-    { spec: 'github.com/api.github.com.2022-11-28/1.1.4/openapi.yaml', path: '/events' },
-    { spec: 'github.com/api.github.com.2022-11-28/1.1.4/openapi.yaml', path: '/feeds' },
-    { spec: 'github.com/github.ae/1.1.4/openapi.yaml', path: '/enterprise/announcement' },
-    { spec: 'github.com/github.ae/1.1.4/openapi.yaml', path: '/enterprise/settings/license' },
-    { spec: 'github.com/github.ae/1.1.4/openapi.yaml', path: '/enterprise/stats/all' },
-    { spec: 'github.com/ghes-3.8/1.1.4/openapi.yaml', path: '/admin/pre-receive-hooks' },
-    { spec: 'github.com/ghes-3.8/1.1.4/openapi.yaml', path: '/enterprise/stats/comments' },
-    { spec: 'github.com/ghes-3.8/1.1.4/openapi.yaml', path: '/enterprise/stats/gists' },
-    { spec: 'github.com/ghes-3.4/1.1.4/openapi.yaml', path: '/enterprise/stats/hooks' },
-    { spec: 'github.com/ghes-3.4/1.1.4/openapi.yaml', path: '/enterprise/stats/issues' },
-    { spec: 'github.com/ghes-3.4/1.1.4/openapi.yaml', path: '/enterprise/stats/milestones' },
-    { spec: 'github.com/ghes-3.7/1.1.4/openapi.yaml', path: '/enterprise/stats/orgs' },
-    { spec: 'github.com/ghes-3.7/1.1.4/openapi.yaml', path: '/enterprise/stats/pages' },
-    { spec: 'github.com/ghes-3.7/1.1.4/openapi.yaml', path: '/enterprise/stats/pulls' },
-    { spec: 'github.com/ghes-3.2/1.1.4/openapi.yaml', path: '/enterprise/stats/repos' },
-    { spec: 'github.com/ghes-3.2/1.1.4/openapi.yaml', path: '/enterprise/stats/users' },
-    { spec: 'github.com/ghes-3.2/1.1.4/openapi.yaml', path: '/gitignore/templates' },
-    { spec: 'github.com/ghes-3.6/1.1.4/openapi.yaml', path: '/installation/repositories' },
-    { spec: 'github.com/ghes-3.6/1.1.4/openapi.yaml', path: '/meta' },
-    { spec: 'github.com/ghes-3.6/1.1.4/openapi.yaml', path: '/rate_limit' },
-    { spec: 'github.com/ghes-3.3/1.1.4/openapi.yaml', path: '/user' },
-    { spec: 'github.com/ghes-3.3/1.1.4/openapi.yaml', path: '/user/emails' },
-    { spec: 'github.com/ghes-3.3/1.1.4/openapi.yaml', path: '/user/followers' },
-    { spec: 'github.com/ghec.2022-11-28/1.1.4/openapi.yaml', path: '/marketplace_listing/plans' },
-    { spec: 'github.com/ghec.2022-11-28/1.1.4/openapi.yaml', path: '/marketplace_listing/stubbed/plans' },
-    { spec: 'github.com/ghec.2022-11-28/1.1.4/openapi.yaml', path: '/user/blocks' },
-    { spec: 'mozilla.com/kinto/1.22/openapi.yaml', path: '/' },
-    { spec: 'mozilla.com/kinto/1.22/openapi.yaml', path: '/__api__' },
-    { spec: 'mozilla.com/kinto/1.22/openapi.yaml', path: '/__heartbeat__' },
-    { spec: 'notion.com/1.0.0/openapi.yaml', path: '/v1/comments' },
-    { spec: 'gov.bc.ca/bcgnws/3.x.x/openapi.yaml', path: '/featureCategories' },
-    { spec: 'gov.bc.ca/bcgnws/3.x.x/openapi.yaml', path: '/featureClasses' },
-    { spec: 'gov.bc.ca/bcgnws/3.x.x/openapi.yaml', path: '/featureTypes' },
-    { spec: 'gov.bc.ca/jobposting/1.0.0/openapi.yaml', path: '/Industries' },
-    { spec: 'gov.bc.ca/jobposting/1.0.0/openapi.yaml', path: '/jobTypes' },
-    { spec: 'gov.bc.ca/jobposting/1.0.0/openapi.yaml', path: '/majorProjects' },
-    { spec: 'gov.bc.ca/news/1.0/openapi.yaml', path: '/api/Home' },
-    { spec: 'gov.bc.ca/news/1.0/openapi.yaml', path: '/api/Ministries' },
-    { spec: 'gov.bc.ca/news/1.0/openapi.yaml', path: '/api/Newsletters' },
-    { spec: 'docker.com/hub/beta/openapi.yaml', path: '/v2/scim/2.0/ResourceTypes' },
-    { spec: 'docker.com/hub/beta/openapi.yaml', path: '/v2/scim/2.0/Schemas' },
-    { spec: 'docker.com/hub/beta/openapi.yaml', path: '/v2/scim/2.0/ServiceProviderConfig' },
-    { spec: 'just-eat.co.uk/1.0.0/openapi.yaml', path: '/delivery/pools' },
-    { spec: 'smart-me.com/v1/openapi.yaml', path: '/api/Account/login' },
-    { spec: 'smart-me.com/v1/openapi.yaml', path: '/api/CustomDevice' },
-    { spec: 'smart-me.com/v1/openapi.yaml', path: '/api/Devices' },
-    { spec: 'telematicssdk.com/1.0.0/openapi.yaml', path: '/statistics/v1/Scorings/individual/' },
-    { spec: 'telematicssdk.com/1.0.0/openapi.yaml', path: '/statistics/v1/Statistics/individual/' },
-    { spec: 'telematicssdk.com/1.0.0/openapi.yaml', path: '/statistics/v1/Statistics/individual/daily/' },
-    { spec: 'corrently.io/2.0.0/openapi.yaml', path: '/alternative/ocpp/lastSessions' },
-    { spec: 'corrently.io/2.0.0/openapi.yaml', path: '/alternative/openmeter/activities' },
-    { spec: 'corrently.io/2.0.0/openapi.yaml', path: '/alternative/openmeter/meters' },
-    { spec: 'naviplancentral.com/plan/v1/swagger.yaml', path: '/api/Advisors' },
-    { spec: 'naviplancentral.com/plan/v1/swagger.yaml', path: '/api/Password/PasswordRequirements' },
-    { spec: 'naviplancentral.com/plan/v1/swagger.yaml', path: '/api/ServiceInformation/Statistics' },
-    { spec: 'naviplancentral.com/factfinder/v1/swagger.yaml', path: '/api/AccountTypes' },
-    { spec: 'naviplancentral.com/factfinder/v1/swagger.yaml', path: '/api/CriticalIllnessInsurancePolicyTypes' },
-    { spec: 'naviplancentral.com/factfinder/v1/swagger.yaml', path: '/api/DisabilityInsurancePolicyTypes' },
-    { spec: 'trakt.tv/1.0.0/openapi.yaml', path: '/oauth/authorize' },
-    { spec: 'poemist.com/1.0/swagger.yaml', path: '/randompoems' },
-    { spec: 'jokes.one/1.1/swagger.yaml', path: '/joke/list' },
-    { spec: 'jokes.one/1.1/swagger.yaml', path: '/joke/random' },
-    { spec: 'clicksend.com/1.0.0/openapi.yaml', path: '/account' },
-    { spec: 'clicksend.com/1.0.0/openapi.yaml', path: '/automations/email/receipt' },
-    { spec: 'clicksend.com/1.0.0/openapi.yaml', path: '/automations/fax/inbound' },
-    { spec: 'carbone.io/1.2.0/openapi.yaml', path: '/status' },
-    { spec: 'exhibitday.com/v1/swagger.yaml', path: '/api/docs/Swagger' },
-    { spec: 'evetech.net/0.8.6/swagger.yaml', path: '/alliances/' },
-    { spec: 'evetech.net/0.8.6/swagger.yaml', path: '/corporations/npccorps/' },
-    { spec: 'evetech.net/0.8.6/swagger.yaml', path: '/dogma/attributes/' },
-    { spec: 'vonage.com/vgis/1.0.1/openapi.yaml', path: '/self' },
-    { spec: 'vonage.com/vgis/1.0.1/openapi.yaml', path: '/self/account' },
-    { spec: 'vonage.com/vgis/1.0.1/openapi.yaml', path: '/self/webhooks' },
-    { spec: 'canada-holidays.ca/1.8.0/openapi.yaml', path: '/api/v1' },
-    { spec: 'canada-holidays.ca/1.8.0/openapi.yaml', path: '/api/v1/holidays' },
-    { spec: 'canada-holidays.ca/1.8.0/openapi.yaml', path: '/api/v1/provinces' },
-    { spec: 'bungie.net/2.18.0/openapi.yaml', path: '/App/FirstParty/' },
-    { spec: 'bungie.net/2.18.0/openapi.yaml', path: '/Destiny2/Clan/ClanBannerDictionary/' },
-    { spec: 'bungie.net/2.18.0/openapi.yaml', path: '/Destiny2/Manifest/' },
-    { spec: 'epa.gov/dfr/0.0.0/swagger.yaml', path: '/dfr_rest_services.air_3_yr_download' },
-    { spec: 'epa.gov/dfr/0.0.0/swagger.yaml', path: '/dfr_rest_services.cwa_3_yr_effluent_download' },
-    { spec: 'epa.gov/dfr/0.0.0/swagger.yaml', path: '/dfr_rest_services.cwa_3_yr_sepscs_download' },
-    { spec: 'getpostman.com/1.20.0/openapi.yaml', path: '/apis' },
-    { spec: 'getpostman.com/1.20.0/openapi.yaml', path: '/collections' },
-    { spec: 'getpostman.com/1.20.0/openapi.yaml', path: '/environments' },
-    { spec: 'swagger.io/generator/2.4.31/swagger.yaml', path: '/gen/clients' },
-    { spec: 'swagger.io/generator/2.4.31/swagger.yaml', path: '/gen/servers' },
-    { spec: 'apidapp.com/2019-02-14T164701Z/openapi.yaml', path: '/erc20' },
-    { spec: 'apidapp.com/2019-02-14T164701Z/openapi.yaml', path: '/version' },
-    { spec: 'apidapp.com/2019-02-14T164701Z/openapi.yaml', path: '/wallet' },
-    { spec: 'wikimedia.org/1.0.0/swagger.yaml', path: '/feed/availability' },
-    { spec: 'wikimedia.org/1.0.0/swagger.yaml', path: '/transform/list/languagepairs/' },
-    { spec: 'appcenter.ms/v0.1/openapi.yaml', path: '/v0.1/public/codepush/status' },
-    { spec: 'wealthreader.com/1.0.0/openapi.yaml', path: '/entities' },
-    { spec: 'wealthreader.com/1.0.0/openapi.yaml', path: '/error-codes' },
-    { spec: 'balldontlie.io/1.0.0/openapi.yaml', path: '/api/v1/games' },
-    { spec: 'balldontlie.io/1.0.0/openapi.yaml', path: '/api/v1/games/32881' },
-    { spec: 'balldontlie.io/1.0.0/openapi.yaml', path: '/api/v1/players' },
-    { spec: 'magento.com/2.2.10/openapi.yaml', path: '/V1/analytics/link' },
-    { spec: 'magento.com/2.2.10/openapi.yaml', path: '/V1/attributeMetadata/customer' },
-    { spec: 'magento.com/2.2.10/openapi.yaml', path: '/V1/attributeMetadata/customerAddress' },
-    { spec: 'payrun.io/23.24.2.136/openapi.yaml', path: '/Healthcheck' },
-    { spec: 'beezup.com/2.0/openapi.yaml', path: '/v2/public/channels/' },
-    { spec: 'beezup.com/2.0/openapi.yaml', path: '/v2/public/lov/' },
-    { spec: 'beezup.com/2.0/openapi.yaml', path: '/v2/user/analytics/' },
-    { spec: 'journy.io/1.0.0/openapi.yaml', path: '/events' },
-    { spec: 'journy.io/1.0.0/openapi.yaml', path: '/properties/accounts' },
-    { spec: 'journy.io/1.0.0/openapi.yaml', path: '/properties/users' },
-    { spec: 'oxforddictionaries.com/1.11.0/openapi.yaml', path: '/filters' },
-    { spec: 'oxforddictionaries.com/1.11.0/openapi.yaml', path: '/languages' },
-    { spec: 'appwrite.io/server/0.9.3/openapi.yaml', path: '/account' },
-    { spec: 'appwrite.io/server/0.9.3/openapi.yaml', path: '/account/logs' },
-    { spec: 'appwrite.io/server/0.9.3/openapi.yaml', path: '/account/prefs' },
-    { spec: 'appwrite.io/client/0.9.3/openapi.yaml', path: '/account/sessions' },
-    { spec: 'appwrite.io/client/0.9.3/openapi.yaml', path: '/locale' },
-    { spec: 'appwrite.io/client/0.9.3/openapi.yaml', path: '/locale/continents' },
-    { spec: 'bluemix.net/containers/3.0.0/openapi.yaml', path: '/containers/version' },
-    { spec: 'oceandrivers.com/1.0/openapi.yaml', path: '/v1.0/getWebCams/' },
-    { spec: 'patientview.org/1.0/openapi.yaml', path: '/patientmanagement/diagnoses' },
-    { spec: 'patientview.org/1.0/openapi.yaml', path: '/patientmanagement/lookuptypes' },
-    { spec: 'visma.com/1.0/openapi.yaml', path: '/heartbeat/database' },
-    { spec: 'visma.com/1.0/openapi.yaml', path: '/heartbeat/server' },
-    { spec: 'digitallocker.gov.in/authpartner/1.0.0/openapi.yaml', path: '/oauth2/2/files/issued' },
-    { spec: 'twilio.com/api/1.55.0/openapi.yaml', path: '/healthcheck' },
-    { spec: 'wellknown.ai/1.0.0/openapi.yaml', path: '/api/plugins' },
-    { spec: 'wellknown.ai/1.0.0/openapi.yaml', path: '/plugins' },
-    { spec: 'hsbc.com/atm/2.2.1/swagger.yaml', path: '/open-banking/v2.2/atms' },
-    { spec: 'hsbc.com/branches/2.2.1/swagger.yaml', path: '/open-banking/v2.2/branches' },
-    { spec: 'hsbc.com/product/2.2.1/swagger.yaml', path: '/open-banking/v2.2/business-current-accounts' },
-    { spec: 'hsbc.com/product/2.2.1/swagger.yaml', path: '/open-banking/v2.2/commercial-credit-cards' },
-    { spec: 'hsbc.com/product/2.2.1/swagger.yaml', path: '/open-banking/v2.2/personal-current-accounts' },
-    { spec: 'osisoft.com/1.11.1.5383/swagger.yaml', path: '/' },
-    { spec: 'osisoft.com/1.11.1.5383/swagger.yaml', path: '/channels/instances' },
-    { spec: 'osisoft.com/1.11.1.5383/swagger.yaml', path: '/system' },
-    { spec: 'docusign.net/v2.1/openapi.yaml', path: '/service_information' },
-    { spec: 'docusign.net/v2.1/openapi.yaml', path: '/v2.1' },
-    { spec: 'docusign.net/v2.1/openapi.yaml', path: '/v2.1/accounts/provisioning' },
-    { spec: 'here.com/tracking/2.1.192/openapi.yaml', path: '/aliases/v2/health' },
-    { spec: 'here.com/tracking/2.1.192/openapi.yaml', path: '/aliases/v2/version' },
-    { spec: 'here.com/tracking/2.1.192/openapi.yaml', path: '/associations/v3/health' },
-    { spec: 'twinehealth.com/v7.78.1/openapi.yaml', path: '/health_question_definition' },
-    { spec: 'ritekit.com/1.0.0/openapi.yaml', path: '/v1/emoji/auto-emojify' },
-    { spec: 'ritekit.com/1.0.0/openapi.yaml', path: '/v1/emoji/suggestions' },
-    { spec: 'ritekit.com/1.0.0/openapi.yaml', path: '/v1/images/animate' },
-    { spec: 'enode.io/1.3.10/openapi.yaml', path: '/health/ready' },
-    { spec: 'enode.io/1.3.10/openapi.yaml', path: '/health/vendors' },
-    { spec: 'personio.de/personnel/1.0/openapi.yaml', path: '/company/employees' },
-    { spec: 'personio.de/personnel/1.0/openapi.yaml', path: '/company/time-off-types' },
-    { spec: 'nebl.io/1.3.0/openapi.yaml', path: '/ins/sync' },
-    { spec: 'nebl.io/1.3.0/openapi.yaml', path: '/testnet/ins/sync' },
-    { spec: 'json2video.com/2.0.0/openapi.yaml', path: '/movies' },
-    { spec: 'orthanc-server.com/1.12.0/openapi.yaml', path: '/plugins' },
-    { spec: 'orthanc-server.com/1.12.0/openapi.yaml', path: '/plugins/explorer.js' },
-    { spec: 'orthanc-server.com/1.12.0/openapi.yaml', path: '/queries' },
-    { spec: 'figshare.com/2.0.0/openapi.yaml', path: '/categories' },
-    { spec: 'figshare.com/2.0.0/openapi.yaml', path: '/licenses' },
-    { spec: 'languagetool.org/1.1.2/swagger.yaml', path: '/languages' },
-    { spec: 'salesloft.com/v2/openapi.yaml', path: '/v2/me.json' },
-    { spec: 'salesloft.com/v2/openapi.yaml', path: '/v2/team.json' },
-    { spec: 'color.pizza/1.0.0/openapi.yaml', path: '/lists/' },
-    { spec: 'clubhouseapi.com/1/openapi.yaml', path: '/check_for_update' },
-    { spec: 'clubhouseapi.com/1/openapi.yaml', path: '/get_actionable_notifications' },
-    { spec: 'clubhouseapi.com/1/openapi.yaml', path: '/get_all_topics' },
-    { spec: 'parliament.uk/bills/v1/openapi.yaml', path: '/api/v1/Rss/allbills.rss' },
-    { spec: 'parliament.uk/bills/v1/openapi.yaml', path: '/api/v1/Rss/privatebills.rss' },
-    { spec: 'parliament.uk/bills/v1/openapi.yaml', path: '/api/v1/Rss/publicbills.rss' },
-    { spec: 'parliament.uk/search/Live/openapi.yaml', path: '/description' },
-    { spec: 'randomlovecraft.com/1.0/openapi.yaml', path: '/books' },
-    { spec: 'randomlovecraft.com/1.0/openapi.yaml', path: '/sentences' },
-    { spec: 'nexmo.com/media/1.0.2/openapi.yaml', path: '/' },
-    { spec: 'nexmo.com/media/1.0.2/openapi.yaml', path: '/:id/info' },
-    { spec: 'nowpayments.io/1.0.0/openapi.yaml', path: '/v1/sub-partner' },
-    { spec: 'nowpayments.io/1.0.0/openapi.yaml', path: '/v1/sub-partner/transfers' },
-    { spec: 'osf.io/2.0/openapi.yaml', path: '/' },
-    { spec: 'osf.io/2.0/openapi.yaml', path: '/actions/' },
-    { spec: 'osf.io/2.0/openapi.yaml', path: '/addons/' },
-    { spec: 'rapidapi.com/ecowetter/1.0.0/openapi.yaml', path: '/public/history' },
-    { spec: 'bunq.com/1.0/openapi.yaml', path: '/device' },
-    { spec: 'bunq.com/1.0/openapi.yaml', path: '/device-server' },
-    { spec: 'bunq.com/1.0/openapi.yaml', path: '/installation' },
-    { spec: 'azure.com/alertsmanagement-AlertsManagement/2019-03-01-preview/swagger.yaml', path: '/providers/Microsoft.AlertsManagement/operations' },
-    { spec: 'azure.com/alertsmanagement-AlertsManagement/2019-05-05-preview/swagger.yaml', path: '/providers/Microsoft.AlertsManagement/alertsMetaData' },
-    { spec: 'azure.com/servicefabric/5.6/swagger.yaml', path: '/$/GetAadMetadata' },
-    { spec: 'azure.com/dynamicstelemetry/2019-01-24/swagger.yaml', path: '/providers/Microsoft.DynamicsTelemetry/operations' },
-    { spec: 'azure.com/attestation/2018-09-01-preview/swagger.yaml', path: '/.well-known/openid-configuration' },
-    { spec: 'azure.com/attestation/2018-09-01-preview/swagger.yaml', path: '/certs' },
-    { spec: 'azure.com/attestation/2018-09-01-preview/swagger.yaml', path: '/operations/policy/current' },
-    { spec: 'azure.com/iotcentral/preview/swagger.yaml', path: '/continuousDataExports' },
-    { spec: 'azure.com/iotcentral/preview/swagger.yaml', path: '/deviceTemplates' },
-    { spec: 'azure.com/iotcentral/preview/swagger.yaml', path: '/devices' },
-    { spec: 'openalpr.com/3.0.1/swagger.yaml', path: '/config' },
-    { spec: 'snyk.io/1.0.0/openapi.yaml', path: '/orgs' },
-    { spec: 'snyk.io/1.0.0/openapi.yaml', path: '/user/me' },
-    { spec: 'zalando.com/v1.0/swagger.yaml', path: '/domains' },
-    { spec: 'openlinksw.com/osdb/1.0.0/openapi.yaml', path: '/api/v1/login' },
-    { spec: 'openlinksw.com/osdb/1.0.0/openapi.yaml', path: '/api/v1/logout' },
-    { spec: 'openlinksw.com/osdb/1.0.0/openapi.yaml', path: '/api/v1/services' },
-    { spec: 'gsa.gov/0.1/swagger.yaml', path: '/api/metadata/' },
-    { spec: 'gsa.gov/0.1/swagger.yaml', path: '/api/naics/' }
+const CORPUS_SPECS = [
+    '1forge.com/0.0.1/swagger.yaml',
+    'agco-ats.com/v1/openapi.yaml',
+    'amadeus.com/amadeus-flight-price-analysis/1.0.1/openapi.yaml',
+    'amadeus.com/amadeus-location-score/1.0.2/openapi.yaml',
+    'apache.org/qakka/v1/openapi.yaml',
+    'apacta.com/0.0.42/openapi.yaml',
+    'apidapp.com/2019-02-14T164701Z/openapi.yaml',
+    'apis.guru/2.2.0/openapi.yaml',
+    'appcenter.ms/v0.1/openapi.yaml',
+    'apple.com/sirikit-cloud-media/1.0.2/openapi.yaml',
+    'appwrite.io/client/0.9.3/openapi.yaml',
+    'appwrite.io/server/0.9.3/openapi.yaml',
+    'asuarez.dev/searchly/1.0/openapi.yaml',
+    'atlassian.com/jira/1001.0.0-SNAPSHOT/openapi.yaml',
+    'avaza.com/v1/swagger.yaml',
+    'aviationdata.systems/v1/swagger.yaml',
+    'azure.com/alertsmanagement-AlertsManagement/2019-03-01-preview/swagger.yaml',
+    'azure.com/alertsmanagement-AlertsManagement/2019-05-05-preview/swagger.yaml',
+    'azure.com/attestation/2018-09-01-preview/swagger.yaml',
+    'azure.com/dynamicstelemetry/2019-01-24/swagger.yaml',
+    'azure.com/iotcentral/preview/swagger.yaml',
+    'azure.com/servicefabric/5.6/swagger.yaml',
+    'balldontlie.io/1.0.0/openapi.yaml',
+    'beezup.com/2.0/openapi.yaml',
+    'bigdatacloud.net/1.0.0/openapi.yaml',
+    'bigoven.com/partner/openapi.yaml',
+    'bigredcloud.com/v1/openapi.yaml',
+    'billbee.io/v1/openapi.yaml',
+    'bluemix.net/containers/3.0.0/openapi.yaml',
+    'braze.com/1.0.0/openapi.yaml',
+    'brex.io/2021.12/openapi.yaml',
+    'bungie.net/2.18.0/openapi.yaml',
+    'bunq.com/1.0/openapi.yaml',
+    'canada-holidays.ca/1.8.0/openapi.yaml',
+    'carbone.io/1.2.0/openapi.yaml',
+    'chaingateway.io/1.0.0/openapi.yaml',
+    'clearblade.com/3.0/swagger.yaml',
+    'clever-cloud.com/1.0.0/openapi.yaml',
+    'clicksend.com/1.0.0/openapi.yaml',
+    'clickup.com/1.0.0/openapi.yaml',
+    'clubhouseapi.com/1/openapi.yaml',
+    'color.pizza/1.0.0/openapi.yaml',
+    'consumerfinance.gov/1.0/swagger.yaml',
+    'contribly.com/1.0.0/openapi.yaml',
+    'corrently.io/2.0.0/openapi.yaml',
+    'cpy.re/peertube/5.1.0/openapi.yaml',
+    'data2crm.com/1/swagger.yaml',
+    'deutschebahn.com/flinkster/v1/swagger.yaml',
+    'digitallocker.gov.in/authpartner/1.0.0/openapi.yaml',
+    'dnd5eapi.co/0.1/openapi.yaml',
+    'docker.com/hub/beta/openapi.yaml',
+    'docusign.net/v2.1/openapi.yaml',
+    'enode.io/1.3.10/openapi.yaml',
+    'epa.gov/dfr/0.0.0/swagger.yaml',
+    'evemarketer.com/1.0.1/swagger.yaml',
+    'evetech.net/0.8.6/swagger.yaml',
+    'exhibitday.com/v1/swagger.yaml',
+    'figshare.com/2.0.0/openapi.yaml',
+    'getpostman.com/1.20.0/openapi.yaml',
+    'github.com/api.github.com.2022-11-28/1.1.4/openapi.yaml',
+    'github.com/api.github.com/1.1.4/openapi.yaml',
+    'github.com/ghec.2022-11-28/1.1.4/openapi.yaml',
+    'github.com/ghec/1.1.4/openapi.yaml',
+    'github.com/ghes-3.2/1.1.4/openapi.yaml',
+    'github.com/ghes-3.3/1.1.4/openapi.yaml',
+    'github.com/ghes-3.4/1.1.4/openapi.yaml',
+    'github.com/ghes-3.5/1.1.4/openapi.yaml',
+    'github.com/ghes-3.6/1.1.4/openapi.yaml',
+    'github.com/ghes-3.7/1.1.4/openapi.yaml',
+    'github.com/ghes-3.8/1.1.4/openapi.yaml',
+    'github.com/github.ae/1.1.4/openapi.yaml',
+    'gov.bc.ca/bcgnws/3.x.x/openapi.yaml',
+    'gov.bc.ca/jobposting/1.0.0/openapi.yaml',
+    'gov.bc.ca/news/1.0/openapi.yaml',
+    'greip.io/1.0.0/openapi.yaml',
+    'groundhog-day.com/1.2.1/openapi.yaml',
+    'gsa.gov/0.1/swagger.yaml',
+    'handwrytten.com/1.0.0/swagger.yaml',
+    'here.com/tracking/2.1.192/openapi.yaml',
+    'hetras-certification.net/hotel/v0/swagger.yaml',
+    'hetzner.cloud/1.0.0/openapi.yaml',
+    'hsbc.com/atm/2.2.1/swagger.yaml',
+    'hsbc.com/branches/2.2.1/swagger.yaml',
+    'hsbc.com/product/2.2.1/swagger.yaml',
+    'httpbin.org/0.9.2/openapi.yaml',
+    'hubapi.com/communication-preferences/v3/openapi.yaml',
+    'hubapi.com/crm/v3/openapi.yaml',
+    'ideaconsult.net/nanoreg/4.0.0/openapi.yaml',
+    'idtbeyond.com/1.1.7/swagger.yaml',
+    'jokes.one/1.1/swagger.yaml',
+    'journy.io/1.0.0/openapi.yaml',
+    'json2video.com/2.0.0/openapi.yaml',
+    'just-eat.co.uk/1.0.0/openapi.yaml',
+    'languagetool.org/1.1.2/swagger.yaml',
+    'lgtm.com/v1.0/openapi.yaml',
+    'linode.com/4.151.1/openapi.yaml',
+    'magento.com/2.2.10/openapi.yaml',
+    'mastercard.com/BINTableResource/1.0/swagger.yaml',
+    'mastercard.com/CurrencyConversionCalculator/1.0.0/swagger.yaml',
+    'mastercard.com/Locations/1.0.0/swagger.yaml',
+    'mastercard.com/MDES/2.0.7/swagger.yaml',
+    'medium.com/1.0/openapi.yaml',
+    'mermade.org.uk/openapi-converter/1.0.0/openapi.yaml',
+    'metadapi.com/1.0/openapi.yaml',
+    'microsoft.com/cognitiveservices-Training/1.2/openapi.yaml',
+    'microsoft.com/cognitiveservices-Training/2.0/openapi.yaml',
+    'microsoft.com/graph-beta/1.0.1/openapi.yaml',
+    'microsoft.com/graph/1.0.1/openapi.yaml',
+    'mozilla.com/kinto/1.22/openapi.yaml',
+    'naviplancentral.com/factfinder/v1/swagger.yaml',
+    'naviplancentral.com/plan/v1/swagger.yaml',
+    'ndhm.gov.in/ndhm-hip/0.5/openapi.yaml',
+    'ndhm.gov.in/ndhm-hiu/0.5/openapi.yaml',
+    'nebl.io/1.3.0/openapi.yaml',
+    'nexmo.com/media/1.0.2/openapi.yaml',
+    'notion.com/1.0.0/openapi.yaml',
+    'nowpayments.io/1.0.0/openapi.yaml',
+    'o2.cz/mobility/1.2.0/swagger.yaml',
+    'oceandrivers.com/1.0/openapi.yaml',
+    'openai.com/1.2.0/openapi.yaml',
+    'openalpr.com/3.0.1/swagger.yaml',
+    'openbanking.org.uk/v1.3/openapi.yaml',
+    'openlinksw.com/osdb/1.0.0/openapi.yaml',
+    'opentrials.local/0.0.1/swagger.yaml',
+    'orthanc-server.com/1.12.0/openapi.yaml',
+    'osf.io/2.0/openapi.yaml',
+    'osisoft.com/1.11.1.5383/swagger.yaml',
+    'oxforddictionaries.com/1.11.0/openapi.yaml',
+    'parliament.uk/bills/v1/openapi.yaml',
+    'parliament.uk/search/Live/openapi.yaml',
+    'patientview.org/1.0/openapi.yaml',
+    'payrun.io/23.24.2.136/openapi.yaml',
+    'personio.de/personnel/1.0/openapi.yaml',
+    'poemist.com/1.0/swagger.yaml',
+    'presalytics.io/ooxml/0.1.0/openapi.yaml',
+    'quarantine.country/1.0/swagger.yaml',
+    'randomlovecraft.com/1.0/openapi.yaml',
+    'rapidapi.com/ecowetter/1.0.0/openapi.yaml',
+    'rbaskets.in/1.0.0/swagger.yaml',
+    'reverb.com/3.0/openapi.yaml',
+    'ritekit.com/1.0.0/openapi.yaml',
+    'rumble.run/2.15.0/openapi.yaml',
+    'salesloft.com/v2/openapi.yaml',
+    'sheetlabs.com/rig-veda/1.2/swagger.yaml',
+    'shutterstock.com/1.1.32/openapi.yaml',
+    'sinao.app/1.1.0/openapi.yaml',
+    'slideroom.com/v2/swagger.yaml',
+    'smart-me.com/v1/openapi.yaml',
+    'snyk.io/1.0.0/openapi.yaml',
+    'swagger.io/generator/2.4.31/swagger.yaml',
+    'taxamo.com/1/swagger.yaml',
+    'tcgdex.net/2.0.0/openapi.yaml',
+    'telematicssdk.com/1.0.0/openapi.yaml',
+    'tfl.gov.uk/v1/openapi.yaml',
+    'thebluealliance.com/3.8.2/openapi.yaml',
+    'tisane.ai/1.0.0/openapi.yaml',
+    'trakt.tv/1.0.0/openapi.yaml',
+    'truanon.com/1.0.0/openapi.yaml',
+    'twilio.com/api/1.55.0/openapi.yaml',
+    'twinehealth.com/v7.78.1/openapi.yaml',
+    'twitter.com/current/2.62/openapi.yaml',
+    'twitter.com/legacy/1.1/swagger.yaml',
+    'uebermaps.com/2.0/swagger.yaml',
+    'visma.com/1.0/openapi.yaml',
+    'visualcrossing.com/weather/4.6/openapi.yaml',
+    'vonage.com/vgis/1.0.1/openapi.yaml',
+    'vtex.local/Intelligent-Search-API/0.1.12/openapi.yaml',
+    'vtex.local/Policies-System-API/1.0.0/openapi.yaml',
+    'vtex.local/Price-Simulations/1.0/openapi.yaml',
+    'vtex.local/Session-Manager-API/1.0/openapi.yaml',
+    'watchful.li/1.0.0/swagger.yaml',
+    'wealthreader.com/1.0.0/openapi.yaml',
+    'wellknown.ai/1.0.0/openapi.yaml',
+    'wikimedia.org/1.0.0/swagger.yaml',
+    'wikipathways.org/1.0/openapi.yaml',
+    'zalando.com/v1.0/swagger.yaml',
+    'zapier.com/nla/1.0.0/openapi.yaml',
+    'zoomconnect.com/1/swagger.yaml',
+    'zuora.com/2021-08-20/openapi.yaml'
 ];
 
 const CORPUS_BASE =
@@ -878,90 +670,122 @@ async function main() {
     }
 
     if (process.env.LIVE_CORPUS) {
-        for (const entry of CORPUS_CASES) {
-            const label = 'corpus ' + entry.spec + ' GET ' + entry.path;
+        const probeWithCurl = url => new Promise(resolve => {
+            execFile('curl', ['-sS', '-o', '/dev/null', '-w', '%{http_code}',
+                '--max-time', '10', '-X', 'GET', url],
+            { timeout: 15000 }, (err, stdout) => {
+                const code = parseInt(String(stdout).trim(), 10);
+                resolve(Number.isFinite(code) && code > 0 ? code : null);
+            });
+        });
+
+        for (const spec of CORPUS_SPECS) {
             let doc;
             try {
-                doc = flowgen.parseDocument(await download(CORPUS_BASE + entry.spec, 5));
+                doc = flowgen.parseDocument(await download(CORPUS_BASE + spec, 5));
             } catch (err) {
-                note('notice', label + ' -> spec unavailable: ' + err.message);
+                note('notice', 'corpus ' + spec + ' -> spec unavailable: ' + err.message);
                 continue;
             }
-            let nodes;
+
+            let operations;
             try {
-                nodes = flowgen.buildFlow(doc, 'get', entry.path);
+                operations = flowgen.listOperations(doc).operations;
             } catch (err) {
                 failures++;
-                note('error', label + ' -> generation failed: ' + err.message);
+                note('error', 'corpus ' + spec + ' -> could not be listed: ' + err.message);
                 continue;
             }
-            ran++;
+            if (!operations.length) { continue; }
 
-            const source = nodes.find(n => n.type === 'function').func;
-            try {
-                new Function(source);
-            } catch (err) {
-                failures++;
-                note('error', label + ' -> generated invalid JavaScript: ' + err.message);
-                continue;
+            const prepared = [];
+            let generationFailed = false;
+            for (const op of operations) {
+                let nodes;
+                try {
+                    nodes = flowgen.buildFlow(doc, op.method, op.path);
+                } catch (err) {
+                    failures++;
+                    generationFailed = true;
+                    note('error', 'corpus ' + spec + ' ' + op.method + ' ' + op.path +
+                        ' -> generation failed: ' + err.message);
+                    break;
+                }
+                const source = nodes.find(n => n.type === 'function').func;
+                let built;
+                try {
+                    built = new Function('msg', source).call(null, {}) || {};
+                    new URL(built.url);
+                } catch (err) {
+                    generationFailed = true;
+                    note('notice', 'corpus ' + spec + ' ' + op.method + ' ' + op.path +
+                        ' -> skipped, no usable URL');
+                    break;
+                }
+                prepared.push({ op: op, nodes: nodes, url: built.url });
             }
-            let built = null;
-            try {
-                built = new Function('msg', source).call(null, {}) || {};
-            } catch (err) {
-                failures++;
-                note('error', label + ' -> the generated code threw: ' + err.message);
-                continue;
-            }
-            if (typeof built.url !== 'string' || !built.url) {
-                failures++;
-                note('error', label + ' -> no msg.url was generated');
-                continue;
-            }
-            try {
-                new URL(built.url);
-            } catch (err) {
-                failures++;
-                note('error', label + ' -> generated an invalid URL: ' + built.url);
-                continue;
-            }
+            if (generationFailed || !prepared.length) { continue; }
 
-            for (const node of nodes) {
-                if (node.type === 'inject') { node.once = true; node.onceDelay = 0.1; }
-                if (node.type === 'http request') { node.ret = 'obj'; node.senderr = true; }
+            let reachable = true;
+            for (const entry of prepared) {
+                const code = await probeWithCurl(entry.url);
+                if (!code) {
+                    reachable = false;
+                    note('notice', 'corpus ' + spec + ' -> dropped, ' + entry.op.method +
+                        ' ' + entry.op.path + ' is not reachable');
+                    break;
+                }
             }
-            const probe = nodes.find(n => n.type === 'debug');
-            probe.type = 'function';
-            probe.name = 'probe';
-            probe.outputs = 1;
-            probe.wires = [[]];
-            probe.func = "global.set('liveResult', { status: msg.statusCode });\nreturn msg;";
+            if (!reachable) { continue; }
 
-            fs.writeFileSync(path.join(userDir, 'flows.json'), JSON.stringify(nodes));
-            await RED.nodes.loadFlows(true);
+            note('notice', 'corpus ' + spec + ' -> all ' + prepared.length +
+                ' endpoints reachable, testing them');
 
-            let node = null;
-            for (let i = 0; i < 50 && !node; i++) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                node = RED.nodes.getNode(probe.id);
-            }
-            if (!node) { note('notice', label + ' -> probe never started'); continue; }
-            const context = node.context().global;
-            context.set('liveResult', null);
+            for (const entry of prepared) {
+                const label = 'corpus ' + spec + ' ' + entry.op.method.toUpperCase() +
+                    ' ' + entry.op.path;
+                const nodes = entry.nodes;
+                for (const node of nodes) {
+                    if (node.type === 'inject') { node.once = true; node.onceDelay = 0.1; }
+                    if (node.type === 'http request') { node.ret = 'obj'; node.senderr = true; }
+                }
+                const probe = nodes.find(n => n.type === 'debug');
+                probe.type = 'function';
+                probe.name = 'probe';
+                probe.outputs = 1;
+                probe.wires = [[]];
+                probe.func = "global.set('liveResult', { status: msg.statusCode });\n"
+                    + 'return msg;';
 
-            const started = Date.now();
-            let result = null;
-            while (!result && Date.now() - started < 6000) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-                result = context.get('liveResult');
-            }
-            const status = (result || {}).status || null;
+                fs.writeFileSync(path.join(userDir, 'flows.json'), JSON.stringify(nodes));
+                await RED.nodes.loadFlows(true);
 
-            if (status) {
-                reached++;
-                note('notice', label + ' -> HTTP ' + status + ' (the request reached the API)');
-            } else {
-                note('notice', label + ' -> no response (host unreachable)');
+                let node = null;
+                for (let i = 0; i < 50 && !node; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    node = RED.nodes.getNode(probe.id);
+                }
+                if (!node) { note('notice', label + ' -> probe never started'); continue; }
+                const context = node.context().global;
+                context.set('liveResult', null);
+
+                ran++;
+                const started = Date.now();
+                let result = null;
+                while (!result && Date.now() - started < 15000) {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    result = context.get('liveResult');
+                }
+                const status = (result || {}).status || null;
+
+                if (status) {
+                    reached++;
+                    note('notice', label + ' -> HTTP ' + status);
+                } else {
+                    failures++;
+                    note('error', label +
+                        ' -> no response although curl reached the endpoint');
+                }
             }
         }
     }
