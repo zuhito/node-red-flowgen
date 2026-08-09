@@ -1360,3 +1360,94 @@ test('a shift selected range imports every endpoint in it', async () => {
     assert.strictEqual(imported.length, 1);
     assert.strictEqual(imported[0].nodes.filter(n => n.type === 'function').length, 3);
 });
+
+const arrow = (code, shift) => $('#flowgen-op-list')
+    .trigger($.Event('keydown', { keyCode: code, shiftKey: !!shift }));
+
+test('shift with an arrow key grows the selection from the anchor', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(1).trigger('click');
+
+    arrow(40, true);
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 2);
+    arrow(40, true);
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 3);
+    assert.ok(rows.eq(1).hasClass('selected') && rows.eq(3).hasClass('selected'));
+});
+
+test('shift with an arrow key back towards the anchor shrinks the range', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(1).trigger('click');
+    arrow(40, true);
+    arrow(40, true);
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 3);
+
+    arrow(38, true);
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 2);
+    assert.ok(!rows.eq(3).hasClass('selected'), 'the far end drops out of the range');
+});
+
+test('shift with an arrow key crosses the anchor and reverses the range', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(2).trigger('click');
+
+    arrow(38, true);
+    arrow(38, true);
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 3);
+    assert.ok(rows.eq(0).hasClass('selected') && rows.eq(2).hasClass('selected'));
+});
+
+test('an arrow key without shift collapses the range to one row', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(0).trigger('click');
+    arrow(40, true);
+    arrow(40, true);
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 3);
+
+    arrow(40, false);
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 1);
+    assert.ok(rows.eq(3).hasClass('selected'), 'the cursor keeps moving from where it was');
+});
+
+test('shift with an arrow key spans only the rows a search leaves visible', async () => {
+    await openList();
+    $('#flowgen-search').val('pet').trigger('input');
+    const visible = $('#flowgen-op-list .flowgen-op').filter((i, el) =>
+        !$(el).hasClass('flowgen-hidden'));
+    assert.ok(visible.length >= 3);
+
+    visible.eq(0).trigger('click');
+    arrow(40, true);
+    arrow(40, true);
+
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 3);
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected.flowgen-hidden').length, 0,
+        'hidden rows must never be selected');
+});
+
+test('shift with an arrow key stops at the end of the list', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op').filter((i, el) =>
+        !$(el).hasClass('flowgen-hidden'));
+    rows.eq(rows.length - 1).trigger('click');
+
+    arrow(40, true);
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 1,
+        'there is nothing past the last row to reach');
+});
+
+test('a shift selected range from the keyboard imports every endpoint in it', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(0).trigger('click');
+    arrow(40, true);
+    arrow(40, true);
+
+    clickOk();
+    assert.strictEqual(imported.length, 1);
+    assert.strictEqual(imported[0].nodes.filter(n => n.type === 'function').length, 3);
+});

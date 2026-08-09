@@ -22,6 +22,8 @@ const FILL = {
     freeform: 'demo'
 };
 
+const PLACEHOLDER = Buffer.from('{user}:{passwd}').toString('base64');
+
 const CREDENTIALS = {
     bearer: 'Bearer sometoken',
     basic: 'Basic ' + Buffer.from('someuser:somepass').toString('base64'),
@@ -78,8 +80,10 @@ async function main() {
         for (const [name, value] of Object.entries(msg.headers || {})) {
             let filled = String(value);
             if (/^Bearer \{/.test(filled)) { filled = CREDENTIALS.bearer; }
-            else if (/^Basic \{/.test(filled)) { filled = CREDENTIALS.basic; }
-            else if (/^Digest \{/.test(filled)) { filled = CREDENTIALS.digest; }
+            else if (/^Basic \{/.test(filled) ||
+                filled === 'Basic ' + PLACEHOLDER) { filled = CREDENTIALS.basic; }
+            else if (/^Digest \{/.test(filled) ||
+                filled === 'Digest ' + PLACEHOLDER) { filled = CREDENTIALS.digest; }
             if (/\{[^}]+\}/.test(filled)) {
                 problems.push(label + ' -> no sample value for header ' + name);
                 filled = null;
