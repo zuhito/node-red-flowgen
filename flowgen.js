@@ -290,11 +290,35 @@ function quote(value) {
         .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '`';
 }
 
+const USER_PARAM = /^(user|username|userid|user_id|login)$/i;
+const PASSWD_PARAM = /^(passwd|password|pass|pwd)$/i;
+
+function credentialsFrom(urlParams) {
+    const pick = re => (urlParams || []).find(p => p.in === 'path' && re.test(p.name));
+    const user = pick(USER_PARAM);
+    const passwd = pick(PASSWD_PARAM);
+    return {
+        user: user ? user.name : 'user',
+        userType: user ? user.type : null,
+        passwd: passwd ? passwd.name : 'passwd',
+        passwdType: passwd ? passwd.type : null
+    };
+}
+
+function raw(expression) {
+    return { __raw: String(expression) };
+}
+
+function isRaw(value) {
+    return !!value && typeof value === 'object' && typeof value.__raw === 'string';
+}
+
 function literal(value, indent, schema, resolve) {
     indent = indent || 0;
     const pad = '    '.repeat(indent);
     const inner = '    '.repeat(indent + 1);
     if (value === null || value === undefined) return 'null';
+    if (isRaw(value)) return value.__raw;
     if (Array.isArray(value)) {
         if (!value.length) return '[]';
         const items = schema && resolve ? resolve(schema.items || {}) : null;
@@ -420,6 +444,7 @@ function assemble(parts) {
         : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
     const typed = (label, type) => type ? label + ' (' + type + ')' : label;
     const blank = pairs => pairs
+        .filter(e => !isRaw(e[1]))
         .filter(e => String(e[1]) === '' || /\s$/.test(String(e[1])) ||
                 /\{[^}]+\}/.test(String(e[1])))
         .map(e => typed('"' + String(e[0]).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"', e[2]));
@@ -436,6 +461,16 @@ function assemble(parts) {
         if (!pairs.length) continue;
         const empty = blank(pairs);
         lines.push('');
+        if (key === 'headers' && parts.credentials) {
+            const pair = parts.credentials;
+            const names = [{ name: pair.user, type: pair.userType },
+                { name: pair.passwd, type: pair.passwdType }];
+            lines.push('// Replace ' +
+                phrase(names.map(item => typed('{' + item.name + '}', item.type))) +
+                ' below with real values.');
+            lines.push('const credentials = Buffer.from(' +
+                quote('{' + pair.user + '}:{' + pair.passwd + '}') + ').toString("base64");');
+        }
         if (empty.length) lines.push('// Fill in ' + phrase(empty) + ' below.');
         lines.push('msg.' + key + ' = ' + literal(pairs.reduce((acc, e) => (acc[e[0]] = e[1], acc), {}), 0) + ';');
     }
@@ -517,6 +552,7 @@ function generateOpenApi3(doc, rawMethod, target) {
         cookies.push([p.name, '{' + p.name + '}', typeOf(resolve(p.schema || {}))]);
     }
 
+    let credentials = null;
     const requirements = op.security !== undefined ? op.security : (doc.security || []);
     const requirement = requirements.find(r => r && Object.keys(r).length) || null;
     if (requirement) {
@@ -530,10 +566,16 @@ function generateOpenApi3(doc, rawMethod, target) {
                 else if (scheme.in === 'cookie') cookies.push([scheme.name, '{' + scheme.name + '}']);
             } else if (type === 'http') {
                 const s = String(scheme.scheme || '').toLowerCase();
-                headers.push(['authorization',
-                    s === 'basic' ? 'Basic {credentials}' : s === 'bearer' ? 'Bearer {token}' :
-                        s ? s[0].toUpperCase() + s.slice(1) + ' {credentials}'
-                            : '{credentials}']);
+                if (s === 'basic' || s === 'digest') {
+                    credentials = credentialsFrom(urlParams);
+                    headers.push(['authorization',
+                        raw('`' + (s === 'basic' ? 'Basic' : 'Digest') + ' ${credentials}`')]);
+                } else {
+                    headers.push(['authorization',
+                        s === 'bearer' ? 'Bearer {token}' :
+                            s ? s[0].toUpperCase() + s.slice(1) + ' {credentials}'
+                                : '{credentials}']);
+                }
             } else if (type === 'oauth2' || type === 'openidconnect') {
                 headers.push(['authorization', 'Bearer {token}']);
             }
@@ -623,6 +665,7 @@ function generateOpenApi3(doc, rawMethod, target) {
         todo: unresolved(base, path, urlParams),
         headers: dedupeHeaders(headers),
         cookies: cookies,
+        credentials: credentials,
         hasBody: hasBody,
         payload: payload,
         payloadSchema: payloadSchema,

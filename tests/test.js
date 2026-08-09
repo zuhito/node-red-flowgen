@@ -165,7 +165,8 @@ test('security schemes map to the right msg properties', () => {
     assert.strictEqual(msg.url, 'https://api.test/v1/x?key={key}');
 
     const auth = s => run(flowgen.generate(build([s]), 'get', '/x')).headers.authorization;
-    assert.strictEqual(auth({ basic: [] }), 'Basic {credentials}');
+    assert.strictEqual(auth({ basic: [] }),
+        'Basic ' + Buffer.from('{user}:{passwd}').toString('base64'));
     assert.strictEqual(auth({ bearer: [] }), 'Bearer {token}');
     assert.strictEqual(auth({ oauth: [] }), 'Bearer {token}');
     assert.strictEqual(auth({ oidc: [] }), 'Bearer {token}');
@@ -1256,12 +1257,19 @@ test('the bundled httpbingo definition covers the endpoints the tests need', () 
         const code = flowgen.generate(doc, 'get', target);
         assert.match(code, /"authorization": `/,
             target + ' needs credentials, so the code must offer the header');
-        assert.match(code, /\/\/ Fill in "authorization" below\./);
     }
     assert.match(flowgen.generate(doc, 'get', '/bearer'),
         /"authorization": `Bearer \{token\}`/);
-    assert.match(flowgen.generate(doc, 'get', '/basic-auth/{user}/{passwd}'),
-        /"authorization": `Basic \{credentials\}`/);
+    assert.match(flowgen.generate(doc, 'get', '/bearer'),
+        /\/\/ Fill in "authorization" below\./);
+    for (const target of ['/basic-auth/{user}/{passwd}',
+        '/hidden-basic-auth/{user}/{passwd}']) {
+        const code = flowgen.generate(doc, 'get', target);
+        assert.match(code, /"authorization": `Basic \$\{credentials\}`/);
+        assert.ok(code.includes(
+            'const credentials = Buffer.from(`{user}:{passwd}`).toString("base64");'),
+            target + ' must build the credentials from the path placeholders');
+    }
 
     assert.ok(!/authorization/.test(flowgen.generate(doc, 'get', '/get')),
         'an open endpoint must not ask for credentials');
@@ -1277,14 +1285,21 @@ test('every http auth scheme names the value to fill in', () => {
         components: { securitySchemes: { s: { type: 'http', scheme: name } } }
     });
 
+    const encoded = 'Buffer.from(`{user}:{passwd}`).toString("base64")';
     assert.strictEqual(run(flowgen.generate(scheme('basic'), 'get', '/x')).headers.authorization,
-        'Basic {credentials}');
+        'Basic ' + Buffer.from('{user}:{passwd}').toString('base64'));
     assert.strictEqual(run(flowgen.generate(scheme('bearer'), 'get', '/x')).headers.authorization,
         'Bearer {token}');
     assert.strictEqual(run(flowgen.generate(scheme('digest'), 'get', '/x')).headers.authorization,
-        'Digest {credentials}');
+        'Digest ' + Buffer.from('{user}:{passwd}').toString('base64'));
 
-    for (const name of ['basic', 'bearer', 'digest', 'negotiate']) {
+    for (const name of ['basic', 'digest']) {
+        const code = flowgen.generate(scheme(name), 'get', '/x');
+        assert.match(code, /\{[a-z]+\}/, name + ' must leave a named placeholder');
+        assert.ok(code.includes('const credentials = ' + encoded + ';'),
+            name + ' must build the credentials from the placeholders');
+    }
+    for (const name of ['bearer', 'negotiate']) {
         const code = flowgen.generate(scheme(name), 'get', '/x');
         assert.match(code, /\{[a-z]+\}/, name + ' must leave a named placeholder');
         assert.match(code, /\/\/ Fill in "authorization" below\./);
