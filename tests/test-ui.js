@@ -541,7 +541,7 @@ test('the endpoint rows carry Swagger UI method colours and typography', async (
     assert.match(styles, /\.flowgen-method\s*\{[^}]*font-weight:\s*700/);
     assert.match(styles, /\.flowgen-path\s*\{[^}]*font-size:\s*16px/);
     assert.match(styles, /\.flowgen-path\s*\{[^}]*font-weight:\s*600/);
-    assert.match(styles, /\.flowgen-path\s*\{[^}]*color:\s*var\(--red-ui-primary-text-color/);
+    assert.match(styles, /\.flowgen-path\s*\{[^}]*color:\s*#2D2D2D/);
 });
 
 test('every non deprecated operation is listed and deprecated ones are not', async () => {
