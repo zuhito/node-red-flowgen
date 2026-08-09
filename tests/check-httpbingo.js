@@ -5,7 +5,7 @@ const path = require('path');
 const { execFile } = require('child_process');
 const flowgen = require('../flowgen');
 
-const SPEC = path.join(__dirname, '..', 'specs', 'httpbingo-openapi3.yaml');
+const SPEC = path.join(__dirname, 'specs', 'httpbingo-full.yaml');
 
 const FILL = {
     user: 'someuser',

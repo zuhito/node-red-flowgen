@@ -24,7 +24,7 @@ const SPEC_SOURCES = [
 ];
 
 const LOCAL_SPECS = {
-    httpbingo: path.join(__dirname, '..', 'specs', 'httpbingo-openapi3.yaml')
+    httpbingo: path.join(__dirname, 'specs', 'httpbingo-full.yaml')
 };
 
 const BRUNO_SOURCES = [

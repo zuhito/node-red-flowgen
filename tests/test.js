@@ -1239,9 +1239,31 @@ test('the bundled specs all parse and generate valid code', async () => {
     }
 });
 
-test('the bundled httpbingo definition covers the endpoints the tests need', () => {
+test('the shipped httpbingo sample carries only the three auth endpoints', () => {
     const doc = flowgen.parseDocument(fs.readFileSync(
         path.join(__dirname, '..', 'specs', 'httpbingo-openapi3.yaml'), 'utf8'));
+    const paths = flowgen.listOperations(doc).operations.map(o => o.method + ' ' + o.path);
+
+    assert.deepStrictEqual(paths.slice().sort(), [
+        'get /basic-auth/{user}/{passwd}',
+        'get /bearer',
+        'get /digest-auth/{qop}/{user}/{passwd}'
+    ]);
+
+    const encoded = 'const credentials = Buffer.from(`{user}:{passwd}`).toString("base64");';
+    assert.match(flowgen.generate(doc, 'get', '/bearer'),
+        /"authorization": `Bearer \{token\}`/);
+    const basic = flowgen.generate(doc, 'get', '/basic-auth/{user}/{passwd}');
+    assert.match(basic, /"authorization": `Basic \$\{credentials\}`/);
+    assert.ok(basic.includes(encoded));
+    const digest = flowgen.generate(doc, 'get', '/digest-auth/{qop}/{user}/{passwd}');
+    assert.match(digest, /"authorization": `Digest \$\{credentials\}`/);
+    assert.ok(digest.includes(encoded));
+});
+
+test('the full httpbingo definition covers the endpoints the tests need', () => {
+    const doc = flowgen.parseDocument(fs.readFileSync(
+        path.join(__dirname, 'specs', 'httpbingo-full.yaml'), 'utf8'));
     const paths = flowgen.listOperations(doc).operations.map(o => o.method + ' ' + o.path);
 
     for (const required of ['get /get', 'post /post', 'get /headers', 'get /bearer',
