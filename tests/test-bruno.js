@@ -203,10 +203,10 @@ body:multipart-form {
 `;
     const doc = flowgen.parseDocument(bru);
     const code = flowgen.generate(doc, 'post', '/upload');
-    assert.match(code, /"value": "FILE_CONTENTS"/);
+    assert.match(code, /"value": FILE_CONTENTS/);
     assert.match(code, /"filename": "photo.png"/);
     assert.match(code, /"note": "hello"/);
-    assert.match(code, /\/\/ Set FILE_CONTENTS and the filename/);
+    assert.match(code, /const FILE_CONTENTS = Buffer\.from\(""\);/);
 });
 
 test('zip entries with windows separators and nested folders are handled', async () => {
@@ -419,7 +419,7 @@ test('an exported multipart body uses the file upload shape', () => {
                 { name: 'off', value: 'x', enabled: false }] } } }]
     }));
     const code = flowgen.generate(doc, 'post', '/m');
-    assert.match(code, /"value": "FILE_CONTENTS"/);
+    assert.match(code, /"value": FILE_CONTENTS/);
     assert.match(code, /"note": "hi"/);
     assert.ok(!/'off'/.test(code));
 });
@@ -588,7 +588,7 @@ test('a multipart file entry without a filename still gets one', () => {
         'body:multipart-form {', '  file: @file()', '}', ''
     ].join('\n'));
     const payload = evaluate(flowgen.generate(doc, 'post', '/m')).payload;
-    assert.strictEqual(payload.file.options.filename, 'FILENAME');
+    assert.strictEqual(payload.file.options.filename, 'upload.bin');
 });
 
 test('lines without a colon are ignored inside a bru block', () => {

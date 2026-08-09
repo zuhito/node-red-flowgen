@@ -83,7 +83,7 @@ function normalizeRequest(nameHint, source) {
             req.payload = {};
             for (const [k, v] of blocks['body:multipart-form']) {
                 req.payload[k] = /^@file\(/.test(v)
-                    ? { value: 'FILE_CONTENTS', options: { filename: v.replace(/^@file\(|\)$/g, '') || 'FILENAME' } }
+                    ? { value: raw('FILE_CONTENTS'), options: { filename: v.replace(/^@file\(|\)$/g, '') || raw('FILENAME') } }
                     : v;
             }
         }
@@ -132,7 +132,7 @@ function normalizeRequest(nameHint, source) {
                 for (const e of data || []) {
                     if (e.enabled === false) continue;
                     req.payload[e.name] = e.type === 'file'
-                        ? { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } }
+                        ? { value: raw('FILE_CONTENTS'), options: { filename: raw('FILENAME') } }
                         : (e.value || '');
                 }
             }
@@ -475,8 +475,22 @@ function assemble(parts) {
         lines.push('msg.' + key + ' = ' + literal(pairs.reduce((acc, e) => (acc[e[0]] = e[1], acc), {}), 0) + ';');
     }
     if (parts.hasBody) {
-        lines.push('', parts.multipart
-            ? '// Set FILE_CONTENTS and the filename for each file field, and adjust the other values.'
+        const uses = name => JSON.stringify(parts.payload || {}).indexOf('"' + name + '"') !== -1 ||
+            (function scan(node) {
+                if (isRaw(node)) return node.__raw === name;
+                if (Array.isArray(node)) return node.some(scan);
+                if (node && typeof node === 'object') return Object.keys(node).some(k => scan(node[k]));
+                return false;
+            })(parts.payload);
+        lines.push('');
+        if (parts.multipart && uses('FILE_CONTENTS')) {
+            lines.push('// Point FILE_CONTENTS at the bytes to upload; a Buffer or a stream both work.');
+            lines.push('const FILE_CONTENTS = Buffer.from("");');
+            if (uses('FILENAME')) lines.push('const FILENAME = "upload.bin";');
+            lines.push('');
+        }
+        lines.push(parts.multipart
+            ? '// Adjust the other multipart fields below to suit the call.'
             : '// Adjust the request body below to suit the call.');
         lines.push('msg.payload = ' +
             literal(parts.payload, 0, parts.payloadSchema, parts.resolve) + ';');
@@ -637,7 +651,7 @@ function generateOpenApi3(doc, rawMethod, target) {
                 const isFile = prop.format === 'binary' ||
                     (prop.type === 'array' && resolve(prop.items || {}).format === 'binary');
                 payload[key] = isFile
-                    ? { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } }
+                    ? { value: raw('FILE_CONTENTS'), options: { filename: raw('FILENAME') } }
                     : sample(prop);
             }
         } else if (media.example !== undefined) payload = media.example;
@@ -667,6 +681,7 @@ function generateOpenApi3(doc, rawMethod, target) {
         cookies: cookies,
         credentials: credentials,
         hasBody: hasBody,
+        multipart: multipart,
         payload: payload,
         payloadSchema: payloadSchema,
         resolve: resolve
@@ -799,7 +814,7 @@ function generateSwagger2(doc, rawMethod, target) {
         } else if (multipart) {
             payload = formParams.reduce((acc, p) => {
                 acc[p.name] = p.type === 'file'
-                    ? { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } }
+                    ? { value: raw('FILE_CONTENTS'), options: { filename: raw('FILENAME') } }
                     : sample(p);
                 return acc;
             }, {});

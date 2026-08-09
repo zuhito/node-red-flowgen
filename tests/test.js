@@ -298,11 +298,12 @@ test('swagger 2.0 multipart formData follows the http request node file upload s
     const code = flowgen.generate(doc, 'post', '/x');
     const msg = run(code);
     assert.deepStrictEqual(msg.payload, {
-        file: { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } },
+        file: { value: Buffer.from(''), options: { filename: 'upload.bin' } },
         note: ''
     });
     assert.strictEqual(msg.headers['content-type'], 'multipart/form-data');
-    assert.match(code, /\/\/ Set FILE_CONTENTS and the filename/);
+    assert.match(code, /const FILE_CONTENTS = Buffer\.from\(""\);/);
+    assert.match(code, /const FILENAME = "upload\.bin";/);
 });
 
 test('swagger 2.0 urlencoded formData stays a flat object', () => {
@@ -322,7 +323,7 @@ test('openapi 3 multipart binary fields follow the file upload shape', () => {
     } } } } } });
     const msg = run(flowgen.generate(doc, 'post', '/x'));
     assert.deepStrictEqual(msg.payload, {
-        file: { value: 'FILE_CONTENTS', options: { filename: 'FILENAME' } },
+        file: { value: Buffer.from(''), options: { filename: 'upload.bin' } },
         note: ''
     });
 });
@@ -679,12 +680,15 @@ test('the full example shape matches the requested format', () => {
     } } }, { securityDefinitions: { oauth: { type: 'oauth2' } } });
     const code = flowgen.generate(doc, 'post', '/pet/{petId}/uploadImage');
     const blocks = code.split('\n\n');
-    assert.strictEqual(blocks.length, 4, 'method | url | headers | payload blocks');
+    assert.strictEqual(blocks.length, 5, 'method | url | headers | file | payload blocks');
     assert.match(blocks[0], /^msg\.method/);
     assert.match(blocks[1], /^\/\/ Replace \{petId\} \(integer\)/);
     assert.match(blocks[2], /^\/\/ Fill in \"authorization\"/);
-    assert.match(blocks[3], /^\/\/ Set FILE_CONTENTS/);
-    assert.match(blocks[3], /return msg;$/);
+    assert.match(blocks[3], /^\/\/ Point FILE_CONTENTS/);
+    assert.match(blocks[3], /const FILE_CONTENTS = Buffer\.from\(""\);/);
+    assert.match(blocks[3], /const FILENAME = "upload\.bin";/);
+    assert.match(blocks[4], /^\/\/ Adjust the other multipart fields/);
+    assert.match(blocks[4], /return msg;$/);
 });
 
 test('deprecated operations are hidden from the list', () => {
