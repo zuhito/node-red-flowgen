@@ -288,8 +288,9 @@ test('basic auth produces an authorization header to fill in', () => {
         'auth:basic {', '  username: u', '  password: p', '}', ''
     ].join('\n'));
     const code = flowgen.generate(doc, 'get', '/secret');
-    assert.match(code, /"authorization": `Basic {credentials}`/);
-    assert.match(code, /\/\/ Fill in \"authorization\" below\./);
+    assert.match(code, /"authorization": `Basic \$\{credentials\}`/);
+    assert.ok(code.includes('const credentials = Buffer.from("u:p")'),
+        'the .bru block already names the credentials, so use them');
 });
 
 test('an empty collection is rejected with a clear message', () => {

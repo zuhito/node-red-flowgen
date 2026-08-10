@@ -65,7 +65,26 @@ function normalizeRequest(nameHint, source) {
             const t = blocks['auth:bearer'].find(p => p[0] === 'token');
             req.headers.push(['authorization', 'Bearer ' + (t && t[1] ? t[1] : '{token}')]);
         }
-        if (blocks['auth:basic']) req.headers.push(['authorization', 'Basic {credentials}']);
+        if (blocks['auth:basic']) {
+            const pairs = blocks['auth:basic'];
+            const value = name => {
+                const found = pairs.find(pair => pair[0] === name);
+                return found ? found[1] : '';
+            };
+            req.credentials = brunoCredentials(
+                { username: value('username'), password: value('password') }, 'basic');
+            req.headers.push(['authorization', raw('`Basic ${credentials}`')]);
+        }
+        if (blocks['auth:digest']) {
+            const pairs = blocks['auth:digest'];
+            const value = name => {
+                const found = pairs.find(pair => pair[0] === name);
+                return found ? found[1] : '';
+            };
+            // No header: the retry node signs the challenge once it arrives.
+            req.credentials = brunoCredentials(
+                { username: value('username'), password: value('password') }, 'digest');
+        }
         if (blocks['body:json'] !== undefined) {
             req.hasBody = true;
             try { req.payload = JSON.parse(blocks['body:json']); }
@@ -578,11 +597,31 @@ function assemble(parts) {
         : names.length === 2 ? names[0] + ' and ' + names[1]
         : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
     const typed = (label, type) => type ? label + ' (' + type + ')' : label;
-    const blank = pairs => pairs
-        .filter(e => !isRaw(e[1]))
-        .filter(e => String(e[1]) === '' || /\s$/.test(String(e[1])) ||
-                /\{[^}]+\}/.test(String(e[1])))
-        .map(e => typed('"' + String(e[0]).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"', e[2]));
+    // What the reader has to supply is the placeholder sitting in the value, so
+    // that is what gets named. A value the spec left empty has no placeholder to
+    // point at, and there the header's own name is the only thing to go on.
+    const blank = pairs => {
+        const named = [];
+        const empty = [];
+        for (const entry of pairs) {
+            if (isRaw(entry[1])) continue;
+            const value = String(entry[1]);
+            const holes = value.match(/\{[^}]+\}/g);
+            if (holes) {
+                for (const hole of holes) {
+                    if (!named.some(item => item.text === hole)) {
+                        named.push({ text: hole, type: entry[2] });
+                    }
+                }
+            } else if (value === '' || /\s$/.test(value)) {
+                empty.push({
+                    text: '"' + entry[0].replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"',
+                    type: entry[2]
+                });
+            }
+        }
+        return { named: named, empty: empty };
+    };
 
     const lines = ['msg.method = ' + quote(parts.method.toUpperCase()) + ';'];
     if (parts.todo.length) {
@@ -618,7 +657,16 @@ function assemble(parts) {
                     ').toString("base64");');
             }
         }
-        if (empty.length) lines.push('// Fill in ' + phrase(empty) + ' below.');
+        if (empty.named.length) {
+            lines.push('// Replace ' +
+                phrase(empty.named.map(item => typed(item.text, item.type))) +
+                ' below with ' +
+                (empty.named.length === 1 ? 'a real value' : 'real values') + '.');
+        }
+        if (empty.empty.length) {
+            lines.push('// Fill in ' +
+                phrase(empty.empty.map(item => typed(item.text, item.type))) + ' below.');
+        }
         lines.push('msg.' + key + ' = ' + literal(pairs.reduce((acc, e) => (acc[e[0]] = e[1], acc), {}), 0) + ';');
     }
     if (parts.hasBody) {

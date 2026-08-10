@@ -646,8 +646,8 @@ test('empty headers and cookies are called out above their assignment', () => {
     const lines = flowgen.generate(doc, 'get', '/x').split('\n');
     const headerAt = lines.findIndex(l => l.startsWith('msg.headers = '));
     const cookieAt = lines.findIndex(l => l.startsWith('msg.cookies = '));
-    assert.strictEqual(lines[headerAt - 1], "// Fill in \"X-Key\" below.");
-    assert.strictEqual(lines[cookieAt - 1], "// Fill in \"sid\" below.");
+    assert.strictEqual(lines[headerAt - 1], "// Replace {X-Key} below with a real value.");
+    assert.strictEqual(lines[cookieAt - 1], "// Replace {sid} below with a real value.");
 });
 
 test('an authorization header awaiting a token is called out', () => {
@@ -655,7 +655,7 @@ test('an authorization header awaiting a token is called out', () => {
         components: { securitySchemes: { b: { type: 'http', scheme: 'bearer' } } }
     });
     assert.ok(commentsOf(flowgen.generate(doc, 'get', '/x'))
-        .includes("// Fill in \"authorization\" below."));
+        .includes("// Replace {token} below with a real value."));
 });
 
 test('headers that are fully determined get no comment', () => {
@@ -680,7 +680,7 @@ test('parameter types appear in the guidance comments', () => {
         ] } } });
     const code = flowgen.generate(doc, 'get', '/pet/{petId}');
     assert.match(code, /\/\/ Replace \{petId\} \(integer\) in the URL below with a real value\./);
-    assert.match(code, /\/\/ Fill in \"X-Trace\" \(string\) below\./);
+    assert.match(code, /\/\/ Replace \{X-Trace\} \(string\) below with a real value\./);
 });
 
 test('a missing type leaves the comment untyped', () => {
@@ -710,7 +710,7 @@ test('a blank line precedes each commented block but not the url alternates', ()
     assert.match(lines[2], /^\/\/ msg\.url = /);
     assert.match(lines[3], /^\/\/ msg\.url = /);
     assert.strictEqual(lines[4], '');
-    assert.match(lines[5], /^\/\/ Fill in \"authorization\" below\./);
+    assert.match(lines[5], /^\/\/ Replace \{token\} below with a real value\./);
     assert.match(lines[6], /^msg\.headers = /);
     assert.ok(!/\n\n\n/.test(code), 'no double blank lines');
 });
@@ -731,7 +731,7 @@ test('the full example shape matches the requested format', () => {
     assert.strictEqual(blocks.length, 5, 'method | url | headers | file | payload blocks');
     assert.match(blocks[0], /^msg\.method/);
     assert.match(blocks[1], /^\/\/ Replace \{petId\} \(integer\)/);
-    assert.match(blocks[2], /^\/\/ Fill in \"authorization\"/);
+    assert.match(blocks[2], /^\/\/ Replace \{token\}/);
     assert.match(blocks[3], /^\/\/ Point FILE_CONTENTS/);
     assert.match(blocks[3], /const FILE_CONTENTS = Buffer\.from\("[A-Za-z0-9+/=]+", "base64"\);/);
     assert.match(blocks[3], /const FILENAME = "gray1x1\.png";/);
@@ -1345,7 +1345,7 @@ test('the full httpbingo definition covers the endpoints the tests need', () => 
     assert.match(flowgen.generate(doc, 'get', '/bearer'),
         /"authorization": `Bearer \{token\}`/);
     assert.match(flowgen.generate(doc, 'get', '/bearer'),
-        /\/\/ Fill in "authorization" below\./);
+        /\/\/ Replace \{token\} below with a real value\./);
     for (const target of ['/basic-auth/{user}/{passwd}']) {
         const code = flowgen.generate(doc, 'get', target);
         assert.match(code, /"authorization": `Basic \$\{credentials\}`/);
@@ -1394,7 +1394,7 @@ test('every http auth scheme names the value to fill in', () => {
     for (const name of ['bearer', 'negotiate']) {
         const code = flowgen.generate(scheme(name), 'get', '/x');
         assert.match(code, /\{[a-z]+\}/, name + ' must leave a named placeholder');
-        assert.match(code, /\/\/ Fill in "authorization" below\./);
+        assert.match(code, /\/\/ Replace \{[a-z]+\} below with a real value\./);
     }
 });
 
