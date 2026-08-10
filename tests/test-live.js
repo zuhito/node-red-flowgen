@@ -399,7 +399,11 @@ const VOLATILE = new Set([
     'via', 'accept-encoding', 'x-forwarded-proto', 'x-forwarded-host',
     'fly-request-id', 'fly-client-ip', 'cf-ray', 'cf-connecting-ip',
     'x-envoy-external-address', 'x-cloud-trace-context', 'traceparent',
-    'x-request-start', 'x-forwarded-ssl', 'forwarded', 'te', 'keep-alive'
+    'x-request-start', 'x-forwarded-ssl', 'forwarded', 'te', 'keep-alive',
+    // curl sends an Accept of its own where the generated code sends none, and
+    // an echo service reports that difference faithfully. It says nothing about
+    // whether the two agree on the request that was asked for.
+    'accept'
 ]);
 
 function normalise(value) {
