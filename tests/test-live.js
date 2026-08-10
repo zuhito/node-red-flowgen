@@ -656,16 +656,25 @@ async function main() {
             }
         }
 
-        for (const [source, body] of [['curl', viaCurl.body], ['node-red', result.body]]) {
-            const hits = errorWords(body);
-            if (!hits.length) continue;
-            failures++;
-            note('error', label + ' -> the ' + source + ' response reads like an error: ' +
-                hits.join(', '));
-            dump(label, source + ' response carrying ' + hits.join(', '), body);
+        const expected = [].concat(testCase.expect || []);
+
+        // Several cases exist to prove a rejection happens, and those bodies say
+        // so in words. Scanning them would flag the very thing being asked for,
+        // so the scan only runs where a healthy answer was expected.
+        const wantsFailure = expected.some(status => status >= 400) ||
+            (result.status !== null && result.status >= 400 &&
+                expected.indexOf(result.status) !== -1);
+        if (!wantsFailure) {
+            for (const [source, body] of [['curl', viaCurl.body], ['node-red', result.body]]) {
+                const hits = errorWords(body);
+                if (!hits.length) continue;
+                failures++;
+                note('error', label + ' -> the ' + source +
+                    ' response reads like an error: ' + hits.join(', '));
+                dump(label, source + ' response carrying ' + hits.join(', '), body);
+            }
         }
 
-        const expected = [].concat(testCase.expect || []);
         if (expected.length) {
             if (expected.indexOf(result.status) !== -1) {
                 note('notice', label + ' -> HTTP ' + result.status + ' (as expected)');
