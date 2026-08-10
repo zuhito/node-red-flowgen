@@ -352,24 +352,30 @@ function curlBody(method, url, headers, body) {
     });
 }
 
-// httpbin-style services echo back the request, so fields that change between
-// two calls (timestamps, the caller's port, a per-request id) are dropped
-// before comparing. What must match is the shape the generated request built.
+// httpbin-style services echo back the request, so anything the transport or
+// the proxy in front of it decides is dropped before comparing: curl and the
+// http request node are different clients and will never agree on these.
+// What must match is the shape the generated request built.
 const VOLATILE = new Set([
     'origin', 'x-amzn-trace-id', 'date', 'x-request-id', 'x-b3-traceid',
     'x-b3-spanid', 'x-b3-parentspanid', 'host', 'user-agent', 'content-length',
-    'connection', 'x-forwarded-for', 'x-forwarded-port', 'x-real-ip'
+    'connection', 'x-forwarded-for', 'x-forwarded-port', 'x-real-ip',
+    'via', 'accept-encoding', 'x-forwarded-proto', 'x-forwarded-host',
+    'fly-request-id', 'fly-client-ip', 'cf-ray', 'cf-connecting-ip',
+    'x-envoy-external-address', 'x-cloud-trace-context', 'traceparent',
+    'x-request-start', 'x-forwarded-ssl', 'forwarded', 'te', 'keep-alive'
 ]);
 
 function normalise(value) {
     if (Array.isArray(value)) return value.map(normalise);
     if (value && typeof value === 'object') {
         const out = {};
-        for (const key of Object.keys(value).sort()) {
-            if (VOLATILE.has(key.toLowerCase())) continue;
-            out[key] = normalise(value[key]);
+        for (const key of Object.keys(value)) {
+            const lower = key.toLowerCase();
+            if (VOLATILE.has(lower)) continue;
+            out[lower] = normalise(value[key]);
         }
-        return out;
+        return Object.keys(out).sort().reduce((acc, k) => (acc[k] = out[k], acc), {});
     }
     return value;
 }
@@ -557,7 +563,13 @@ async function main() {
         }
 
         for (const node of nodes) {
-            if (node.type === 'inject') { node.once = true; node.onceDelay = 0.1; }
+            if (node.type === 'inject') {
+                node.once = true; node.onceDelay = 0.1;
+                // The default inject payload is a timestamp, which the http
+                // request node would post as a body the generated code never
+                // asked for, so curl and Node-RED would never agree.
+                node.payload = ''; node.payloadType = 'str';
+            }
             if (node.type === 'function') {
                 node.func = applyFill(node.func, testCase.fill);
             }
@@ -600,8 +612,10 @@ async function main() {
         } catch (err) {
             built = {};
         }
-        const curlHeaders = Object.assign({}, built.headers || {}, testCase.addAuth || {},
-            testCase.auth || {});
+        // testCase.auth / addAuth are already woven into the generated function
+        // above, so built.headers carries them. Merging them again here would
+        // send the header twice and the server would reject the request.
+        const curlHeaders = Object.assign({}, built.headers || {});
         const curlBodyText = built.payload === undefined ? null
             : (typeof built.payload === 'string'
                 ? built.payload : JSON.stringify(built.payload));
@@ -797,7 +811,13 @@ async function main() {
                     ' ' + entry.op.path;
                 const nodes = entry.nodes;
                 for (const node of nodes) {
-                    if (node.type === 'inject') { node.once = true; node.onceDelay = 0.1; }
+                    if (node.type === 'inject') {
+                node.once = true; node.onceDelay = 0.1;
+                // The default inject payload is a timestamp, which the http
+                // request node would post as a body the generated code never
+                // asked for, so curl and Node-RED would never agree.
+                node.payload = ''; node.payloadType = 'str';
+            }
                     if (node.type === 'http request') { node.ret = 'obj'; node.senderr = true; }
                 }
                 const probe = nodes.find(n => n.type === 'debug');
