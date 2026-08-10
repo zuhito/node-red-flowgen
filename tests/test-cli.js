@@ -11,9 +11,23 @@ const specs = require('./specs');
 
 let server, base;
 
-const run = args => new Promise(resolve =>
+const run = (args, env) => new Promise(resolve =>
     execFile('node', [path.join(__dirname, '..', 'flowgen.js')].concat(args),
+        env ? { env: Object.assign({}, process.env, env) } : {},
         (err, stdout, stderr) => resolve({ code: err ? err.code : 0, stdout, stderr })));
+
+// Counting flowgen-git-* under the shared temp directory sees clones made by
+// whatever else is running at the same time, and the suites run in parallel.
+// Each of these tests gets a temp directory of its own so the count is its own.
+function privateTmp(name) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-tmp-' + name + '-'));
+    return {
+        dir: dir,
+        env: { TMPDIR: dir, TMP: dir, TEMP: dir },
+        clones: () => fs.readdirSync(dir).filter(n => n.startsWith('flowgen-git-')),
+        clean: () => fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5 })
+    };
+}
 
 before(async () => {
     const spec = JSON.stringify(yaml.load(await specs.spec('v2')));
@@ -158,11 +172,13 @@ test('a git source leaves no temporary directory behind', async () => {
         'commit', '-qm', 'x']);
     execFileSync('git', ['-C', repo, 'update-server-info']);
 
-    const before = fs.readdirSync(os.tmpdir()).filter(n => n.startsWith('flowgen-git-'));
-    const listed = await run([path.join(repo, '.git'), '--list']);
-    const after = fs.readdirSync(os.tmpdir()).filter(n => n.startsWith('flowgen-git-'));
+    const tmp = privateTmp('git');
+    const before = tmp.clones();
+    const listed = await run([path.join(repo, '.git'), '--list'], tmp.env);
+    const after = tmp.clones();
 
     fs.rmSync(repo, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    tmp.clean();
     assert.strictEqual(listed.code, 0, listed.stderr);
     assert.match(listed.stdout, /get \/r/);
     assert.strictEqual(after.join(','), before.join(','),
@@ -170,9 +186,11 @@ test('a git source leaves no temporary directory behind', async () => {
 });
 
 test('a failed clone still removes its temporary directory', async () => {
-    const before = fs.readdirSync(os.tmpdir()).filter(n => n.startsWith('flowgen-git-'));
-    const result = await run(['http://127.0.0.1:1/nope.git', '--list']);
-    const after = fs.readdirSync(os.tmpdir()).filter(n => n.startsWith('flowgen-git-'));
+    const tmp = privateTmp('clone');
+    const before = tmp.clones();
+    const result = await run(['http://127.0.0.1:1/nope.git', '--list'], tmp.env);
+    const after = tmp.clones();
+    tmp.clean();
 
     assert.strictEqual(result.code, 1);
     assert.strictEqual(after.join(','), before.join(','),
