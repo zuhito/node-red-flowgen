@@ -187,6 +187,51 @@ test('the collection endpoint clones a git url and returns its files', async () 
     assert.ok(files.some(f => f.path === 'get-user.yml'));
 });
 
+test('a cloned repository cannot read files outside itself through a symlink', async () => {
+    // git clones symbolic links as links, so a repository can ship
+    // secrets.yaml -> /etc/passwd and have the contents handed to the editor.
+    const os = require('os');
+    const { execFileSync } = require('child_process');
+
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-ep-outside-'));
+    fs.writeFileSync(path.join(outside, 'private.yaml'), 'secret: do not leak\n');
+    fs.mkdirSync(path.join(outside, 'tree'));
+    fs.writeFileSync(path.join(outside, 'tree', 'deep.json'), '{"secret":"nor this"}');
+
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-ep-symlink-'));
+    fs.writeFileSync(path.join(repo, 'real.yml'),
+        'info:\n  name: Real\nhttp:\n  method: GET\n  url: https://api.example.test/x\n');
+    fs.symlinkSync(path.join(outside, 'private.yaml'), path.join(repo, 'leak.yaml'));
+    fs.symlinkSync(path.join(outside, 'tree'), path.join(repo, 'leakdir'), 'dir');
+
+    execFileSync('git', ['init', '-q', repo]);
+    execFileSync('git', ['-C', repo, 'add', '-A']);
+    execFileSync('git', ['-C', repo, '-c', 'user.email=t@t', '-c', 'user.name=t',
+        'commit', '-qm', 'x']);
+    execFileSync('git', ['-C', repo, 'update-server-info']);
+
+    const statics = express();
+    statics.use(express.static(repo, { dotfiles: 'allow' }));
+    const gitServer = http.createServer(statics);
+    await new Promise(resolve => gitServer.listen(0, '127.0.0.1', resolve));
+    const gitUrl = 'http://127.0.0.1:' + gitServer.address().port + '/.git';
+
+    const res = await get('/flowgen/source?url=' + encodeURIComponent(gitUrl));
+    await new Promise(resolve => gitServer.close(resolve));
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+
+    assert.strictEqual(res.status, 200, res.body);
+    const files = JSON.parse(res.body).files;
+
+    assert.ok(files.some(f => f.path === 'real.yml'),
+        'a genuine file in the repository still comes through');
+    assert.deepStrictEqual(files.filter(f => /secret/i.test(f.text)), [],
+        'nothing outside the clone may be read');
+    assert.deepStrictEqual(files.filter(f => /^leak/.test(f.path)), [],
+        'the symlinked entries must not appear at all');
+});
+
 test('the collection endpoint rejects non http sources', async () => {
     for (const bad of ['file:///etc/passwd', 'notaurl', '']) {
         const res = await get('/flowgen/source?url=' + encodeURIComponent(bad));

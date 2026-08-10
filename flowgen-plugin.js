@@ -63,17 +63,33 @@ module.exports = function (RED) {
 
     function gather(root) {
         const files = [];
+        // git clones symbolic links as links, so a repository can ship
+        // link.yaml -> /etc/passwd and have its contents read back. Links are
+        // skipped outright, and every path is resolved and checked to be
+        // inside the clone before it is opened, which also covers a link
+        // sitting on one of the parent directories.
+        const base = fs.realpathSync(root);
+        const inside = target => {
+            const resolved = fs.realpathSync(target);
+            return resolved === base || resolved.startsWith(base + path.sep);
+        };
         const walk = dir => {
             for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
                 if (entry.name === '.git' || entry.name === 'node_modules') { continue; }
+                if (entry.isSymbolicLink()) { continue; }
                 const full = path.join(dir, entry.name);
-                if (entry.isDirectory()) { walk(full); }
-                else if (/\.(bru|ya?ml|json)$/.test(entry.name)) {
-                    files.push({ path: path.relative(root, full), text: fs.readFileSync(full, 'utf8') });
+                if (entry.isDirectory()) {
+                    if (inside(full)) { walk(full); }
+                } else if (entry.isFile() && /\.(bru|ya?ml|json)$/.test(entry.name)) {
+                    if (!inside(full)) { continue; }
+                    files.push({
+                        path: path.relative(base, full),
+                        text: fs.readFileSync(full, 'utf8')
+                    });
                 }
             }
         };
-        walk(root);
+        walk(base);
         return files;
     }
 
