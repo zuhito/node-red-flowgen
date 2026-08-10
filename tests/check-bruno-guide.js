@@ -71,6 +71,23 @@ function comparable(body) {
     return JSON.stringify(normalise(parsed));
 }
 
+// The collection points at httpbin.org, which answers 5xx often enough that the
+// comparison spends more time on the host's mood than on the generated code.
+// httpbingo is the maintained successor and serves the same routes, so the urls
+// are repointed in the checkout before either caller reads them.
+function useHttpbingo(root) {
+    const swapped = [];
+    for (const entry of fs.readdirSync(root)) {
+        if (!/\.ya?ml$/.test(entry)) continue;
+        const file = path.join(root, entry);
+        const text = fs.readFileSync(file, 'utf8');
+        if (!/httpbin\.org/.test(text)) continue;
+        fs.writeFileSync(file, text.replace(/httpbin\.org/g, 'httpbingo.org'));
+        swapped.push(entry);
+    }
+    return swapped;
+}
+
 async function collect(root) {
     const files = [];
     for (const entry of fs.readdirSync(root)) {
@@ -155,6 +172,10 @@ async function main() {
         note('notice', 'the starter guide could not be cloned, skipping: ' +
             (cloned.stderr || '').trim().split('\n').pop());
         return 0;
+    }
+
+    for (const entry of useHttpbingo(root)) {
+        note('notice', entry + ' -> repointed from httpbin.org to httpbingo.org');
     }
 
     const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bruno-guide-red-'));
