@@ -12,15 +12,20 @@ const flowgen = require('../flowgen');
 
 const ONLY = process.env.LIVE_ONLY || '';
 
+// Only definitions published as sandboxes for testing belong here. Calling a
+// real service would make the run depend on someone else's data and quota, so
+// anything that is not a test API stays commented out.
 const SPEC_SOURCES = [
     { name: 'petstore-v2', url: 'https://petstore.swagger.io/v2/swagger.json' },
     { name: 'petstore-v3', url: 'https://petstore3.swagger.io/api/v3/openapi.json' },
-    { name: 'httpbin', url: 'https://httpbin.org/spec.json' },
+    { name: 'httpbin', url: 'https://httpbin.org/spec.json' }
 
-    { name: 'apis-guru',
-        url: 'https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/apis.guru/2.2.0/openapi.yaml' },
-    { name: 'apis-guru-v2',
-        url: 'https://api.apis.guru/v2/openapi.yaml' }
+    // skipped: apis.guru is a live directory of real APIs, not a test service
+    // { name: 'apis-guru',
+    //     url: 'https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/apis.guru/2.2.0/openapi.yaml' },
+    // skipped: apis.guru is a live directory of real APIs, not a test service
+    // { name: 'apis-guru-v2',
+    //     url: 'https://api.apis.guru/v2/openapi.yaml' }
 ];
 
 const LOCAL_SPECS = {
@@ -185,17 +190,30 @@ const CASES = [
     //     addAuth: { authorization: 'Basic dTpw' }, expect: 200, strict: true },
     { source: 'httpbingo', method: 'get', path: '/status/{code}', fill: { code: '204' },
         expect: 204, strict: true },
-    { source: 'apis-guru', method: 'get', path: '/providers.json' },
-    // skipped: same call shape as apis-guru get /providers.json
+    { source: 'httpbingo', method: 'get', path: '/digest-auth/{qop}/{user}/{passwd}',
+        fill: { qop: 'auth', user: 'u', passwd: 'p' }, expect: 401, strict: true }
+
+    // skipped: apis.guru is a live directory of real APIs, not a test service
+    // { source: 'apis-guru', method: 'get', path: '/providers.json' },
     // { source: 'apis-guru', method: 'get', path: '/metrics.json' },
-    // skipped: same call shape as apis-guru get /providers.json
     // { source: 'apis-guru', method: 'get', path: '/list.json' },
-    { source: 'apis-guru-v2', method: 'get', path: '/providers.json' }
-    // skipped: same call shape as apis-guru-v2 get /providers.json
+    // { source: 'apis-guru-v2', method: 'get', path: '/providers.json' },
     // { source: 'apis-guru-v2', method: 'get', path: '/list.json' }
 ];
 
 const summary = [];
+const comparisons = [];
+
+function writeComparisons() {
+    const out = process.env.LIVE_RESULTS;
+    if (!out) return;
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, JSON.stringify({
+        generatedAt: new Date().toISOString(),
+        commit: process.env.GITHUB_SHA || null,
+        comparisons: comparisons
+    }, null, 2) + '\n');
+}
 
 const CORPUS_SPECS = [
     '1forge.com/0.0.1/swagger.yaml',
@@ -300,6 +318,70 @@ function note(level, text) {
     const line = String(text).replace(/\r?\n/g, ' ');
     process.stdout.write('::' + level + '::' + line + '\n');
     summary.push((level === 'error' ? 'FAIL | ' : 'ok   | ') + line);
+}
+
+// Printed verbatim so the CI log carries the evidence behind every comparison.
+function dump(label, what, body) {
+    const text = body === null || body === undefined ? '(no body)'
+        : (typeof body === 'string' ? body : JSON.stringify(body, null, 2));
+    const clipped = text.length > 4000 ? text.slice(0, 4000) + '\n...[clipped]' : text;
+    process.stdout.write('----- ' + label + ' :: ' + what + ' -----\n' + clipped + '\n');
+}
+
+function curlBody(method, url, headers, body) {
+    const args = ['-sS', '-i', '--max-time', '25',
+        '-X', String(method || 'get').toUpperCase(), url];
+    for (const [name, value] of Object.entries(headers || {})) {
+        args.push('-H', name + ': ' + value);
+    }
+    if (body) { args.push('--data-binary', body); }
+    return new Promise(resolve => {
+        execFile('curl', args, { timeout: 30000, maxBuffer: 8 * 1024 * 1024 },
+            (err, stdout) => {
+                const text = String(stdout || '');
+                const split = text.indexOf('\r\n\r\n');
+                const head = split === -1 ? text : text.slice(0, split);
+                const payload = split === -1 ? '' : text.slice(split + 4);
+                const statusLine = head.split(/\r?\n/)[0] || '';
+                const match = statusLine.match(/\s(\d{3})\s/);
+                resolve({
+                    status: match ? parseInt(match[1], 10) : null,
+                    body: payload
+                });
+            });
+    });
+}
+
+// httpbin-style services echo back the request, so fields that change between
+// two calls (timestamps, the caller's port, a per-request id) are dropped
+// before comparing. What must match is the shape the generated request built.
+const VOLATILE = new Set([
+    'origin', 'x-amzn-trace-id', 'date', 'x-request-id', 'x-b3-traceid',
+    'x-b3-spanid', 'x-b3-parentspanid', 'host', 'user-agent', 'content-length',
+    'connection', 'x-forwarded-for', 'x-forwarded-port', 'x-real-ip'
+]);
+
+function normalise(value) {
+    if (Array.isArray(value)) return value.map(normalise);
+    if (value && typeof value === 'object') {
+        const out = {};
+        for (const key of Object.keys(value).sort()) {
+            if (VOLATILE.has(key.toLowerCase())) continue;
+            out[key] = normalise(value[key]);
+        }
+        return out;
+    }
+    return value;
+}
+
+function comparable(body) {
+    if (body === null || body === undefined || body === '') return null;
+    let parsed = body;
+    if (typeof body === 'string') {
+        try { parsed = JSON.parse(body); }
+        catch (err) { return body.trim(); }
+    }
+    return JSON.stringify(normalise(parsed));
 }
 
 function writeSummary() {
@@ -486,7 +568,8 @@ async function main() {
         probe.name = 'probe';
         probe.outputs = 1;
         probe.wires = [[]];
-        probe.func = "global.set('liveResult', { status: msg.statusCode });\nreturn msg;";
+        probe.func = "global.set('liveResult', { status: msg.statusCode, " +
+            "body: msg.payload, headers: msg.headers });\nreturn msg;";
 
         fs.writeFileSync(path.join(userDir, 'flows.json'), JSON.stringify(nodes));
         await RED.nodes.loadFlows(true);
@@ -507,6 +590,55 @@ async function main() {
             result = context.get('liveResult');
         }
         result = result || { status: null };
+
+        // The generated function node is the single source of truth for what
+        // the request looks like, so curl is pointed at exactly what it built.
+        let built = {};
+        try {
+            const fn = nodes.find(n => n.type === 'function' && n.name !== 'probe');
+            built = new Function('msg', fn.func).call(null, {}) || {};
+        } catch (err) {
+            built = {};
+        }
+        const curlHeaders = Object.assign({}, built.headers || {}, testCase.addAuth || {},
+            testCase.auth || {});
+        const curlBodyText = built.payload === undefined ? null
+            : (typeof built.payload === 'string'
+                ? built.payload : JSON.stringify(built.payload));
+
+        let viaCurl = { status: null, body: null };
+        if (built.url) {
+            viaCurl = await curlBody(testCase.method, built.url, curlHeaders, curlBodyText);
+        }
+
+        dump(label, 'curl HTTP ' + viaCurl.status, viaCurl.body);
+        dump(label, 'node-red debug HTTP ' + result.status, result.body);
+
+        const left = comparable(viaCurl.body);
+        const right = comparable(result.body);
+        comparisons.push({
+            label: label,
+            url: built.url || null,
+            curl: { status: viaCurl.status, body: viaCurl.body },
+            nodered: { status: result.status, body: result.body },
+            match: viaCurl.status === result.status &&
+                (left === null || right === null || left === right)
+        });
+        if (viaCurl.status !== null && result.status !== null) {
+            if (viaCurl.status !== result.status) {
+                failures++;
+                note('error', label + ' -> curl saw HTTP ' + viaCurl.status +
+                    ' but Node-RED saw HTTP ' + result.status);
+            } else if (left !== null && right !== null && left !== right) {
+                failures++;
+                note('error', label + ' -> curl and Node-RED returned different bodies');
+                dump(label, 'curl body (normalised)', left);
+                dump(label, 'node-red body (normalised)', right);
+            } else {
+                note('notice', label + ' -> curl and Node-RED agree on HTTP ' +
+                    viaCurl.status);
+            }
+        }
 
         const expected = [].concat(testCase.expect || []);
         if (expected.length) {
@@ -712,6 +844,7 @@ async function main() {
     note('notice', 'live cases run: ' + ran + ', reached: ' + reached +
         ', failures: ' + failures);
     writeSummary();
+    writeComparisons();
     await RED.stop();
     await new Promise(resolve => server.close(resolve));
     fs.rmSync(userDir, { recursive: true, force: true });
@@ -721,5 +854,6 @@ async function main() {
 main().catch(err => {
     note('error', 'live run crashed: ' + err.message);
     writeSummary();
+    writeComparisons();
     process.exit(1);
 });

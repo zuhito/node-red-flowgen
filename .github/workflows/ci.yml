@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+    paths-ignore:
+      - 'live-results/**'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -144,6 +146,8 @@ jobs:
   live:
     runs-on: ubuntu-latest
     needs: test
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -154,7 +158,24 @@ jobs:
         run: npm run check:httpbingo
 
       - name: Call real public APIs through Node-RED
+        env:
+          LIVE_RESULTS: live-results/latest.json
         run: npm run test:live
+
+      - name: Publish the comparison results
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          [ -f live-results/latest.json ] || exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f live-results/latest.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Record live comparison results [skip ci]"
+          git pull --rebase origin main || true
+          git push origin HEAD:main
 
       - name: Call a corpus of public APIs through Node-RED
         env:
