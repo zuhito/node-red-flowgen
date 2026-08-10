@@ -23,17 +23,47 @@ const ERROR_EXEMPT = [
     /"[a-z_ -]*(error|invalid|failed|failure|unknown)[a-z_ -]*"\s*:\s*\d+/gi
 ];
 
+// A JSON object's keys are frequently data rather than field names: the
+// petstore inventory returns a count per caller supplied status string, so
+// words like unavailable appear there as values that happen to be keys. Only
+// the string values of a parsed body are scanned; keys never are.
+function scannableText(body) {
+    let parsed = body;
+    if (typeof body === 'string') {
+        const trimmed = body.trim();
+        if (!/^[{[]/.test(trimmed)) return body;
+        try { parsed = JSON.parse(trimmed); } catch (err) { return body; }
+    }
+    if (!parsed || typeof parsed !== 'object') return String(parsed);
+    // A key is only meaningful when it names the field, which is to say when it
+    // carries a message rather than a count. "error": "boom" is the service
+    // reporting a fault; "unavailable": 4 is a tally of pets.
+    const parts = [];
+    (function walk(node) {
+        if (Array.isArray(node)) { node.forEach(walk); return; }
+        if (node && typeof node === 'object') {
+            for (const key of Object.keys(node)) {
+                const value = node[key];
+                const empty = value === null || value === undefined ||
+                    (Array.isArray(value) && !value.length) ||
+                    (value && typeof value === 'object' && !Array.isArray(value) &&
+                        !Object.keys(value).length);
+                if (typeof value === 'string' && value.trim()) parts.push(key);
+                else if (value && typeof value === 'object' && !empty) parts.push(key);
+                walk(value);
+            }
+            return;
+        }
+        if (typeof node === 'string') parts.push(node);
+    })(parsed);
+    return parts.join('\n');
+}
+
 function errorWords(body) {
     if (body === null || body === undefined) return [];
-    let text = typeof body === 'string' ? body : JSON.stringify(body);
+    let text = scannableText(body);
     if (!text) return [];
     for (const pattern of ERROR_EXEMPT) text = text.replace(pattern, ' ');
-    // Numeric values keyed by free text are data, not a message.
-    if (body && typeof body === 'object' && !Array.isArray(body) &&
-        Object.keys(body).length &&
-        Object.values(body).every(value => typeof value === 'number')) {
-        return [];
-    }
     const found = [];
     for (const word of ERROR_WORDS) {
         const escaped = word

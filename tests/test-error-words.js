@@ -128,3 +128,22 @@ test('a healthy response reports nothing whatever the status', () => {
     assert.deepStrictEqual(unexpectedErrors('{"ok":true}', 200, [200]), []);
     assert.deepStrictEqual(unexpectedErrors('{"ok":true}', 404, [404]), []);
 });
+
+test('object keys are data, not prose, however the body arrives', () => {
+    // The petstore inventory keys a count by whatever status callers created.
+    const inventory = { pending: 1, unavailable: 4, sold: 2, invalid: 3 };
+    assert.deepStrictEqual(errorWords(inventory), []);
+    assert.deepStrictEqual(errorWords(JSON.stringify(inventory)), [],
+        'curl hands the body back as a string, and it must read the same way');
+});
+
+test('a message in a value is still found inside a json string', () => {
+    assert.ok(errorWords('{"error":"Service Unavailable"}').indexOf('unavailable') !== -1);
+    assert.ok(errorWords('{"a":{"message":"invalid token"}}').indexOf('invalid') !== -1);
+});
+
+test('a body that is not json is scanned as it stands', () => {
+    assert.ok(errorWords('Internal Server Error').indexOf('internal server') !== -1);
+    assert.ok(errorWords('<html>503 Service Unavailable</html>')
+        .indexOf('unavailable') !== -1);
+});
