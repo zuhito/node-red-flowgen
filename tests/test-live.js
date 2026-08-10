@@ -153,10 +153,14 @@ const BRUNO_SOURCES = [
 ];
 
 const CASES = [
-    { source: 'petstore-v2', method: 'get', path: '/store/inventory' },
+    // The petstore inventory counts orders on a demo anyone can write to, so
+    // the tally moves between the curl call and the Node-RED one. The status
+    // and the error scan still have to hold; only the bodies may differ.
+    { source: 'petstore-v2', method: 'get', path: '/store/inventory', volatile: true },
     { source: 'petstore-v2', method: 'get', path: '/store/inventory',
-        auth: { api_key: 'special-key' } },
-    { source: 'petstore-v2', method: 'get', path: '/pet/findByStatus' },
+        auth: { api_key: 'special-key' }, volatile: true },
+    // Anyone can add a pet to the demo, so the list moves between the two calls.
+    { source: 'petstore-v2', method: 'get', path: '/pet/findByStatus', volatile: true },
     { source: 'petstore-v2', method: 'get', path: '/pet/{petId}', fill: { petId: '1' },
         expect: [200, 404] },
     { source: 'petstore-v3', method: 'get', path: '/pet/{petId}', fill: { petId: '1' },
@@ -657,6 +661,9 @@ async function main() {
                 dump(label, 'request headers the flow built', built.headers);
                 dump(label, 'curl HTTP ' + viaCurl.status, viaCurl.body);
                 dump(label, 'node-red HTTP ' + result.status, result.body);
+            } else if (testCase.volatile && left !== right) {
+                note('notice', label + ' -> the two calls saw different bodies, which ' +
+                    'this endpoint is expected to do');
             } else if (left !== null && right !== null && left !== right) {
                 failures++;
                 note('error', label + ' -> curl and Node-RED returned different bodies');
