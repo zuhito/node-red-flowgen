@@ -187,6 +187,76 @@ test('the collection endpoint clones a git url and returns its files', async () 
     assert.ok(files.some(f => f.path === 'get-user.yml'));
 });
 
+test('a private repository is cloned with the credentials in the url', async () => {
+    // A private repo is reached as https://user:token@host/... and git:// is
+    // accepted as a spelling of the same thing.
+    const os = require('os');
+    const { execFileSync } = require('child_process');
+
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-ep-private-'));
+    fs.writeFileSync(path.join(repo, 'req.yml'),
+        'info:\n  name: Private\nhttp:\n  method: GET\n  url: https://api.example.test/p\n');
+    execFileSync('git', ['init', '-q', repo]);
+    execFileSync('git', ['-C', repo, 'add', '-A']);
+    execFileSync('git', ['-C', repo, '-c', 'user.email=t@t', '-c', 'user.name=t',
+        'commit', '-qm', 'x']);
+    execFileSync('git', ['-C', repo, 'update-server-info']);
+
+    // git only sends credentials after a 401: it does not offer them
+    // preemptively, so the server has to ask before this proves anything.
+    const seen = [];
+    const statics = express();
+    statics.use(function (req, res, next) {
+        const offered = req.headers.authorization;
+        if (!offered) {
+            res.set('WWW-Authenticate', 'Basic realm="private"');
+            return res.status(401).end();
+        }
+        seen.push(offered);
+        next();
+    });
+    statics.use(express.static(repo, { dotfiles: 'allow' }));
+    const gitServer = http.createServer(statics);
+    await new Promise(resolve => gitServer.listen(0, '127.0.0.1', resolve));
+    const port = gitServer.address().port;
+
+    try {
+        for (const scheme of ['http', 'git']) {
+            const url = scheme + '://someuser:s3cr3t@127.0.0.1:' + port + '/.git';
+            const res = await get('/flowgen/source?url=' + encodeURIComponent(url));
+            assert.strictEqual(res.status, 200, scheme + ': ' + res.body);
+            assert.deepStrictEqual(JSON.parse(res.body).files.map(f => f.path), ['req.yml'],
+                scheme + ' should have cloned the repository');
+        }
+        assert.ok(seen.some(value => value && /^Basic /.test(value)),
+            'the credentials in the url have to reach the server');
+    } finally {
+        await new Promise(resolve => gitServer.close(resolve));
+        fs.rmSync(repo, { recursive: true, force: true });
+    }
+});
+
+test('a failed private clone does not echo the token back', async () => {
+    // The error text goes straight to the editor, and a token in it would end
+    // up in a screenshot or a bug report.
+    const url = 'https://someuser:s3cr3t-token-value@127.0.0.1:1/private.git';
+    const res = await get('/flowgen/source?url=' + encodeURIComponent(url));
+
+    assert.strictEqual(res.status, 502, res.body);
+    const error = JSON.parse(res.body).error;
+    assert.ok(!/s3cr3t-token-value/.test(error), 'the token leaked: ' + error);
+    assert.ok(!/someuser/.test(error), 'the username leaked: ' + error);
+    assert.match(error, /\*\*\*@|git clone failed/,
+        'the message should still say what went wrong: ' + error);
+});
+
+test('a git url that carries no host is rejected', async () => {
+    for (const bad of ['git://', 'git:///x.git', 'git://@/x.git']) {
+        const res = await get('/flowgen/source?url=' + encodeURIComponent(bad));
+        assert.ok(res.status === 400, bad + ' gave ' + res.status + ': ' + res.body);
+    }
+});
+
 test('a cloned repository cannot read files outside itself through a symlink', async () => {
     // git clones symbolic links as links, so a repository can ship
     // secrets.yaml -> /etc/passwd and have the contents handed to the editor.

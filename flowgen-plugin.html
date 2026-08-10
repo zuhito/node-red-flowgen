@@ -336,7 +336,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         collectionDoc = null;
         collectionListed = null;
         if (/\.git$/.test(String(text).trim()) &&
-                /^https?:\/\/\S+$/i.test(String(text || '').trim())) {
+                /^(https?|git):\/\/\S+$/i.test(String(text || '').trim())) {
             return fetchGit(text.trim());
         }
         if (/^https?:\/\/\S+$/i.test(String(text || '').trim())) {

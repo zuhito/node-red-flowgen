@@ -164,12 +164,62 @@ module.exports = function (RED) {
         request.on('error', done);
     }
 
+    // A private repository is reached with credentials in the url, which git
+    // accepts for http and https. git:// is also accepted as a spelling of the
+    // same thing and rewritten, because the protocol itself carries no
+    // authentication and would ignore the credentials silently.
+    //
+    // The credentials must never come back out. git usually redacts them, but
+    // not in every message, and the url is echoed in several places besides.
+    // Everything leaving this route goes through redact().
+    // Without these git will stop and ask for a password on a private
+    // repository whose credentials are wrong, and the request hangs until the
+    // timeout rather than failing with something the reader can act on.
+    const CLONE_OPTIONS = {
+        timeout: 60000,
+        env: Object.assign({}, process.env, {
+            GIT_TERMINAL_PROMPT: '0',
+            GIT_ASKPASS: '',
+            SSH_ASKPASS: '',
+            GCM_INTERACTIVE: 'never'
+        })
+    };
+
+    function redact(text) {
+        return String(text === undefined || text === null ? '' : text)
+            .replace(/(\b[a-z][a-z0-9+.-]*:\/\/)[^/@\s]+@/gi, '$1***@');
+    }
+
+    function gitUrl(url) {
+        let parsed;
+        try { parsed = new URL(url); } catch (err) { return null; }
+        if (!parsed.hostname) { return null; }
+
+        if (!/^git:$/i.test(parsed.protocol)) {
+            return /^https?:$/.test(parsed.protocol) ? url : null;
+        }
+        // The git protocol carries no authentication, so credentials written
+        // against it would be dropped in silence. It is treated as a spelling
+        // of the http family instead. https unless the host is plainly local,
+        // where demanding TLS would fail against a server that does not speak
+        // it, and where the traffic is not leaving the machine anyway.
+        const local = parsed.hostname === 'localhost' ||
+            /^127\./.test(parsed.hostname) || parsed.hostname === '::1';
+        // Assigning parsed.protocol does not take for git:, which the URL
+        // parser treats as opaque, so the scheme is replaced in the text.
+        return url.replace(/^git:/i, local ? 'http:' : 'https:');
+    }
+
     RED.httpAdmin.get('/flowgen/source', needsPermission, function (req, res) {
         const url = String(req.query.url || '').trim();
-        if (!/^https?:\/\/\S+$/i.test(url)) {
-            return res.status(400).json({ error: 'only http(s) URLs are accepted' });
+        if (!/^(https?|git):\/\/\S+$/i.test(url)) {
+            return res.status(400).json({ error: 'only http(s) and git URLs are accepted' });
         }
         if (/\.git$/.test(url)) {
+            const target = gitUrl(url);
+            if (!target) {
+                return res.status(400).json({ error: 'that is not a usable git URL' });
+            }
             const os = require('os');
             const { execFile } = require('child_process');
             const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-git-'));
@@ -177,7 +227,7 @@ module.exports = function (RED) {
                 try {
                     if (err) {
                         return res.status(502).json({ error: 'git clone failed: ' +
-                            String(err).trim().split('\n')[0] });
+                            redact(String(err).trim().split('\n')[0]) });
                     }
                     res.json({ files: gather(tmp) });
                 } finally {
@@ -186,15 +236,15 @@ module.exports = function (RED) {
                     }, function () {});
                 }
             };
-            return execFile('git', ['clone', '--quiet', '--depth', '1', url, tmp],
-                { timeout: 60000 }, function (err, stdout, stderr) {
+            return execFile('git', ['clone', '--quiet', '--depth', '1', target, tmp],
+                CLONE_OPTIONS, function (err, stdout, stderr) {
                 if (!err) { return finish(null); }
                 if (!/shallow/i.test(String(stderr))) { return finish(stderr || err.message); }
                 fs.rmSync(tmp, {
                     recursive: true, force: true, maxRetries: 5, retryDelay: 100
                 });
                 fs.mkdirSync(tmp, { recursive: true });
-                execFile('git', ['clone', '--quiet', url, tmp], { timeout: 60000 },
+                execFile('git', ['clone', '--quiet', target, tmp], CLONE_OPTIONS,
                     function (err2, stdout2, stderr2) {
                     finish(err2 ? (stderr2 || err2.message) : null);
                 });
