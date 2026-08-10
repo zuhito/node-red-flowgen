@@ -147,6 +147,25 @@ async function works(version) {
         const nodeBin = path.join(dir, 'node_modules', '.bin', WINDOWS ? 'node.cmd' : 'node');
         if (!fs.existsSync(nodeBin)) { return { ok: false, why: 'no node binary' }; }
 
+        // The install above ran under whichever node is running this script, so
+        // it cannot report an engine mismatch. Ask npm directly whether the
+        // candidate satisfies what the packages declare: a runtime that warns
+        // EBADENGINE on install is not one to recommend, however well it runs.
+        const engines = JSON.parse(execFileSync(NPM,
+            ['view', 'node-red@' + RED_VERSION, 'engines', '--json'],
+            { encoding: 'utf8', shell: WINDOWS }));
+        const wanted = String(engines.node || '');
+        const wantedFloor = wanted.match(/(\d+)(?:\.(\d+))?/);
+        if (wantedFloor) {
+            const [major, minor] = version.split('.').map(Number);
+            const needMajor = Number(wantedFloor[1]);
+            const needMinor = Number(wantedFloor[2] || 0);
+            if (major < needMajor || (major === needMajor && minor < needMinor)) {
+                return { ok: false, why: 'node-red@' + RED_VERSION + ' declares node ' +
+                    wanted + ', so npm reports EBADENGINE here' };
+            }
+        }
+
         const pkgDir = path.join(dir, 'node_modules', 'node-red-flowgen');
         fs.mkdirSync(pkgDir, { recursive: true });
         for (const file of ['flowgen.js', 'flowgen-plugin.js', 'flowgen-plugin.html']) {

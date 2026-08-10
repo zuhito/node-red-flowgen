@@ -56,8 +56,12 @@ function fail(message) {
     const redMinor = redFloor ? Number(redFloor[2] || 0) : 0;
     const [belowMajor, belowMinor] = below.split('.').map(Number);
     if (belowMajor < redMajor || (belowMajor === redMajor && belowMinor < redMinor)) {
-        process.stdout.write('  ' + below + ' is below what Node-RED itself supports, ' +
-            'so the floor cannot go lower\n');
+        // Node-RED may still boot there, but npm reports EBADENGINE on install
+        // and upstream makes no promises about it. Running a production system
+        // on a combination its own author declines to support is not something
+        // this package should recommend by declaring it.
+        process.stdout.write('  ' + below + ' is outside the range Node-RED declares (' +
+            (redEngines.node || '?') + '), so the floor cannot go lower even if it runs\n');
         return;
     }
 
