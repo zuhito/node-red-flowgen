@@ -1313,11 +1313,10 @@ test('the shipped httpbingo sample carries only the three auth endpoints', () =>
     assert.match(basic, /"authorization": `Basic \$\{credentials\}`/);
     assert.ok(basic.includes(encoded));
     const digest = flowgen.generate(doc, 'get', '/digest-auth/{qop}/{user}/{passwd}');
-    assert.match(digest, /credentials \? `Digest \$\{credentials\}` : undefined/);
-    assert.ok(digest.includes('const credentials = null;'),
-        'the first pass must go out without credentials');
-    assert.ok(digest.includes('// const ha1 = md5('),
-        'the second pass must be there, commented out');
+    assert.ok(!/authorization/.test(digest),
+        'the first pass goes out to collect the challenge, carrying nothing');
+    assert.match(digest, /answers this call with 401 and a challenge/,
+        'the code should say why it sends no credentials');
 });
 
 test('the full httpbingo definition covers the endpoints the tests need', () => {
@@ -1340,9 +1339,9 @@ test('the full httpbingo definition covers the endpoints the tests need', () => 
         assert.match(code, /"authorization": `/,
             target + ' needs credentials, so the code must offer the header');
     }
-    assert.match(flowgen.generate(doc, 'get', '/digest-auth/{qop}/{user}/{passwd}'),
-        /"authorization": credentials \?/,
-        'digest offers the header only once the challenge has been answered');
+    assert.ok(!/authorization/.test(
+        flowgen.generate(doc, 'get', '/digest-auth/{qop}/{user}/{passwd}')),
+    'digest sends no header until the challenge has been read');
     assert.match(flowgen.generate(doc, 'get', '/bearer'),
         /"authorization": `Bearer \{token\}`/);
     assert.match(flowgen.generate(doc, 'get', '/bearer'),
@@ -1374,20 +1373,23 @@ test('every http auth scheme names the value to fill in', () => {
         'Basic ' + Buffer.from('{user}:{passwd}').toString('base64'));
     assert.strictEqual(run(flowgen.generate(scheme('bearer'), 'get', '/x')).headers.authorization,
         'Bearer {token}');
-    assert.strictEqual(run(flowgen.generate(scheme('digest'), 'get', '/x')).headers.authorization,
-        undefined, 'the first digest pass carries no authorization header');
+    assert.strictEqual((run(flowgen.generate(scheme('digest'), 'get', '/x')).headers || {})
+        .authorization, undefined, 'the first digest pass carries no authorization header');
 
     const basicCode = flowgen.generate(scheme('basic'), 'get', '/x');
     assert.match(basicCode, /\{[a-z]+\}/, 'basic must leave a named placeholder');
     assert.ok(basicCode.includes('const credentials = ' + encoded + ';'),
         'basic must build the credentials from the placeholders');
 
+    // Digest is answered by the retry node in the flow, not by this code.
     const digestCode = flowgen.generate(scheme('digest'), 'get', '/x');
-    assert.match(digestCode, /\{[a-z]+\}/, 'digest must leave a named placeholder');
-    assert.ok(digestCode.includes('const credentials = null;'));
-    for (const marker of ['// const nonce = ""', '// const ha1 = md5(',
-        '// const response = qop', '// ].filter(Boolean).join(", ");']) {
-        assert.ok(digestCode.includes(marker), 'digest is missing ' + marker);
+    assert.ok(!/authorization/.test(digestCode));
+    const retry = flowgen.buildFlow(scheme('digest'), 'get', '/x')
+        .find(n => n.type === 'function' && /digest challenge/.test(n.name));
+    assert.ok(retry, 'a digest flow must carry the node that signs the challenge');
+    for (const marker of ['const ha1 = md5(', 'const response = qop',
+        'msg.headers.cookie = cookies']) {
+        assert.ok(retry.func.includes(marker), 'the retry is missing ' + marker);
     }
     for (const name of ['bearer', 'negotiate']) {
         const code = flowgen.generate(scheme(name), 'get', '/x');

@@ -111,9 +111,9 @@ function normalizeRequest(nameHint, source) {
                 req.headers.push(['authorization', raw('`Basic ${credentials}`')]);
             } else if (auth.digest || kind === 'digest') {
                 const entry = auth.digest || auth;
+                // No header here: the retry node in the flow signs the
+                // challenge once the first pass has collected it.
                 req.credentials = brunoCredentials(entry, 'digest');
-                req.headers.push(['authorization',
-                    raw('credentials ? `Digest ${credentials}` : undefined')]);
             } else if (auth.apikey || kind === 'apikey' || kind === 'api-key') {
                 const entry = auth.apikey || auth;
                 const name = entry.key || entry.name || 'api-key';
@@ -319,50 +319,19 @@ const SAMPLE_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR42mNg
 const USER_PARAM = /^(user|username|userid|user_id|login)$/i;
 const PASSWD_PARAM = /^(passwd|password|pass|pwd)$/i;
 
-function digestLines(lines, pair, parts) {
-    const user = '{' + pair.user + '}';
-    const passwd = '{' + pair.passwd + '}';
-    const method = String(parts.method || 'GET').toUpperCase();
-
-    lines.push('// Digest auth needs the challenge the server sends back, so this first');
-    lines.push('// pass goes out unauthenticated and is expected to answer 401. Read');
-    lines.push('// realm, nonce, qop and opaque from msg.headers["www-authenticate"] on');
-    lines.push('// that reply, fill them in below, then comment this pass out and');
-    lines.push('// uncomment the one beneath it.');
-    lines.push('const credentials = null;');
-    lines.push('');
-    lines.push('// ----- second pass: fill in the challenge and swap the two over -----');
-    lines.push('// const crypto = require("crypto");');
-    lines.push('// const md5 = value => crypto.createHash("md5").update(value).digest("hex");');
-    lines.push('//');
-    lines.push('// const realm = "' + (pair.realm || '') + '";  // from the challenge');
-    lines.push('// const nonce = "";       // from the challenge');
-    lines.push('// const qop = "auth";     // from the challenge');
-    lines.push('// const opaque = "";      // from the challenge, often absent');
-    lines.push('// const nc = "00000001";');
-    lines.push('// const cnonce = crypto.randomBytes(8).toString("hex");');
-    lines.push('// const uri = new URL(msg.url).pathname;');
-    lines.push('//');
-    lines.push('// const ha1 = md5(`' + user + ':${realm}:' + passwd + '`);');
-    lines.push('// const ha2 = md5(`' + method + ':${uri}`);');
-    lines.push('// const response = qop');
-    lines.push('//     ? md5(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`)');
-    lines.push('//     : md5(`${ha1}:${nonce}:${ha2}`);');
-    lines.push('//');
-    lines.push('// const credentials = [');
-    lines.push('//     `username="' + user + '"`,');
-    lines.push('//     `realm="${realm}"`,');
-    lines.push('//     `nonce="${nonce}"`,');
-    lines.push('//     `uri="${uri}"`,');
-    lines.push('//     `response="${response}"`,');
-    lines.push('//     qop ? `qop=${qop}` : null,');
-    lines.push('//     qop ? `nc=${nc}` : null,');
-    lines.push('//     qop ? `cnonce="${cnonce}"` : null,');
-    lines.push('//     opaque ? `opaque="${opaque}"` : null');
-    lines.push('// ].filter(Boolean).join(", ");');
-    lines.push('// --------------------------------------------------------------------');
+// Digest is a two pass exchange, and the two passes are two http request
+// nodes rather than two edits to one. This first pass carries no credentials
+// on purpose: it exists to collect the challenge.
+function digestLines(lines) {
+    lines.push('// Digest auth answers this call with 401 and a challenge. The node');
+    lines.push('// after the request reads that challenge and signs the retry, so no');
+    lines.push('// credentials are sent here.');
 }
 
+// The retry node: it runs on the 401, reads the challenge out of the response
+// and rebuilds the same request with an Authorization header the server will
+// accept. The cookies matter as much as the nonce, because httpbin and its
+// successors hand one out with the challenge and refuse the retry without it.
 function brunoCredentials(entry, scheme) {
     const raw = value => String(value === undefined || value === null ? '' : value).trim();
     const read = (value, fallback) => {
@@ -380,6 +349,83 @@ function brunoCredentials(entry, scheme) {
         known: user.literal && passwd.literal,
         scheme: scheme, realm: raw(entry.realm)
     };
+}
+
+// Whether this operation is digest protected, and under what credential names.
+// The generator already worked this out while producing the code, so the answer
+// is taken from there rather than reasoning about the document a second time.
+function digestOf(doc, method, target) {
+    let found = null;
+    const seen = credentialsSink;
+    credentialsSink = pair => { if (pair && pair.scheme === 'digest') found = pair; };
+    try { generate(doc, method, target); } catch (err) { found = null; }
+    credentialsSink = seen;
+    return found;
+}
+
+let credentialsSink = null;
+
+function digestRetryCode(pair, method) {
+    const user = pair.known ? JSON.stringify(pair.user) : '`{' + pair.user + '}`';
+    const passwd = pair.known ? JSON.stringify(pair.passwd) : '`{' + pair.passwd + '}`';
+    return [
+        'const crypto = require("crypto");',
+        'const md5 = value => crypto.createHash("md5").update(value).digest("hex");',
+        '',
+        'const challenge = String((msg.headers || {})["www-authenticate"] || "");',
+        'if (!/^Digest/i.test(challenge)) {',
+        '    // Already authenticated, or the server never asked. Pass it through.',
+        '    return msg;',
+        '}',
+        '',
+        'const field = name => {',
+        '    const quoted = challenge.match(new RegExp(name + \'="([^"]*)"\', "i"));',
+        '    if (quoted) { return quoted[1]; }',
+        '    const bare = challenge.match(new RegExp(name + "=([^,\\\\s]+)", "i"));',
+        '    return bare ? bare[1] : "";',
+        '};',
+        '',
+        'const realm = field("realm");',
+        'const nonce = field("nonce");',
+        'const opaque = field("opaque");',
+        'const qop = (field("qop").split(",")[0] || "").trim();',
+        'const nc = "00000001";',
+        'const cnonce = crypto.randomBytes(8).toString("hex");',
+        'const uri = new URL(msg.url).pathname;',
+        '',
+        'const ha1 = md5(`${' + user + '}:${realm}:${' + passwd + '}`);',
+        'const ha2 = md5(`' + method + ':${uri}`);',
+        'const response = qop',
+        '    ? md5(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`)',
+        '    : md5(`${ha1}:${nonce}:${ha2}`);',
+        '',
+        'const credentials = [',
+        '    `username="${' + user + '}"`,',
+        '    `realm="${realm}"`,',
+        '    `nonce="${nonce}"`,',
+        '    `uri="${uri}"`,',
+        '    `response="${response}"`,',
+        '    `algorithm=MD5`,',
+        '    qop ? `qop=${qop}` : null,',
+        '    qop ? `nc=${nc}` : null,',
+        '    qop ? `cnonce="${cnonce}"` : null,',
+        '    opaque ? `opaque="${opaque}"` : null',
+        '].filter(Boolean).join(", ");',
+        '',
+        '// The challenge came with cookies, and the retry is refused without them.',
+        'const setCookie = (msg.headers || {})["set-cookie"];',
+        'const cookies = [].concat(setCookie || [])',
+        '    .map(entry => String(entry).split(";")[0])',
+        '    .filter(Boolean).join("; ");',
+        '',
+        'msg.headers = Object.assign({}, msg.retryHeaders, {',
+        '    "authorization": `Digest ${credentials}`',
+        '});',
+        'if (cookies) { msg.headers.cookie = cookies; }',
+        'msg.method = ' + JSON.stringify(method) + ';',
+        'delete msg.payload;',
+        'return msg;'
+    ].join('\n');
 }
 
 function credentialsFrom(urlParams) {
@@ -546,6 +592,11 @@ function assemble(parts) {
     }
     parts.urls.forEach((url, i) =>
         lines.push((i ? '// ' : '') + 'msg.url = ' + quote(url) + ';'));
+    if (credentialsSink && parts.credentials) { credentialsSink(parts.credentials); }
+    if (parts.credentials && parts.credentials.scheme === 'digest') {
+        lines.push('');
+        digestLines(lines);
+    }
     for (const [key, pairs] of [['headers', parts.headers], ['cookies', parts.cookies]]) {
         if (!pairs.length) continue;
         const empty = blank(pairs);
@@ -559,9 +610,7 @@ function assemble(parts) {
                     phrase(names.map(item => typed('{' + item.name + '}', item.type))) +
                     ' below with real values.');
             }
-            if (pair.scheme === 'digest') {
-                digestLines(lines, pair, parts);
-            } else {
+            if (pair.scheme !== 'digest') {
                 const secret = pair.known
                     ? pair.user + ':' + pair.passwd
                     : '{' + pair.user + '}:{' + pair.passwd + '}';
@@ -690,8 +739,8 @@ function generateOpenApi3(doc, rawMethod, target) {
                     credentials.scheme = s;
                     if (s === 'digest') {
                         credentials.realm = String(scheme.realm || '');
-                        headers.push(['authorization',
-                            raw('credentials ? `Digest ${credentials}` : undefined')]);
+                        // No header on the first pass: it goes out to collect
+                        // the challenge, and the retry node signs the second.
                     } else {
                         headers.push(['authorization', raw('`Basic ${credentials}`')]);
                     }
@@ -1033,10 +1082,21 @@ function buildFlow(doc, method, target, options) {
         shown = (withoutHost.split('?')[0]) || String(target);
     }
     const name = String(method).toUpperCase() + ' ' + shown;
+
+    // Digest cannot be answered in one pass: the server replies 401 with a
+    // challenge, and only a second request carrying a signature built from it
+    // is accepted. The flow shows that shape rather than hiding it.
+    const digest = digestOf(doc, method, target);
+    const retryName = digest ? 'sign the digest challenge' : null;
+    const labels = digest
+        ? [['timestamp', false], [name, true], ['http request', true],
+            [retryName, true], ['http request', true], ['msg.payload', true]]
+        : [['timestamp', false], [name, true], ['http request', true],
+            ['msg.payload', true]];
+
     const xs = [];
     let left = 60;
-    for (const entry of [['timestamp', false], [name, true],
-        ['http request', true], ['msg.payload', true]]) {
+    for (const entry of labels) {
         const width = nodeWidth(entry[0], entry[1]);
         const edge = 20 * Math.ceil(left / 20);
         xs.push(edge + width / 2);
@@ -1065,16 +1125,37 @@ function buildFlow(doc, method, target, options) {
             id: 'flowgen-request', type: 'http request', z: tab, name: '',
             method: 'use', ret: 'obj', paytoqs: 'ignore', url: '', tls: '',
             persist: false, proxy: '', insecureHTTPParser: false,
-            authType: '', senderr: false, headers: [],
-            x: xs[2], y: 100, wires: [['flowgen-debug']]
-        },
-        {
-            id: 'flowgen-debug', type: 'debug', z: tab, name: '',
-            active: true, tosidebar: true, console: false, tostatus: false,
-            complete: 'payload', targetType: 'msg', statusVal: '', statusType: 'auto',
-            x: xs[3], y: 100, wires: []
+            // A 401 is the expected answer to the first pass, so the node has
+            // to hand the response on instead of raising it as an error.
+            authType: '', senderr: digest ? true : false, headers: [],
+            x: xs[2], y: 100,
+            wires: [[digest ? 'flowgen-digest' : 'flowgen-debug']]
         }
     ];
+
+    if (digest) {
+        nodes.push({
+            id: 'flowgen-digest', type: 'function', z: tab, name: retryName,
+            func: digestRetryCode(digest, String(method).toUpperCase()),
+            outputs: 1, timeout: 0, noerr: 0,
+            initialize: '', finalize: '', libs: [],
+            x: xs[3], y: 100, wires: [['flowgen-retry']]
+        });
+        nodes.push({
+            id: 'flowgen-retry', type: 'http request', z: tab, name: '',
+            method: 'use', ret: 'obj', paytoqs: 'ignore', url: '', tls: '',
+            persist: false, proxy: '', insecureHTTPParser: false,
+            authType: '', senderr: false, headers: [],
+            x: xs[4], y: 100, wires: [['flowgen-debug']]
+        });
+    }
+
+    nodes.push({
+        id: 'flowgen-debug', type: 'debug', z: tab, name: '',
+        active: true, tosidebar: true, console: false, tostatus: false,
+        complete: 'payload', targetType: 'msg', statusVal: '', statusType: 'auto',
+        x: xs[digest ? 5 : 3], y: 100, wires: []
+    });
     if (withTab) { return nodes; }
     return nodes.slice(1).map(function (node) {
         const copy = Object.assign({}, node);

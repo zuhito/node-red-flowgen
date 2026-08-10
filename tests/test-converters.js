@@ -99,7 +99,12 @@ test('a converted digest request keeps the two pass shape', () => {
     const code = flowgen.generate(viaBruno, 'get',
         '{baseUrl}/digest-auth/{qop}/{user}/{passwd}');
 
-    assert.ok(code.includes('const credentials = null;'));
-    assert.match(code, /credentials \? `Digest \$\{credentials\}` : undefined/);
-    assert.ok(code.includes('// const ha1 = md5('));
+    assert.ok(!/authorization/.test(code),
+        'the first pass collects the challenge and sends nothing');
+
+    const retry = flowgen.buildFlow(viaBruno, 'get',
+        '{baseUrl}/digest-auth/{qop}/{user}/{passwd}')
+        .find(n => n.type === 'function' && /digest challenge/.test(n.name));
+    assert.ok(retry, 'a converted digest request still gets its retry node');
+    assert.ok(retry.func.includes('msg.headers.cookie = cookies'));
 });
