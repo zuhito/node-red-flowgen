@@ -162,6 +162,9 @@ jobs:
       - name: Check the bundled httpbingo definition against the live service
         run: npm run check:httpbingo
 
+      - name: Compare the Bruno starter guide against Node-RED
+        run: npm run check:bruno-guide
+
       - name: Call real public APIs through Node-RED
         env:
           LIVE_RESULTS: tests/live-results/latest.json

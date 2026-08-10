@@ -45,6 +45,7 @@
     "samples": "node tests/generate-samples.js",
     "lint": "eslint -c tests/eslint.config.js .",
     "test:digest": "node --test tests/test-digest.js tests/test-error-words.js",
+    "check:bruno-guide": "node tests/check-bruno-guide.js",
     "test:converters": "node --test tests/test-converters.js",
     "test:nrlint": "node --test tests/test-nrlint.js",
     "test:wizard": "node --test --test-timeout 300000 tests/test-wizard.js",
