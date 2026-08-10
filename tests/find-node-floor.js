@@ -43,16 +43,30 @@ function run(cmd, args, options) {
     });
 }
 
+const RED_VERSION = process.env.RED_VERSION || 'latest';
+
+// The node range that the target Node-RED release declares it supports.
+function engineFloor() {
+    const engines = JSON.parse(execFileSync(NPM,
+        ['view', 'node-red@' + RED_VERSION, 'engines', '--json'],
+        { encoding: 'utf8', shell: WINDOWS }));
+    const match = String(engines.node || '').match(/(\d+)(?:\.(\d+))?/);
+    return match ? match[1] + '.' + (match[2] || '0') : '18.0';
+}
+
 function candidates() {
     const all = JSON.parse(execFileSync(NPM, ['view', 'node', 'versions', '--json'], {
         encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, shell: WINDOWS
     }));
-    // Node-RED 5 declares >=22.9. Anything below that is unsupported upstream,
-    // so it is not a floor worth claiming even if it happens to run.
+    // The floor is measured against the Node-RED release this plugin targets,
+    // named by RED_VERSION. Nothing below that release's own engines field is
+    // worth claiming even if it happens to run, since upstream does not
+    // guarantee it.
+    const [floorMajor, floorMinor] = engineFloor().split('.').map(Number);
     return all.filter(version => {
         const [major, minor] = version.split('.').map(Number);
-        if (!Number.isFinite(major) || major < 22) return false;
-        if (major === 22 && minor < 9) return false;
+        if (!Number.isFinite(major) || major < floorMajor) return false;
+        if (major === floorMajor && minor < floorMinor) return false;
         return !/-/.test(version);
     });
 }
@@ -125,7 +139,8 @@ async function works(version) {
             name: 'node-floor-probe', version: '1.0.0', private: true
         }));
 
-        const install = await run(NPM, ['install', 'node@' + version, 'node-red', 'express',
+        const install = await run(NPM, ['install', 'node@' + version,
+            'node-red@' + RED_VERSION, 'express',
             '--no-audit', '--no-fund', '--loglevel=error'], { cwd: dir });
         if (!install.ok) { return { ok: false, why: 'install: ' + fault(install.stderr) }; }
 
@@ -228,7 +243,7 @@ async function works(version) {
 
 async function main() {
     const versions = candidates();
-    const redVersion = execFileSync(NPM, ['view', 'node-red', 'version'], {
+    const redVersion = execFileSync(NPM, ['view', 'node-red@' + RED_VERSION, 'version'], {
         encoding: 'utf8', shell: WINDOWS
     }).trim();
     process.stdout.write('node-red ' + redVersion + ', browsers ' + ENGINES.join(', ') +

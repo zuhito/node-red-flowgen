@@ -14,7 +14,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=22.9.0"
+    "node": ">=18.5.0"
   },
   "dependencies": {
     "js-yaml": "5.2.3",
@@ -44,6 +44,7 @@
     "test:plugin:unit": "node --test tests/test-plugin-unit.js",
     "samples": "node tests/generate-samples.js",
     "lint": "eslint -c tests/eslint.config.js .",
+    "check:node-floor": "node tests/find-node-floor.js",
     "test:digest": "RUN_DIGEST_TESTS=1 node --test tests/test-digest.js",
     "test:errorwords": "node --test tests/test-error-words.js",
     "check:bruno-guide": "node tests/check-bruno-guide.js",
