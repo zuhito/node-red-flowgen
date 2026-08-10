@@ -214,21 +214,7 @@ jobs:
         env:
           BROWSERS: ${{ matrix.browser }}
           RED_VERSION: 4.1.13
-        run: |
-          set -o pipefail
-          FLOOR="$(node -p "require('./package.json').engines.node.replace(/^[^0-9]*/, '')")"
-          echo "checking node $FLOOR in $BROWSERS"
-          node -e "
-            const { works } = require('./tests/find-node-floor.js');
-            works(process.argv[1]).then(result => {
-              console.log(process.argv[1], result.ok ? 'WORKS' : 'FAILS', result.why || '');
-              if (!result.ok) {
-                console.log('::error::the declared node floor does not run the editor: ' +
-                  result.why);
-                process.exit(1);
-              }
-            });
-          " "$FLOOR"
+        run: npm run check:node-floor
 
   ollama:
     # An MLX build needs the Metal stack on Apple silicon, so the Gemma 4 run
