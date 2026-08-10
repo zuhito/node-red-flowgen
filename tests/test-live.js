@@ -18,8 +18,12 @@ const ONLY = process.env.LIVE_ONLY || '';
 // anything that is not a test API stays commented out.
 const SPEC_SOURCES = [
     { name: 'petstore-v2', url: 'https://petstore.swagger.io/v2/swagger.json' },
-    { name: 'petstore-v3', url: 'https://petstore3.swagger.io/api/v3/openapi.json' },
-    { name: 'httpbin', url: 'https://httpbin.org/spec.json' }
+    { name: 'petstore-v3', url: 'https://petstore3.swagger.io/api/v3/openapi.json' }
+
+    // skipped: httpbingo is the maintained successor and is bundled with the
+    // repository, so the same shapes are covered without fetching a spec from
+    // a service that answers 502 more often than it answers 200
+    // { name: 'httpbin', url: 'https://httpbin.org/spec.json' }
 
     // skipped: apis.guru is a live directory of real APIs, not a test service
     // { name: 'apis-guru',
@@ -158,28 +162,29 @@ const CASES = [
     { source: 'petstore-v3', method: 'get', path: '/pet/{petId}', fill: { petId: '1' },
         expect: [200, 404] },
     { source: 'petstore-v3', method: 'get', path: '/pet/findByStatus' },
-    { source: 'httpbin', method: 'get', path: '/get' },
-    // skipped: same call shape as httpbin get /get
+    // skipped: httpbingo covers every one of these shapes below
+    // { source: 'httpbin', method: 'get', path: '/get' },
     // { source: 'httpbin', method: 'get', path: '/headers' },
-    // skipped: same call shape as httpbin get /get
     // { source: 'httpbin', method: 'get', path: '/response-headers' },
-    { source: 'httpbin', method: 'post', path: '/post' },
-    { source: 'httpbin', method: 'get', path: '/status/{codes}', fill: { codes: '200' } },
-    { source: 'httpbin', method: 'get', path: '/bearer', expect: [200, 401] },
-    { source: 'httpbin', method: 'get', path: '/bearer',
-        addAuth: { authorization: 'Bearer live-test-token' }, expect: 200 },
+    // { source: 'httpbin', method: 'post', path: '/post' },
+    // { source: 'httpbin', method: 'get', path: '/status/{codes}', fill: { codes: '200' } },
+    // { source: 'httpbin', method: 'get', path: '/bearer', expect: [200, 401] },
+    // { source: 'httpbin', method: 'get', path: '/bearer',
+    //     addAuth: { authorization: 'Bearer live-test-token' }, expect: 200 },
     { source: 'bruno-starter-guide', method: 'get', path: '/users/usebruno' },
     { source: 'bruno-starter-guide', method: 'get', path: '/basic-auth/usebruno/1234',
         expect: [200, 401] },
     { source: 'bruno-starter-guide', method: 'get', path: '/basic-auth/usebruno/1234',
         auth: { authorization: 'Basic dXNlYnJ1bm86MTIzNA==' }, expect: 200 },
-    { source: 'httpbin', method: 'get', path: '/basic-auth/{user}/{passwd}',
-        fill: { user: 'u', passwd: 'p' },
-        addAuth: { authorization: 'Basic dTpw' }, expect: 200 },
+    // skipped: same call shape as httpbingo get /basic-auth/{user}/{passwd}
+    // { source: 'httpbin', method: 'get', path: '/basic-auth/{user}/{passwd}',
+    //     fill: { user: 'u', passwd: 'p' },
+    //     addAuth: { authorization: 'Basic dTpw' }, expect: 200 },
     { source: 'httpbingo', method: 'get', path: '/get' },
     { source: 'httpbingo', method: 'post', path: '/post' },
     // skipped: same call shape as httpbingo get /get
     // { source: 'httpbingo', method: 'get', path: '/headers' },
+    { source: 'httpbingo', method: 'get', path: '/bearer', expect: 401, strict: true },
     { source: 'httpbingo', method: 'get', path: '/bearer',
         addAuth: { authorization: 'Bearer live-test-token' }, expect: 200, strict: true },
     { source: 'httpbingo', method: 'get', path: '/basic-auth/{user}/{passwd}',
@@ -355,7 +360,7 @@ function curlBody(method, url, headers, body) {
     });
 }
 
-// httpbin-style services echo back the request, so anything the transport or
+// httpbingo echoes the request back, so anything the transport or
 // the proxy in front of it decides is dropped before comparing: curl and the
 // http request node are different clients and will never agree on these.
 // What must match is the shape the generated request built.
