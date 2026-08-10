@@ -13,7 +13,7 @@ const { execFile } = require('child_process');
 const express = require('express');
 const RED = require('node-red');
 const flowgen = require('../flowgen');
-const { errorWords } = require('./error-words');
+const { unexpectedErrors } = require('./error-words');
 
 const REPO = 'https://github.com/bruno-collections/bruno-starter-guide.git';
 const WINDOWS = process.platform === 'win32';
@@ -242,9 +242,14 @@ async function main() {
             note('notice', label + ' -> Bruno and Node-RED agree on HTTP ' + bruno.status);
         }
 
-        for (const [source, body] of [['bruno', bruno.body], ['node-red', nodered.body]]) {
+        for (const [source, body, status] of [
+            ['bruno', bruno.body, bruno.status],
+            ['node-red', nodered.body, nodered.status]
+        ]) {
             if (throttled(nodered.status) && source === 'node-red') continue;
-            const hits = errorWords(body);
+            // The guide expects every request to succeed, so nothing in a body
+            // is excused here; the status it came back with still decides.
+            const hits = unexpectedErrors(body, status, [status < 400 ? status : null]);
             if (!hits.length) continue;
             problems.push(label);
             note('error', label + ' -> the ' + source +

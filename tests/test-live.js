@@ -9,7 +9,7 @@ const express = require('express');
 const RED = require('node-red');
 const { execFile } = require('child_process');
 const flowgen = require('../flowgen');
-const { errorWords } = require('./error-words');
+const { errorWords, unexpectedErrors } = require('./error-words');
 
 const ONLY = process.env.LIVE_ONLY || '';
 
@@ -680,18 +680,28 @@ async function main() {
         // Several cases exist to prove a rejection happens, and those bodies say
         // so in words. Scanning them would flag the very thing being asked for,
         // so the scan only runs where a healthy answer was expected.
-        const wantsFailure = expected.some(status => status >= 400) ||
-            (result.status !== null && result.status >= 400 &&
-                expected.indexOf(result.status) !== -1);
-        if (!wantsFailure) {
-            for (const [source, body] of [['curl', viaCurl.body], ['node-red', result.body]]) {
-                const hits = errorWords(body);
-                if (!hits.length) continue;
-                failures++;
-                note('error', label + ' -> the ' + source +
-                    ' response reads like an error: ' + hits.join(', '));
-                dump(label, source + ' response carrying ' + hits.join(', '), body);
+        // A case that exists to prove a 401 happens will say so in the body, and
+        // failing on that would flag the very outcome being checked. But only
+        // the rejection that was asked for is excused: any other complaint in
+        // the body still has to surface, whatever the status code.
+        for (const [source, body, status] of [
+            ['curl', viaCurl.body, viaCurl.status],
+            ['node-red', result.body, result.status]
+        ]) {
+            const hits = unexpectedErrors(body, status, expected);
+            if (!hits.length) {
+                const said = errorWords(body);
+                if (said.length) {
+                    note('notice', label + ' -> the ' + source + ' response says ' +
+                        said.join(', ') + ', which is the HTTP ' + status +
+                        ' that was expected');
+                }
+                continue;
             }
+            failures++;
+            note('error', label + ' -> the ' + source +
+                ' response reads like an error: ' + hits.join(', '));
+            dump(label, source + ' HTTP ' + status + ' carrying ' + hits.join(', '), body);
         }
 
         if (expected.length) {

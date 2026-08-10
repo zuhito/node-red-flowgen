@@ -2,7 +2,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { errorWords, ERROR_WORDS } = require('./error-words');
+const { errorWords, unexpectedErrors, ERROR_WORDS } = require('./error-words');
 
 test('a healthy response reports nothing', () => {
     for (const body of [
@@ -98,4 +98,33 @@ test('a map of counts keyed by free text is data, not a message', () => {
     assert.deepStrictEqual(errorWords({ invalid: 3, available: 5 }), []);
     // A map that carries prose is still scanned.
     assert.ok(errorWords({ status: 'invalid' }).length > 0);
+});
+
+test('the rejection a case asked for is not held against it', () => {
+    assert.deepStrictEqual(
+        unexpectedErrors('{"error":"Unauthorized"}', 401, [401]), []);
+    assert.deepStrictEqual(
+        unexpectedErrors('{"detail":"Forbidden"}', 403, [200, 403]), []);
+});
+
+test('anything beyond the rejection still fails, 4xx or not', () => {
+    // The denial was expected, but a timeout alongside it was not.
+    assert.ok(unexpectedErrors(
+        '{"error":"Unauthorized","detail":"upstream timeout"}', 401, [401])
+        .indexOf('timeout') !== -1);
+
+    // A 4xx for a reason the case never asked about.
+    assert.ok(unexpectedErrors('{"message":"malformed request body"}', 401, [401])
+        .indexOf('malformed') !== -1);
+
+    // The same words when the case wanted a healthy answer.
+    assert.ok(unexpectedErrors('{"error":"Unauthorized"}', 401, [200]).length > 0);
+
+    // 5xx is never the outcome a case asks for.
+    assert.ok(unexpectedErrors('{"error":"internal server"}', 500, [500]).length > 0);
+});
+
+test('a healthy response reports nothing whatever the status', () => {
+    assert.deepStrictEqual(unexpectedErrors('{"ok":true}', 200, [200]), []);
+    assert.deepStrictEqual(unexpectedErrors('{"ok":true}', 404, [404]), []);
 });

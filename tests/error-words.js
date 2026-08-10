@@ -45,4 +45,23 @@ function errorWords(body) {
     return found;
 }
 
-module.exports = { errorWords, ERROR_WORDS };
+// The words a server uses to say "you may not do that". Where a case expects a
+// 4xx these are the response doing its job; anything else in the body is a
+// complaint nobody asked for.
+const REJECTION_WORDS = new Set([
+    'unauthorized', 'unauthenticated', 'forbidden', 'denied',
+    'not found', 'notfound', 'invalid', 'error'
+]);
+
+// Returns the words that should fail a run, given the status that came back and
+// the statuses the case was willing to accept.
+function unexpectedErrors(body, status, expected) {
+    const hits = errorWords(body);
+    if (!hits.length) return [];
+    const asked = Array.isArray(expected) && expected.indexOf(status) !== -1;
+    const rejectionWanted = asked && status >= 400 && status < 500;
+    if (rejectionWanted && hits.every(word => REJECTION_WORDS.has(word))) return [];
+    return hits;
+}
+
+module.exports = { errorWords, unexpectedErrors, ERROR_WORDS, REJECTION_WORDS };
