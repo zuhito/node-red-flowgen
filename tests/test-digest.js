@@ -38,9 +38,8 @@ function sign(challenge, cookies, url) {
         headers: { 'www-authenticate': challenge }
     };
     if (cookies) { msg.headers['set-cookie'] = cookies; }
-    // The node receives crypto through its libs field, so the harness supplies
-    // it the same way rather than handing the code a require.
-    return new Function('msg', 'crypto', code).call(null, msg, crypto);
+    // The code carries its own MD5 and needs nothing passed in.
+    return new Function('msg', code).call(null, msg);
 }
 
 function parse(header) {
@@ -118,20 +117,48 @@ test('the retry drops the qop fields when the challenge omits qop', () => {
 
 test('a reply that is not a challenge passes straight through', () => {
     const code = retryNode().func;
-    const msg = new Function('msg', 'crypto', code)
-        .call(null, { url: 'https://httpbingo.org/x', headers: {}, payload: { ok: true } },
-            crypto);
+    const msg = new Function('msg', code)
+        .call(null, { url: 'https://httpbingo.org/x', headers: {}, payload: { ok: true } });
     assert.deepStrictEqual(msg.payload, { ok: true },
         'an authenticated reply must not be turned into another request');
 });
 
 
-test('the retry declares crypto through libs, not require', () => {
+test('the retry depends on nothing outside plain JavaScript', () => {
     const node = retryNode();
     assert.ok(!/require\s*\(/.test(node.func),
         'a function node has no require, so calling it would throw at runtime');
-    assert.deepStrictEqual(node.libs, [{ var: 'crypto', module: 'crypto' }],
-        'crypto has to come in through the libs field instead');
+    assert.deepStrictEqual(node.libs, [],
+        'libs only works where functionExternalModules is enabled, and many ' +
+        'deployments disable it');
+    const executable = node.func.split('\n')
+        .filter(line => !/^\s*\/\//.test(line)).join('\n');
+    assert.ok(!/\bcrypto\b/.test(executable),
+        'nothing may reach for the crypto module at runtime');
+});
+
+test('the embedded MD5 agrees with crypto', () => {
+    // The digest response is a chain of MD5s. If this drifts from the real
+    // algorithm every signature is wrong, and the server just answers 401.
+    const md5 = new Function('msg', retryNode().func.split('const challenge')[0] +
+        '\nreturn md5;')({});
+
+    const inputs = ['', 'a', 'abc', 'message digest', 'someuser:httpbingo:somepass',
+        'GET:/digest-auth/auth/u/p', 'a'.repeat(55), 'a'.repeat(56), 'a'.repeat(63),
+        'a'.repeat(64), 'a'.repeat(65), 'a'.repeat(200), 'unicode: \u00fc\u00e9',
+        '\u65e5\u672c\u8a9e'];
+    for (const value of inputs) {
+        assert.strictEqual(md5(value),
+            crypto.createHash('md5').update(value).digest('hex'),
+            'md5 differs for ' + JSON.stringify(value));
+    }
+    // Lengths either side of every block and padding boundary.
+    for (let length = 0; length < 200; length++) {
+        const value = 'x'.repeat(length);
+        assert.strictEqual(md5(value),
+            crypto.createHash('md5').update(value).digest('hex'),
+            'md5 differs at length ' + length);
+    }
 });
 
 // Everything above reasons about the generated text. This runs it: a real
@@ -160,6 +187,9 @@ test('the flow authenticates against a challenging server', async () => {
     RED.init(server, {
         httpAdminRoot: false, httpNodeRoot: false, userDir: userDir,
         flowFile: 'flows.json',
+        // The point of this test: the flow has to work on a deployment that
+        // refuses to load external modules into a function node.
+        functionExternalModules: false,
         logging: { console: { level: 'fatal', metrics: false, audit: false } }
     });
     fs.writeFileSync(path.join(userDir, 'flows.json'), '[]');

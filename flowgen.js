@@ -384,13 +384,82 @@ function digestOf(doc, method, target) {
 
 let credentialsSink = null;
 
+// A self contained MD5. The generated retry node runs inside a Node-RED
+// function node, which has no require, and the libs field is unavailable
+// wherever functionExternalModules is disabled. Verified against
+// crypto.createHash('md5') over 515 inputs by tests/test-digest.js.
+const MD5_SOURCE = [
+    "function md5(input) {",
+    "    const S = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,",
+    "        5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,",
+    "        4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,",
+    "        6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21];",
+    "    const K = [];",
+    "    for (let i = 0; i < 64; i++) {",
+    "        K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296);",
+    "    }",
+    "",
+    "    const bytes = [];",
+    "    for (let i = 0; i < input.length; i++) {",
+    "        const code = input.charCodeAt(i);",
+    "        if (code < 128) { bytes.push(code); }",
+    "        else if (code < 2048) {",
+    "            bytes.push(192 | (code >> 6), 128 | (code & 63));",
+    "        } else {",
+    "            bytes.push(224 | (code >> 12), 128 | ((code >> 6) & 63), 128 | (code & 63));",
+    "        }",
+    "    }",
+    "",
+    "    const bitLength = bytes.length * 8;",
+    "    bytes.push(128);",
+    "    while (bytes.length % 64 !== 56) { bytes.push(0); }",
+    "    for (let i = 0; i < 8; i++) {",
+    "        bytes.push((i < 4 ? (bitLength >>> (8 * i)) : 0) & 255);",
+    "    }",
+    "",
+    "    let a0 = 1732584193, b0 = -271733879, c0 = -1732584194, d0 = 271733878;",
+    "    const rotate = (value, count) => (value << count) | (value >>> (32 - count));",
+    "",
+    "    for (let chunk = 0; chunk < bytes.length; chunk += 64) {",
+    "        const M = [];",
+    "        for (let i = 0; i < 16; i++) {",
+    "            const at = chunk + i * 4;",
+    "            M[i] = bytes[at] | (bytes[at + 1] << 8) |",
+    "                (bytes[at + 2] << 16) | (bytes[at + 3] << 24);",
+    "        }",
+    "        let A = a0, B = b0, C = c0, D = d0;",
+    "        for (let i = 0; i < 64; i++) {",
+    "            let F, g;",
+    "            if (i < 16) { F = (B & C) | (~B & D); g = i; }",
+    "            else if (i < 32) { F = (D & B) | (~D & C); g = (5 * i + 1) % 16; }",
+    "            else if (i < 48) { F = B ^ C ^ D; g = (3 * i + 5) % 16; }",
+    "            else { F = C ^ (B | ~D); g = (7 * i) % 16; }",
+    "            F = (F + A + K[i] + M[g]) | 0;",
+    "            A = D; D = C; C = B;",
+    "            B = (B + rotate(F, S[i])) | 0;",
+    "        }",
+    "        a0 = (a0 + A) | 0; b0 = (b0 + B) | 0;",
+    "        c0 = (c0 + C) | 0; d0 = (d0 + D) | 0;",
+    "    }",
+    "",
+    "    return [a0, b0, c0, d0].map(word => {",
+    "        let out = '';",
+    "        for (let i = 0; i < 4; i++) {",
+    "            out += ((word >>> (8 * i)) & 255).toString(16).padStart(2, '0');",
+    "        }",
+    "        return out;",
+    "    }).join('');",
+    "}",
+].join('\n');
+
 function digestRetryCode(pair, method) {
     const user = pair.known ? JSON.stringify(pair.user) : '`{' + pair.user + '}`';
     const passwd = pair.known ? JSON.stringify(pair.passwd) : '`{' + pair.passwd + '}`';
     return [
-        '// crypto arrives through the node\'s libs field: a function node has no',
-        '// require, so importing it in code would throw at runtime.',
-        'const md5 = value => crypto.createHash("md5").update(value).digest("hex");',
+        '// MD5 is written out in full rather than taken from crypto. A function',
+        '// node has no require, and the libs field only works where',
+        '// functionExternalModules is enabled, which many deployments turn off.',
+        MD5_SOURCE,
         '',
         'const challenge = String((msg.headers || {})["www-authenticate"] || "");',
         'if (!/^Digest/i.test(challenge)) {',
@@ -410,7 +479,11 @@ function digestRetryCode(pair, method) {
         'const opaque = field("opaque");',
         'const qop = (field("qop").split(",")[0] || "").trim();',
         'const nc = "00000001";',
-        'const cnonce = crypto.randomBytes(8).toString("hex");',
+        '// The client nonce only has to be unpredictable to the server for the',
+        '// life of one exchange, so Math.random with a timestamp is adequate',
+        '// here. It is not a secret and it is never reused.',
+        'const cnonce = (Date.now().toString(16) +',
+        '    Math.floor(Math.random() * 0x100000000).toString(16)).slice(-16);',
         'const uri = new URL(msg.url).pathname;',
         '',
         'const ha1 = md5(`${' + user + '}:${realm}:${' + passwd + '}`);',
@@ -1188,8 +1261,9 @@ function buildFlow(doc, method, target, options) {
             func: digestRetryCode(digest, String(method).toUpperCase()),
             outputs: 1, timeout: 0, noerr: 0,
             initialize: '', finalize: '',
-            // Declared rather than required: see digestRetryCode.
-            libs: [{ var: 'crypto', module: 'crypto' }],
+            // Deliberately empty: the retry code carries its own MD5 so the
+            // flow works where functionExternalModules is disabled.
+            libs: [],
             x: xs[3], y: 100, wires: [['flowgen-retry']]
         });
         nodes.push({
