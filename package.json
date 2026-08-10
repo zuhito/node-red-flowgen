@@ -43,7 +43,8 @@
     "test:ollama": "node --test --test-timeout 900000 tests/test-ollama.js",
     "test:plugin:unit": "node --test tests/test-plugin-unit.js",
     "samples": "node tests/generate-samples.js",
-    "lint": "eslint .",
+    "lint": "eslint -c tests/eslint.config.js .",
+    "test:digest": "node --test tests/test-digest.js tests/test-error-words.js",
     "test:nrlint": "node --test tests/test-nrlint.js",
     "test:wizard": "node --test --test-timeout 300000 tests/test-wizard.js",
     "check:httpbingo": "node tests/check-httpbingo.js"

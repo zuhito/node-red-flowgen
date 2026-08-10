@@ -37,7 +37,7 @@ function messages(result, ruleId) {
 
 function loadSpec(name) {
         return flowgen.parseDocument(
-                fs.readFileSync(path.join(__dirname, '..', 'specs', name), 'utf8'));
+                fs.readFileSync(path.join(__dirname, 'specs', name), 'utf8'));
 }
 
 test('a generated flow sits on the default grid', () => {

@@ -8,7 +8,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const CLI = path.join(__dirname, '..', 'flowgen.js');
-const SPEC = path.join(__dirname, '..', 'specs', 'ollama-openapi3.yaml');
+const SPEC = path.join(__dirname, 'specs', 'ollama-openapi3.yaml');
 
 const openpty = (() => {
     try {

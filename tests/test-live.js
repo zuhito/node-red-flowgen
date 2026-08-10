@@ -9,6 +9,7 @@ const express = require('express');
 const RED = require('node-red');
 const { execFile } = require('child_process');
 const flowgen = require('../flowgen');
+const { errorWords } = require('./error-words');
 
 const ONLY = process.env.LIVE_ONLY || '';
 
@@ -565,10 +566,8 @@ async function main() {
         for (const node of nodes) {
             if (node.type === 'inject') {
                 node.once = true; node.onceDelay = 0.1;
-                // The default inject payload is a timestamp, which the http
-                // request node would post as a body the generated code never
-                // asked for, so curl and Node-RED would never agree.
-                node.payload = ''; node.payloadType = 'str';
+                // The inject node keeps its default timestamp payload on
+                // purpose: the generated code is what has to clear it.
             }
             if (node.type === 'function') {
                 node.func = applyFill(node.func, testCase.fill);
@@ -625,14 +624,13 @@ async function main() {
             viaCurl = await curlBody(testCase.method, built.url, curlHeaders, curlBodyText);
         }
 
-        dump(label, 'curl HTTP ' + viaCurl.status, viaCurl.body);
-        dump(label, 'node-red debug HTTP ' + result.status, result.body);
-
         const left = comparable(viaCurl.body);
         const right = comparable(result.body);
         comparisons.push({
             label: label,
             url: built.url || null,
+            requestHeaders: curlHeaders,
+            requestBody: curlBodyText,
             curl: { status: viaCurl.status, body: viaCurl.body },
             nodered: { status: result.status, body: result.body },
             match: viaCurl.status === result.status &&
@@ -643,15 +641,28 @@ async function main() {
                 failures++;
                 note('error', label + ' -> curl saw HTTP ' + viaCurl.status +
                     ' but Node-RED saw HTTP ' + result.status);
+                dump(label, 'curl HTTP ' + viaCurl.status, viaCurl.body);
+                dump(label, 'node-red HTTP ' + result.status, result.body);
             } else if (left !== null && right !== null && left !== right) {
                 failures++;
                 note('error', label + ' -> curl and Node-RED returned different bodies');
+                dump(label, 'curl HTTP ' + viaCurl.status, viaCurl.body);
+                dump(label, 'node-red HTTP ' + result.status, result.body);
                 dump(label, 'curl body (normalised)', left);
                 dump(label, 'node-red body (normalised)', right);
             } else {
                 note('notice', label + ' -> curl and Node-RED agree on HTTP ' +
                     viaCurl.status);
             }
+        }
+
+        for (const [source, body] of [['curl', viaCurl.body], ['node-red', result.body]]) {
+            const hits = errorWords(body);
+            if (!hits.length) continue;
+            failures++;
+            note('error', label + ' -> the ' + source + ' response reads like an error: ' +
+                hits.join(', '));
+            dump(label, source + ' response carrying ' + hits.join(', '), body);
         }
 
         const expected = [].concat(testCase.expect || []);
@@ -813,10 +824,8 @@ async function main() {
                 for (const node of nodes) {
                     if (node.type === 'inject') {
                 node.once = true; node.onceDelay = 0.1;
-                // The default inject payload is a timestamp, which the http
-                // request node would post as a body the generated code never
-                // asked for, so curl and Node-RED would never agree.
-                node.payload = ''; node.payloadType = 'str';
+                // The inject node keeps its default timestamp payload on
+                // purpose: the generated code is what has to clear it.
             }
                     if (node.type === 'http request') { node.ret = 'obj'; node.senderr = true; }
                 }

@@ -16,8 +16,13 @@ function run(code) {
     return new Function('msg', code)({});
 }
 
+// The line explaining the cleared payload is bookkeeping rather than a
+// prompt to the reader, so it stays out of these assertions.
+const HOUSEKEEPING = /drop whatever msg\.payload held/;
+
 function comments(code) {
-    return code.split('\n').filter(l => l.startsWith('//')).map(l => l.slice(3));
+    return code.split('\n').filter(l => l.startsWith('//'))
+        .filter(l => !HOUSEKEEPING.test(l)).map(l => l.slice(3));
 }
 
 function v3(paths, extra) {
@@ -60,6 +65,9 @@ test('minimal operation emits only method, url and return', () => {
     assert.strictEqual(code, [
         'msg.method = "GET";',
         'msg.url = "https://api.test/v1/x";',
+        '',
+        '// This request carries no body, so drop whatever msg.payload held.',
+        'delete msg.payload;',
         'return msg;'
     ].join('\n'));
 });
@@ -609,7 +617,8 @@ test('the http request node returns a parsed JSON object', () => {
 
 
 function commentsOf(code) {
-    return code.split('\n').filter(l => l.startsWith('// ') && !/msg\.url = /.test(l));
+    return code.split('\n').filter(l => l.startsWith('// ') &&
+        !/msg\.url = /.test(l) && !HOUSEKEEPING.test(l));
 }
 
 test('an unresolved path parameter is called out above the url', () => {
@@ -840,7 +849,11 @@ test('bodyless methods never carry a payload', () => {
     for (const method of ['get', 'head']) {
         const doc = v3({ '/x': { [method]: { requestBody: {
             content: { 'application/json': { schema: { type: 'object' } } } } } } });
-        assert.ok(!/msg\.payload/.test(flowgen.generate(doc, method, '/x')));
+        const code = flowgen.generate(doc, method, '/x');
+        assert.match(code, /delete msg\.payload;/,
+            method + ' must clear the inject default rather than send it');
+        assert.ok(!/msg\.payload = \{/.test(code),
+            method + ' must not build a body');
     }
 });
 
@@ -1265,7 +1278,7 @@ test('listOperations decodes escaped tokens in a path item reference', () => {
 });
 
 test('the bundled specs all parse and generate valid code', async () => {
-    const dir = path.join(__dirname, '..', 'specs');
+    const dir = path.join(__dirname, 'specs');
     const files = fs.readdirSync(dir).filter(name => /\.ya?ml$/.test(name));
     assert.ok(files.length >= 3, 'the bundled definitions are present');
 
@@ -1287,7 +1300,7 @@ test('the bundled specs all parse and generate valid code', async () => {
 
 test('the shipped httpbingo sample carries only the three auth endpoints', () => {
     const doc = flowgen.parseDocument(fs.readFileSync(
-        path.join(__dirname, '..', 'specs', 'httpbingo-openapi3.yaml'), 'utf8'));
+        path.join(__dirname, 'specs', 'httpbingo-openapi3.yaml'), 'utf8'));
     const paths = flowgen.listOperations(doc).operations.map(o => o.method + ' ' + o.path);
 
     assert.deepStrictEqual(paths.slice().sort(), [
@@ -1303,8 +1316,11 @@ test('the shipped httpbingo sample carries only the three auth endpoints', () =>
     assert.match(basic, /"authorization": `Basic \$\{credentials\}`/);
     assert.ok(basic.includes(encoded));
     const digest = flowgen.generate(doc, 'get', '/digest-auth/{qop}/{user}/{passwd}');
-    assert.match(digest, /"authorization": `Digest \$\{credentials\}`/);
-    assert.ok(digest.includes(encoded));
+    assert.match(digest, /credentials \? `Digest \$\{credentials\}` : undefined/);
+    assert.ok(digest.includes('const credentials = null;'),
+        'the first pass must go out without credentials');
+    assert.ok(digest.includes('// const ha1 = md5('),
+        'the second pass must be there, commented out');
 });
 
 test('the full httpbingo definition covers the endpoints the tests need', () => {
@@ -1322,12 +1338,14 @@ test('the full httpbingo definition covers the endpoints the tests need', () => 
         'endpoints that only repeat another call shape stay commented out');
     assert.match(flowgen.generate(doc, 'post', '/post'), /"hello": "world"/);
 
-    for (const target of ['/bearer', '/basic-auth/{user}/{passwd}',
-        '/digest-auth/{qop}/{user}/{passwd}']) {
+    for (const target of ['/bearer', '/basic-auth/{user}/{passwd}']) {
         const code = flowgen.generate(doc, 'get', target);
         assert.match(code, /"authorization": `/,
             target + ' needs credentials, so the code must offer the header');
     }
+    assert.match(flowgen.generate(doc, 'get', '/digest-auth/{qop}/{user}/{passwd}'),
+        /"authorization": credentials \?/,
+        'digest offers the header only once the challenge has been answered');
     assert.match(flowgen.generate(doc, 'get', '/bearer'),
         /"authorization": `Bearer \{token\}`/);
     assert.match(flowgen.generate(doc, 'get', '/bearer'),
@@ -1360,13 +1378,19 @@ test('every http auth scheme names the value to fill in', () => {
     assert.strictEqual(run(flowgen.generate(scheme('bearer'), 'get', '/x')).headers.authorization,
         'Bearer {token}');
     assert.strictEqual(run(flowgen.generate(scheme('digest'), 'get', '/x')).headers.authorization,
-        'Digest ' + Buffer.from('{user}:{passwd}').toString('base64'));
+        undefined, 'the first digest pass carries no authorization header');
 
-    for (const name of ['basic', 'digest']) {
-        const code = flowgen.generate(scheme(name), 'get', '/x');
-        assert.match(code, /\{[a-z]+\}/, name + ' must leave a named placeholder');
-        assert.ok(code.includes('const credentials = ' + encoded + ';'),
-            name + ' must build the credentials from the placeholders');
+    const basicCode = flowgen.generate(scheme('basic'), 'get', '/x');
+    assert.match(basicCode, /\{[a-z]+\}/, 'basic must leave a named placeholder');
+    assert.ok(basicCode.includes('const credentials = ' + encoded + ';'),
+        'basic must build the credentials from the placeholders');
+
+    const digestCode = flowgen.generate(scheme('digest'), 'get', '/x');
+    assert.match(digestCode, /\{[a-z]+\}/, 'digest must leave a named placeholder');
+    assert.ok(digestCode.includes('const credentials = null;'));
+    for (const marker of ['// const nonce = ""', '// const ha1 = md5(',
+        '// const response = qop', '// ].filter(Boolean).join(", ");']) {
+        assert.ok(digestCode.includes(marker), 'digest is missing ' + marker);
     }
     for (const name of ['bearer', 'negotiate']) {
         const code = flowgen.generate(scheme(name), 'get', '/x');

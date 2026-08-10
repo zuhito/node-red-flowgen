@@ -80,11 +80,11 @@ async function main() {
     const summary = [];
 
     for (const name of ['ollama-openapi3', 'ollama-swagger2']) {
-        const file = path.join(__dirname, '..', 'specs', name + '.yaml');
+        const file = path.join(__dirname, 'specs', name + '.yaml');
         writeSource(name, flowgen.parseDocument(fs.readFileSync(file, 'utf8')), summary);
     }
     writeSource('ollama-bruno',
-        flowgen.parseCollection(collectionFiles(path.join(__dirname, '..', 'specs', 'ollama-bruno'))),
+        flowgen.parseCollection(collectionFiles(path.join(__dirname, 'specs', 'ollama-bruno'))),
         summary);
 
     for (const version of ['v2', 'v3']) {

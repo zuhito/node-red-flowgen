@@ -297,6 +297,54 @@ const SAMPLE_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR42mNg
 const USER_PARAM = /^(user|username|userid|user_id|login)$/i;
 const PASSWD_PARAM = /^(passwd|password|pass|pwd)$/i;
 
+// Digest auth is a two pass exchange: the first call is expected to come back
+// 401 carrying a WWW-Authenticate challenge, and only a second call can answer
+// it. Both passes are written out, the second one commented, so the reader
+// swaps them over once the first has handed them a nonce.
+function digestLines(lines, pair, parts) {
+    const user = '{' + pair.user + '}';
+    const passwd = '{' + pair.passwd + '}';
+    const method = String(parts.method || 'GET').toUpperCase();
+
+    lines.push('// Digest auth needs the challenge the server sends back, so this first');
+    lines.push('// pass goes out unauthenticated and is expected to answer 401. Read');
+    lines.push('// realm, nonce, qop and opaque from msg.headers["www-authenticate"] on');
+    lines.push('// that reply, fill them in below, then comment this pass out and');
+    lines.push('// uncomment the one beneath it.');
+    lines.push('const credentials = null;');
+    lines.push('');
+    lines.push('// ----- second pass: fill in the challenge and swap the two over -----');
+    lines.push('// const crypto = require("crypto");');
+    lines.push('// const md5 = value => crypto.createHash("md5").update(value).digest("hex");');
+    lines.push('//');
+    lines.push('// const realm = "' + (pair.realm || '') + '";  // from the challenge');
+    lines.push('// const nonce = "";       // from the challenge');
+    lines.push('// const qop = "auth";     // from the challenge');
+    lines.push('// const opaque = "";      // from the challenge, often absent');
+    lines.push('// const nc = "00000001";');
+    lines.push('// const cnonce = crypto.randomBytes(8).toString("hex");');
+    lines.push('// const uri = new URL(msg.url).pathname;');
+    lines.push('//');
+    lines.push('// const ha1 = md5(`' + user + ':${realm}:' + passwd + '`);');
+    lines.push('// const ha2 = md5(`' + method + ':${uri}`);');
+    lines.push('// const response = qop');
+    lines.push('//     ? md5(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`)');
+    lines.push('//     : md5(`${ha1}:${nonce}:${ha2}`);');
+    lines.push('//');
+    lines.push('// const credentials = [');
+    lines.push('//     `username="' + user + '"`,');
+    lines.push('//     `realm="${realm}"`,');
+    lines.push('//     `nonce="${nonce}"`,');
+    lines.push('//     `uri="${uri}"`,');
+    lines.push('//     `response="${response}"`,');
+    lines.push('//     qop ? `qop=${qop}` : null,');
+    lines.push('//     qop ? `nc=${nc}` : null,');
+    lines.push('//     qop ? `cnonce="${cnonce}"` : null,');
+    lines.push('//     opaque ? `opaque="${opaque}"` : null');
+    lines.push('// ].filter(Boolean).join(", ");');
+    lines.push('// --------------------------------------------------------------------');
+}
+
 function credentialsFrom(urlParams) {
     const pick = re => (urlParams || []).find(p => p.in === 'path' && re.test(p.name));
     const user = pick(USER_PARAM);
@@ -472,8 +520,13 @@ function assemble(parts) {
             lines.push('// Replace ' +
                 phrase(names.map(item => typed('{' + item.name + '}', item.type))) +
                 ' below with real values.');
-            lines.push('const credentials = Buffer.from(' +
-                quote('{' + pair.user + '}:{' + pair.passwd + '}') + ').toString("base64");');
+            if (pair.scheme === 'digest') {
+                digestLines(lines, pair, parts);
+            } else {
+                lines.push('const credentials = Buffer.from(' +
+                    quote('{' + pair.user + '}:{' + pair.passwd + '}') +
+                    ').toString("base64");');
+            }
         }
         if (empty.length) lines.push('// Fill in ' + phrase(empty) + ' below.');
         lines.push('msg.' + key + ' = ' + literal(pairs.reduce((acc, e) => (acc[e[0]] = e[1], acc), {}), 0) + ';');
@@ -498,6 +551,13 @@ function assemble(parts) {
             : '// Adjust the request body below to suit the call.');
         lines.push('msg.payload = ' +
             literal(parts.payload, 0, parts.payloadSchema, parts.resolve) + ';');
+    } else {
+        // The inject node ships a timestamp in msg.payload by default, and the
+        // http request node would send it as the body of a request that never
+        // asked for one. Clearing it keeps the call to what the spec describes.
+        lines.push('');
+        lines.push('// This request carries no body, so drop whatever msg.payload held.');
+        lines.push('delete msg.payload;');
     }
     lines.push('return msg;');
     return lines.join('\n');
@@ -586,8 +646,14 @@ function generateOpenApi3(doc, rawMethod, target) {
                 const s = String(scheme.scheme || '').toLowerCase();
                 if (s === 'basic' || s === 'digest') {
                     credentials = credentialsFrom(urlParams);
-                    headers.push(['authorization',
-                        raw('`' + (s === 'basic' ? 'Basic' : 'Digest') + ' ${credentials}`')]);
+                    credentials.scheme = s;
+                    if (s === 'digest') {
+                        credentials.realm = String(scheme.realm || '');
+                        headers.push(['authorization',
+                            raw('credentials ? `Digest ${credentials}` : undefined')]);
+                    } else {
+                        headers.push(['authorization', raw('`Basic ${credentials}`')]);
+                    }
                 } else {
                     headers.push(['authorization',
                         s === 'bearer' ? 'Bearer {token}' :

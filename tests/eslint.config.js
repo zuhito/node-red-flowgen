@@ -36,7 +36,8 @@ const BROWSER_GLOBALS = {
 
 module.exports = [
     {
-        ignores: ['node_modules/**', 'coverage/**', 'samples/**']
+        ignores: ['node_modules/**', 'coverage/**', 'samples/**',
+            'tests/live-results/**']
     },
     js.configs.recommended,
     {

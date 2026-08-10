@@ -11,7 +11,7 @@ const RED = require('node-red');
 const { spawn, execFileSync } = require('child_process');
 const flowgen = require('../flowgen');
 
-const SPECS = path.join(__dirname, '..', 'specs');
+const SPECS = path.join(__dirname, 'specs');
 const MODEL = process.env.OLLAMA_MODEL || 'gemma3:270m';
 const READ_ONLY = process.env.OLLAMA_READ_ONLY === '1';
 
