@@ -467,6 +467,57 @@ for (const engine of ENGINES) {
             await page.close();
         });
 
+        // The editor is the thing that must not break. A plugin that takes the
+        // editor down stops all flow development, which is far worse than the
+        // plugin simply being unavailable. These cases serve a generator that
+        // is broken rather than missing, and assert the editor survives.
+        for (const [label, body] of [
+            ['a syntax error', 'this is (not valid javascript ===='],
+            ['code that throws on load', 'throw new Error("boom");'],
+            ['an empty file', ''],
+            ['html served as script', '<!DOCTYPE html><html><body>oops</body></html>']
+        ]) {
+            test('the editor survives ' + label + ' from the generator', async () => {
+                const page = await browser.newPage();
+                const pageErrors = [];
+                page.on('pageerror', err => pageErrors.push(String(err.message)));
+
+                await page.route('**/flowgen/generator.js', route => route.fulfill({
+                    status: 200, contentType: 'application/javascript', body: body
+                }));
+
+                await page.goto('http://127.0.0.1:' + port + '/', { waitUntil: 'networkidle' });
+                await page.waitForFunction(() => window.RED && window.RED.actions,
+                    null, { timeout: 60000 });
+                await page.evaluate(() => window.RED.actions.invoke('core:show-import-dialog'));
+                await page.waitForTimeout(1500);
+
+                // Everything the editor needs to keep working.
+                const alive = await page.evaluate(() => {
+                    try {
+                        window.RED.actions.invoke('core:show-import-dialog');
+                        window.RED.nodes.eachNode(() => {});
+                        return {
+                            ok: true,
+                            actions: typeof window.RED.actions.invoke === 'function',
+                            view: !!window.RED.view,
+                            nodes: !!window.RED.nodes
+                        };
+                    } catch (err) {
+                        return { ok: false, error: String(err.message) };
+                    }
+                });
+
+                assert.ok(alive.ok, 'the editor threw: ' + alive.error);
+                assert.ok(alive.actions && alive.view && alive.nodes,
+                    'the editor lost part of itself: ' + JSON.stringify(alive));
+                assert.deepStrictEqual(pageErrors, [],
+                    'a broken plugin asset must not raise errors in the editor');
+
+                await page.close();
+            });
+        }
+
         test('the tab disappears when the runtime stops serving the plugin', async () => {
             const page = await browser.newPage();
             await openImport(page);
