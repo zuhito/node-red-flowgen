@@ -28,7 +28,7 @@ function npmJson(args) {
 
 function candidates() {
     const all = npmJson(['view', 'node-red', 'versions', '--json']);
-    return all.filter(v => /^[34]\./.test(v) && !/-(beta|rc|alpha)/.test(v));
+    return all.filter(v => /^[345]\./.test(v) && !/-(beta|rc|alpha)/.test(v));
 }
 
 // The probe runs inside the candidate's own installation, under NODE_BIN, and

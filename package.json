@@ -14,7 +14,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=20.x"
+    "node": ">=22.9.0"
   },
   "dependencies": {
     "js-yaml": "5.2.3",
