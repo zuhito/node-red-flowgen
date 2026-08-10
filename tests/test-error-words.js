@@ -39,6 +39,19 @@ test('a response that names a failure is reported', () => {
     }
 });
 
+test('a count of something is data rather than a complaint', () => {
+    for (const body of [
+        // The petstore inventory reports how many orders sit in each state.
+        '{"approved":50,"placed":10,"invalid":3}',
+        '{"sold":2,"Invalid":1}',
+        '{"errors":12,"processed":900}',
+        '{"unknown":4}'
+    ]) {
+        assert.deepStrictEqual(errorWords(body), [],
+            body + ' is a tally, not an error');
+    }
+});
+
 test('an empty or false error field is not a failure', () => {
     for (const body of [
         '{"errors":[]}',

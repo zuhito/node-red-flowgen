@@ -16,7 +16,11 @@ const ERROR_WORDS = [
 // wrong, so it must not trip the scan.
 const ERROR_EXEMPT = [
     /"errors?"\s*:\s*(\[\s*\]|\{\s*\}|null|false|0|"")/gi,
-    /"[a-z_]*(error|invalid|failed|failure)[a-z_]*"\s*:\s*(false|null|0)/gi
+    /"[a-z_]*(error|invalid|failed|failure)[a-z_]*"\s*:\s*(false|null|0)/gi,
+    // A key that merely counts something is data, not a complaint: the petstore
+    // inventory reports how many orders sit in an "invalid" state, and an api
+    // that tallies "errors": 12 is describing its own records.
+    /"[a-z_ -]*(error|invalid|failed|failure|unknown)[a-z_ -]*"\s*:\s*\d+/gi
 ];
 
 function errorWords(body) {
