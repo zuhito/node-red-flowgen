@@ -31,27 +31,76 @@ module.exports = function (RED) {
         }
     });
 
+    // A zip that is small on the wire can expand enormously: 200KB of deflate
+    // reaches 200MB in memory at a ratio around 1000x, which the upload limit
+    // alone cannot catch. The runtime shares a process with Node-RED, so
+    // exhausting the heap here stops every flow on the host. Three limits
+    // apply, and each is checked while reading rather than afterwards.
+    const UNZIP_LIMITS = {
+        totalBytes: 64 * 1024 * 1024,
+        entryBytes: 16 * 1024 * 1024,
+        entries: 2000
+    };
+
     function unzip(buffer, done) {
         const yauzl = require('yauzl');
         yauzl.fromBuffer(buffer, { lazyEntries: true }, function (err, zip) {
             if (err) { return done(err); }
             const files = [];
             let failed = false;
-            const fail = function (e) { if (!failed) { failed = true; done(e); } };
+            let total = 0;
+            let taken = 0;
+            const fail = function (e) {
+                if (failed) { return; }
+                failed = true;
+                try { zip.close(); } catch (closeErr) { /* already closing */ }
+                done(e);
+            };
             zip.on('error', fail);
             zip.on('end', function () { if (!failed) { done(null, files); } });
             zip.on('entry', function (entry) {
+                if (failed) { return; }
                 const name = String(entry.fileName).replace(/\\/g, '/');
                 if (/\/$/.test(name) || !/\.(bru|ya?ml|json)$/.test(name) ||
                         /(^|\/)(\.git|node_modules)\//.test(name)) {
                     return zip.readEntry();
                 }
+                if (++taken > UNZIP_LIMITS.entries) {
+                    return fail(new Error('the archive holds more than ' +
+                        UNZIP_LIMITS.entries + ' usable files'));
+                }
+                // The header states the size before a byte is read, so an
+                // oversized entry is refused without decompressing it.
+                if (entry.uncompressedSize > UNZIP_LIMITS.entryBytes) {
+                    return fail(new Error(name + ' expands to ' +
+                        entry.uncompressedSize + ' bytes, over the ' +
+                        UNZIP_LIMITS.entryBytes + ' byte limit for one file'));
+                }
+                if (total + entry.uncompressedSize > UNZIP_LIMITS.totalBytes) {
+                    return fail(new Error('the archive expands past the ' +
+                        UNZIP_LIMITS.totalBytes + ' byte limit'));
+                }
                 zip.openReadStream(entry, function (streamErr, stream) {
                     if (streamErr) { return fail(streamErr); }
                     const chunks = [];
-                    stream.on('data', function (c) { chunks.push(c); });
+                    let read = 0;
+                    stream.on('data', function (c) {
+                        if (failed) { return; }
+                        read += c.length;
+                        total += c.length;
+                        // The header is attacker controlled, so the running
+                        // total is what actually stops a lying archive.
+                        if (read > UNZIP_LIMITS.entryBytes ||
+                                total > UNZIP_LIMITS.totalBytes) {
+                            stream.destroy();
+                            return fail(new Error(name +
+                                ' is larger than its header claimed'));
+                        }
+                        chunks.push(c);
+                    });
                     stream.on('error', fail);
                     stream.on('end', function () {
+                        if (failed) { return; }
                         files.push({ path: name, text: Buffer.concat(chunks).toString('utf8') });
                         zip.readEntry();
                     });

@@ -153,6 +153,74 @@ test('a failing clone reports the git message', async () => {
     assert.match(JSON.parse(res.body).error, /git clone failed/);
 });
 
+// The runtime shares a process with Node-RED, so exhausting the heap here
+// stops every flow on the host. A zip bomb is small enough to pass any upload
+// limit and only becomes dangerous once decompressed.
+const post = zip => request({
+    path: '/flowgen/source', method: 'POST',
+    headers: { 'content-type': 'application/zip', 'content-length': zip.length }
+}, zip);
+
+test('a single entry that expands past the limit is refused', async () => {
+    const zip = zipwriter.buildDeflated([
+        { path: 'bomb.yaml', text: 'a'.repeat(20 * 1024 * 1024) }
+    ]);
+    assert.ok(zip.length < 1024 * 1024,
+        'the archive has to be small on the wire for this to be the right test');
+
+    const before = process.memoryUsage().heapUsed;
+    const res = await post(zip);
+    const grew = (process.memoryUsage().heapUsed - before) / (1024 * 1024);
+
+    assert.strictEqual(res.status, 400, res.body);
+    assert.match(JSON.parse(res.body).error, /limit for one file/);
+    assert.ok(grew < 64, 'the heap grew by ' + Math.round(grew) + 'MB, so it decompressed');
+});
+
+test('entries that are each small but add up past the limit are refused', async () => {
+    const entries = [];
+    for (let i = 0; i < 10; i++) {
+        entries.push({ path: 'part' + i + '.yaml', text: 'b'.repeat(12 * 1024 * 1024) });
+    }
+    const res = await post(zipwriter.buildDeflated(entries));
+
+    assert.strictEqual(res.status, 400, res.body);
+    assert.match(JSON.parse(res.body).error, /expands past the/);
+});
+
+test('an entry whose header understates its size is refused', async () => {
+    // The declared size is attacker controlled, so believing it is not enough.
+    const zip = zipwriter.buildDeflated([
+        { path: 'liar.yaml', text: 'c'.repeat(20 * 1024 * 1024), declaredSize: 1000 }
+    ]);
+
+    const before = process.memoryUsage().heapUsed;
+    const res = await post(zip);
+    const grew = (process.memoryUsage().heapUsed - before) / (1024 * 1024);
+
+    assert.strictEqual(res.status, 400, res.body);
+    assert.ok(grew < 64, 'the heap grew by ' + Math.round(grew) + 'MB despite the lie');
+});
+
+test('an archive with a huge number of usable files is refused', async () => {
+    const entries = [];
+    for (let i = 0; i < 2100; i++) {
+        entries.push({ path: 'f' + i + '.yaml', text: 'x: ' + i });
+    }
+    const res = await post(zipwriter.buildDeflated(entries));
+
+    assert.strictEqual(res.status, 400, res.body);
+    assert.match(JSON.parse(res.body).error, /more than 2000 usable files/);
+});
+
+test('an ordinary archive still comes through', async () => {
+    const res = await post(zipwriter.buildDeflated([
+        { path: 'req.bru', text: 'meta {\n  name: P\n}\n\nget {\n  url: https://t.test/p\n}\n' }
+    ]));
+    assert.strictEqual(res.status, 200, res.body);
+    assert.deepStrictEqual(JSON.parse(res.body).files.map(f => f.path), ['req.bru']);
+});
+
 test('an uploaded zip is unpacked and filtered', async () => {
     const zip = zipwriter.build([
         { path: 'req.bru', text: 'meta {\n  name: P\n}\n\nget {\n  url: https://t.test/p\n}\n' },

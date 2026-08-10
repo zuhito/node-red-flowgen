@@ -74,3 +74,68 @@ function build(entries, options) {
 }
 
 module.exports = { build };
+
+// A deflated archive, which the stored-only builder above cannot produce.
+// Needed to exercise the expansion limits: a zip bomb is small on the wire
+// precisely because it compresses well.
+function buildDeflated(entries) {
+    const zlib = require('zlib');
+    const table = [];
+    for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) { c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; }
+        table[n] = c;
+    }
+    const crc32 = buf => {
+        let r = -1;
+        for (const byte of buf) { r = (r >>> 8) ^ table[(r ^ byte) & 0xFF]; }
+        return (r ^ -1) >>> 0;
+    };
+
+    const locals = [];
+    const central = [];
+    let offset = 0;
+    for (const entry of entries) {
+        const name = Buffer.from(entry.path);
+        const raw = Buffer.from(entry.text);
+        const compressed = zlib.deflateRawSync(raw, { level: 9 });
+        const crc = crc32(raw);
+        const declared = entry.declaredSize === undefined ? raw.length : entry.declaredSize;
+
+        const local = Buffer.alloc(30);
+        local.writeUInt32LE(0x04034b50, 0);
+        local.writeUInt16LE(20, 4);
+        local.writeUInt16LE(8, 8);
+        local.writeUInt32LE(crc, 14);
+        local.writeUInt32LE(compressed.length, 18);
+        local.writeUInt32LE(declared, 22);
+        local.writeUInt16LE(name.length, 26);
+        locals.push(local, name, compressed);
+
+        const dir = Buffer.alloc(46);
+        dir.writeUInt32LE(0x02014b50, 0);
+        dir.writeUInt16LE(20, 4);
+        dir.writeUInt16LE(20, 6);
+        dir.writeUInt16LE(8, 10);
+        dir.writeUInt32LE(crc, 16);
+        dir.writeUInt32LE(compressed.length, 20);
+        dir.writeUInt32LE(declared, 24);
+        dir.writeUInt16LE(name.length, 28);
+        dir.writeUInt32LE(offset, 42);
+        central.push(dir, name);
+
+        offset += local.length + name.length + compressed.length;
+    }
+
+    const directory = Buffer.concat(central);
+    const end = Buffer.alloc(22);
+    end.writeUInt32LE(0x06054b50, 0);
+    end.writeUInt16LE(entries.length, 8);
+    end.writeUInt16LE(entries.length, 10);
+    end.writeUInt32LE(directory.length, 12);
+    end.writeUInt32LE(offset, 16);
+
+    return Buffer.concat([...locals, directory, end]);
+}
+
+module.exports.buildDeflated = buildDeflated;
