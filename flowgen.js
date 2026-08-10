@@ -388,7 +388,8 @@ function digestRetryCode(pair, method) {
     const user = pair.known ? JSON.stringify(pair.user) : '`{' + pair.user + '}`';
     const passwd = pair.known ? JSON.stringify(pair.passwd) : '`{' + pair.passwd + '}`';
     return [
-        'const crypto = require("crypto");',
+        '// crypto arrives through the node\'s libs field: a function node has no',
+        '// require, so importing it in code would throw at runtime.',
         'const md5 = value => crypto.createHash("md5").update(value).digest("hex");',
         '',
         'const challenge = String((msg.headers || {})["www-authenticate"] || "");',
@@ -1186,7 +1187,9 @@ function buildFlow(doc, method, target, options) {
             id: 'flowgen-digest', type: 'function', z: tab, name: retryName,
             func: digestRetryCode(digest, String(method).toUpperCase()),
             outputs: 1, timeout: 0, noerr: 0,
-            initialize: '', finalize: '', libs: [],
+            initialize: '', finalize: '',
+            // Declared rather than required: see digestRetryCode.
+            libs: [{ var: 'crypto', module: 'crypto' }],
             x: xs[3], y: 100, wires: [['flowgen-retry']]
         });
         nodes.push({

@@ -5,6 +5,10 @@ const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
+const http = require('http');
+const express = require('express');
+const RED = require('node-red');
 const flowgen = require('../flowgen');
 
 const SPEC = path.join(__dirname, 'specs', 'httpbingo-openapi3.yaml');
@@ -34,7 +38,9 @@ function sign(challenge, cookies, url) {
         headers: { 'www-authenticate': challenge }
     };
     if (cookies) { msg.headers['set-cookie'] = cookies; }
-    return new Function('msg', 'require', code).call(null, msg, require);
+    // The node receives crypto through its libs field, so the harness supplies
+    // it the same way rather than handing the code a require.
+    return new Function('msg', 'crypto', code).call(null, msg, crypto);
 }
 
 function parse(header) {
@@ -112,9 +118,96 @@ test('the retry drops the qop fields when the challenge omits qop', () => {
 
 test('a reply that is not a challenge passes straight through', () => {
     const code = retryNode().func;
-    const msg = new Function('msg', 'require', code)
+    const msg = new Function('msg', 'crypto', code)
         .call(null, { url: 'https://httpbingo.org/x', headers: {}, payload: { ok: true } },
-            require);
+            crypto);
     assert.deepStrictEqual(msg.payload, { ok: true },
         'an authenticated reply must not be turned into another request');
+});
+
+
+test('the retry declares crypto through libs, not require', () => {
+    const node = retryNode();
+    assert.ok(!/require\s*\(/.test(node.func),
+        'a function node has no require, so calling it would throw at runtime');
+    assert.deepStrictEqual(node.libs, [{ var: 'crypto', module: 'crypto' }],
+        'crypto has to come in through the libs field instead');
+});
+
+// Everything above reasons about the generated text. This runs it: a real
+// Node-RED, a server that answers 401 with a challenge, and an assertion that
+// the flow reaches 200 on its own.
+test('the flow authenticates against a challenging server', async () => {
+    let received = null;
+    const target = http.createServer((req, res) => {
+        if (!req.headers.authorization) {
+            res.writeHead(401, {
+                'www-authenticate': 'Digest realm="r", nonce="n1", qop="auth", opaque="o1"',
+                'set-cookie': 'fake=v; Path=/'
+            });
+            return res.end('{}');
+        }
+        received = { auth: req.headers.authorization, cookie: req.headers.cookie };
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end('{"ok":true}');
+    });
+    await new Promise(resolve => target.listen(0, '127.0.0.1', resolve));
+    const targetPort = target.address().port;
+
+    const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-digest-'));
+    const app = express();
+    const server = http.createServer(app);
+    RED.init(server, {
+        httpAdminRoot: false, httpNodeRoot: false, userDir: userDir,
+        flowFile: 'flows.json',
+        logging: { console: { level: 'fatal', metrics: false, audit: false } }
+    });
+    fs.writeFileSync(path.join(userDir, 'flows.json'), '[]');
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    await RED.start();
+
+    try {
+        const nodes = flow();
+        let probeId = null;
+        for (const node of nodes) {
+            if (node.type === 'inject') { node.once = true; node.onceDelay = 0.2; }
+            if (node.type === 'function' && node.func) {
+                node.func = node.func
+                    .replace(/\{user\}/g, 'u').replace(/\{passwd\}/g, 'p')
+                    .replace(/https:\/\/httpbingo\.org/g, 'http://127.0.0.1:' + targetPort);
+            }
+            if (node.type === 'debug') {
+                probeId = node.id;
+                node.type = 'function';
+                node.libs = [];
+                node.outputs = 1;
+                node.wires = [[]];
+                node.func = 'global.set("digestResult", ' +
+                    'JSON.stringify({ status: msg.statusCode, payload: msg.payload }));\n' +
+                    'return msg;';
+            }
+        }
+        fs.writeFileSync(path.join(userDir, 'flows.json'), JSON.stringify(nodes));
+        await RED.nodes.loadFlows(true);
+
+        const started = Date.now();
+        let result = null;
+        while (!result && Date.now() - started < 20000) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            const node = RED.nodes.getNode(probeId);
+            if (node) { result = node.context().global.get('digestResult'); }
+        }
+
+        assert.ok(result, 'the flow never produced a result');
+        assert.deepStrictEqual(JSON.parse(result), { status: 200, payload: { ok: true } });
+        assert.ok(received, 'the retry never reached the server');
+        assert.match(received.auth, /^Digest username="u", realm="r", nonce="n1"/);
+        assert.strictEqual(received.cookie, 'fake=v',
+            'the cookie from the challenge has to come back with the retry');
+    } finally {
+        await RED.stop();
+        await new Promise(resolve => server.close(resolve));
+        target.close();
+        fs.rmSync(userDir, { recursive: true, force: true });
+    }
 });
