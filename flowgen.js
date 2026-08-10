@@ -316,7 +316,6 @@ function quote(value) {
 }
 
 const SAMPLE_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR42mNgAAAAAgAB5Sfe/AAAAABJRU5ErkJggg==';
-
 const USER_PARAM = /^(user|username|userid|user_id|login)$/i;
 const PASSWD_PARAM = /^(passwd|password|pass|pwd)$/i;
 
