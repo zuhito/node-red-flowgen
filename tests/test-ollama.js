@@ -197,13 +197,16 @@ async function callThroughNodeRed(nodes) {
     const context = node.context().global;
     context.set('ollamaResult', null);
 
+    // A vision prompt on CPU takes far longer than a text one, and the runner
+    // is shared, so the wait is generous and adjustable rather than tight.
+    const limit = Number(process.env.OLLAMA_TIMEOUT_MS || 300000);
     const started = Date.now();
     let result = null;
-    while (!result && Date.now() - started < 120000) {
+    while (!result && Date.now() - started < limit) {
         await new Promise(resolve => setTimeout(resolve, 200));
         result = context.get('ollamaResult');
     }
-    assert.ok(result, 'no response from ollama within 120s');
+    assert.ok(result, 'no response from ollama within ' + Math.round(limit / 1000) + 's');
     return result;
 }
 
