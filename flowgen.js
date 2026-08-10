@@ -592,7 +592,10 @@ function assemble(parts) {
             : '// Adjust the request body below to suit the call.');
         lines.push('msg.payload = ' +
             literal(parts.payload, 0, parts.payloadSchema, parts.resolve) + ';');
-    } else {
+    } else if (!BODYLESS.has(String(parts.method || '').toLowerCase())) {
+        // A method that can carry a body but does not here would otherwise send
+        // whatever the inject node left in msg.payload. GET and HEAD never send
+        // a body at all, so there is nothing to clear and nothing to explain.
         lines.push('');
         lines.push('// This request carries no body, so drop whatever msg.payload held.');
         lines.push('delete msg.payload;');

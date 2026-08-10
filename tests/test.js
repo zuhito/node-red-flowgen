@@ -65,9 +65,6 @@ test('minimal operation emits only method, url and return', () => {
     assert.strictEqual(code, [
         'msg.method = "GET";',
         'msg.url = "https://api.test/v1/x";',
-        '',
-        '// This request carries no body, so drop whatever msg.payload held.',
-        'delete msg.payload;',
         'return msg;'
     ].join('\n'));
 });
@@ -850,10 +847,10 @@ test('bodyless methods never carry a payload', () => {
         const doc = v3({ '/x': { [method]: { requestBody: {
             content: { 'application/json': { schema: { type: 'object' } } } } } } });
         const code = flowgen.generate(doc, method, '/x');
-        assert.match(code, /delete msg\.payload;/,
-            method + ' must clear the inject default rather than send it');
-        assert.ok(!/msg\.payload = \{/.test(code),
-            method + ' must not build a body');
+        // GET and HEAD never put a body on the wire, so there is nothing for
+        // the generated code to clear and nothing to explain.
+        assert.ok(!/msg\.payload/.test(code),
+            method + ' never sends a body, so it must not mention msg.payload');
     }
 });
 
@@ -1396,5 +1393,29 @@ test('every http auth scheme names the value to fill in', () => {
         const code = flowgen.generate(scheme(name), 'get', '/x');
         assert.match(code, /\{[a-z]+\}/, name + ' must leave a named placeholder');
         assert.match(code, /\/\/ Fill in "authorization" below\./);
+    }
+});
+
+
+test('only methods that can carry a body clear the inject default', () => {
+    const doc = v3({ '/x': { get: {}, head: {}, delete: {}, post: {}, put: {}, patch: {} } });
+
+    // Node-RED sends msg.payload as the body of a DELETE, so the inject node's
+    // timestamp would go out with it unless the generated code clears it.
+    for (const method of ['delete', 'post', 'put', 'patch']) {
+        const code = flowgen.generate(doc, method, '/x');
+        assert.match(code, /delete msg\.payload;/,
+            method + ' can carry a body, so the inject default has to go');
+        assert.match(code, /\/\/ This request carries no body/,
+            method + ' should say why it is clearing the payload');
+    }
+
+    // GET and HEAD never put a body on the wire, so the line would be noise.
+    for (const method of ['get', 'head']) {
+        const code = flowgen.generate(doc, method, '/x');
+        assert.ok(!/msg\.payload/.test(code),
+            method + ' must not mention msg.payload at all');
+        assert.ok(!/carries no body/.test(code),
+            method + ' must not carry the explanation either');
     }
 });
