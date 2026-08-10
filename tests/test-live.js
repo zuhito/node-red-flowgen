@@ -36,7 +36,11 @@ const SPEC_SOURCES = [
 ];
 
 const LOCAL_SPECS = {
-    httpbingo: path.join(__dirname, 'specs', 'httpbingo-full.yaml')
+    httpbingo: path.join(__dirname, 'specs', 'httpbingo-full.yaml'),
+    // The same service described through a converter. Calling both proves the
+    // formats agree against a real server, not just in the generated text.
+    'httpbingo-converted': path.join(__dirname, 'specs', 'generated',
+        'httpbingo-full-openapi3.generated.yaml')
 };
 
 const BRUNO_SOURCES = [
@@ -182,7 +186,17 @@ const CASES = [
     //     fill: { qop: 'auth', user: 'u', passwd: 'p' }, expect: 401, strict: true },
     { source: 'httpbingo', method: 'get', path: '/status/{code}', fill: { code: '204' },
         expect: 204, strict: true },
-    { source: 'httpbingo', method: 'get', path: '/xml' }
+    { source: 'httpbingo', method: 'get', path: '/xml' },
+
+    // The converted description of the same endpoints. curl and Node-RED are
+    // compared for these exactly as for the originals, so a conversion that
+    // changes the request shows up as a mismatch against the live service.
+    { source: 'httpbingo-converted', method: 'get', path: '/get' },
+    { source: 'httpbingo-converted', method: 'post', path: '/post' },
+    { source: 'httpbingo-converted', method: 'put', path: '/put' },
+    { source: 'httpbingo-converted', method: 'delete', path: '/delete' },
+    { source: 'httpbingo-converted', method: 'get', path: '/status/{code}',
+        fill: { code: '204' }, expect: 204, strict: true }
 
     // skipped: only ever a GET, and /get already covers that shape
     // { source: 'httpbingo', method: 'get', path: '/headers' },

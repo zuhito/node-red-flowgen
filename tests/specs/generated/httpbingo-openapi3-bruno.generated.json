@@ -1,0 +1,477 @@
+{
+  "name": "httpbingo",
+  "uid": "Dscgn4soxdeyaz1rCg8w3",
+  "version": "1",
+  "items": [
+    {
+      "uid": "r1TPeh94hI1j7uFtBJ6MO",
+      "name": "Require a bearer token",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/bearer",
+        "method": "GET",
+        "auth": {
+          "mode": "bearer",
+          "basic": null,
+          "bearer": {
+            "token": "{{token}}"
+          },
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "eZG6Eyzs7hFSLzXZW5SE6",
+          "itemUid": "r1TPeh94hI1j7uFtBJ6MO",
+          "name": "200 Response",
+          "description": "Authenticated",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/bearer",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "json": null,
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [
+              {
+                "uid": "KU8MiGxnEOQEjCrLCuZ3l",
+                "name": "Content-Type",
+                "value": "application/json",
+                "description": "",
+                "enabled": true
+              }
+            ],
+            "body": {
+              "type": "json",
+              "content": "{}"
+            }
+          }
+        },
+        {
+          "uid": "oTBLVbydPMZvolyG5BVm8",
+          "itemUid": "r1TPeh94hI1j7uFtBJ6MO",
+          "name": "401 Response",
+          "description": "No bearer token was supplied",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/bearer",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "json": null,
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 401,
+            "statusText": "Unauthorized",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 1
+    },
+    {
+      "uid": "buZPVgCVKWUTAoP44FWeo",
+      "name": "Require basic authentication",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/basic-auth/:user/:passwd",
+        "method": "GET",
+        "auth": {
+          "mode": "basic",
+          "basic": {
+            "username": "{{username}}",
+            "password": "{{password}}"
+          },
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [
+          {
+            "uid": "TyparrzaRUlrsVaiTtxQN",
+            "name": "user",
+            "value": "",
+            "description": "",
+            "enabled": true,
+            "type": "path"
+          },
+          {
+            "uid": "w8ViwAXVaQcZVYLz0UuGw",
+            "name": "passwd",
+            "value": "",
+            "description": "",
+            "enabled": true,
+            "type": "path"
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "qt4Xpy35Do9iFTtipxLY3",
+          "itemUid": "buZPVgCVKWUTAoP44FWeo",
+          "name": "200 Response",
+          "description": "Authenticated",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/basic-auth/:user/:passwd",
+            "method": "GET",
+            "headers": [],
+            "params": [
+              {
+                "uid": "TyparrzaRUlrsVaiTtxQN",
+                "name": "user",
+                "value": "",
+                "description": "",
+                "enabled": true,
+                "type": "path"
+              },
+              {
+                "uid": "w8ViwAXVaQcZVYLz0UuGw",
+                "name": "passwd",
+                "value": "",
+                "description": "",
+                "enabled": true,
+                "type": "path"
+              }
+            ],
+            "body": {
+              "mode": "none",
+              "json": null,
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [
+              {
+                "uid": "pOdJgsyj9ciUdHDnJExd7",
+                "name": "Content-Type",
+                "value": "application/json",
+                "description": "",
+                "enabled": true
+              }
+            ],
+            "body": {
+              "type": "json",
+              "content": "{}"
+            }
+          }
+        },
+        {
+          "uid": "OPLvmhl2E2PWSnkL8tt1U",
+          "itemUid": "buZPVgCVKWUTAoP44FWeo",
+          "name": "401 Response",
+          "description": "Credentials were missing or wrong",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/basic-auth/:user/:passwd",
+            "method": "GET",
+            "headers": [],
+            "params": [
+              {
+                "uid": "TyparrzaRUlrsVaiTtxQN",
+                "name": "user",
+                "value": "",
+                "description": "",
+                "enabled": true,
+                "type": "path"
+              },
+              {
+                "uid": "w8ViwAXVaQcZVYLz0UuGw",
+                "name": "passwd",
+                "value": "",
+                "description": "",
+                "enabled": true,
+                "type": "path"
+              }
+            ],
+            "body": {
+              "mode": "none",
+              "json": null,
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 401,
+            "statusText": "Unauthorized",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 2
+    },
+    {
+      "uid": "ahWMLLEQSgRDRg8Wbwb6E",
+      "name": "Require digest authentication",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "docs": "Digest authentication needs a challenge and response exchange, so a single generated request answers with 401 until the digest header is built from the server nonce.",
+        "url": "{{baseUrl}}/digest-auth/:qop/:user/:passwd",
+        "method": "GET",
+        "auth": {
+          "mode": "digest",
+          "basic": null,
+          "bearer": null,
+          "digest": {
+            "username": "{{username}}",
+            "password": "{{password}}"
+          },
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [
+          {
+            "uid": "q9QBK7FZ74XdKBHkkyHYW",
+            "name": "qop",
+            "value": "auth",
+            "description": "",
+            "enabled": true,
+            "type": "path"
+          },
+          {
+            "uid": "BFY0W1f8zNm1ngPfF3YgJ",
+            "name": "user",
+            "value": "",
+            "description": "",
+            "enabled": true,
+            "type": "path"
+          },
+          {
+            "uid": "ehgvSYFahCkScs5XPd4NM",
+            "name": "passwd",
+            "value": "",
+            "description": "",
+            "enabled": true,
+            "type": "path"
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "ECNHTljelJPF9IIWE9BBq",
+          "itemUid": "ahWMLLEQSgRDRg8Wbwb6E",
+          "name": "200 Response",
+          "description": "Authenticated",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/digest-auth/:qop/:user/:passwd",
+            "method": "GET",
+            "headers": [],
+            "params": [
+              {
+                "uid": "q9QBK7FZ74XdKBHkkyHYW",
+                "name": "qop",
+                "value": "auth",
+                "description": "",
+                "enabled": true,
+                "type": "path"
+              },
+              {
+                "uid": "BFY0W1f8zNm1ngPfF3YgJ",
+                "name": "user",
+                "value": "",
+                "description": "",
+                "enabled": true,
+                "type": "path"
+              },
+              {
+                "uid": "ehgvSYFahCkScs5XPd4NM",
+                "name": "passwd",
+                "value": "",
+                "description": "",
+                "enabled": true,
+                "type": "path"
+              }
+            ],
+            "body": {
+              "mode": "none",
+              "json": null,
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        },
+        {
+          "uid": "o7O7BJBkfBgZkPtHvUc24",
+          "itemUid": "ahWMLLEQSgRDRg8Wbwb6E",
+          "name": "401 Response",
+          "description": "Credentials were missing or wrong",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/digest-auth/:qop/:user/:passwd",
+            "method": "GET",
+            "headers": [],
+            "params": [
+              {
+                "uid": "q9QBK7FZ74XdKBHkkyHYW",
+                "name": "qop",
+                "value": "auth",
+                "description": "",
+                "enabled": true,
+                "type": "path"
+              },
+              {
+                "uid": "BFY0W1f8zNm1ngPfF3YgJ",
+                "name": "user",
+                "value": "",
+                "description": "",
+                "enabled": true,
+                "type": "path"
+              },
+              {
+                "uid": "ehgvSYFahCkScs5XPd4NM",
+                "name": "passwd",
+                "value": "",
+                "description": "",
+                "enabled": true,
+                "type": "path"
+              }
+            ],
+            "body": {
+              "mode": "none",
+              "json": null,
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 401,
+            "statusText": "Unauthorized",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 3
+    }
+  ],
+  "environments": [
+    {
+      "uid": "Q85qRXg8T76yjSVZVJ6wZ",
+      "name": "Environment 1",
+      "variables": [
+        {
+          "uid": "n1b0IZROrCDEdWYWIwIzU",
+          "name": "baseUrl",
+          "value": "https://httpbingo.org",
+          "type": "text",
+          "enabled": true,
+          "secret": false
+        }
+      ]
+    }
+  ],
+  "root": {
+    "request": {
+      "auth": {
+        "mode": "none",
+        "basic": null,
+        "bearer": null,
+        "digest": null,
+        "apikey": null,
+        "oauth2": null
+      }
+    },
+    "meta": {
+      "name": "httpbingo"
+    }
+  }
+}

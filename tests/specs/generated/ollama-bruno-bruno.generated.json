@@ -1,0 +1,1143 @@
+{
+  "name": "ollama-bruno",
+  "uid": "QBk4hj7Qm8F0RZsjKYW1m",
+  "version": "1",
+  "items": [
+    {
+      "uid": "cUWGSNRCWhJCaHhFhfZ2N",
+      "name": "api-chat",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/chat",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Hello\",\n      \"images\": [\n        \"\"\n      ]\n    }\n  ],\n  \"stream\": false,\n  \"think\": false,\n  \"format\": \"json\",\n  \"keep_alive\": \"5m\",\n  \"tools\": [\n    {}\n  ],\n  \"options\": {\n    \"temperature\": 0.8,\n    \"num_predict\": 16,\n    \"seed\": 0\n  }\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "NwBJb741guxqeb8rPsYLd",
+          "itemUid": "cUWGSNRCWhJCaHhFhfZ2N",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/chat",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Hello\",\n      \"images\": [\n        \"\"\n      ]\n    }\n  ],\n  \"stream\": false,\n  \"think\": false,\n  \"format\": \"json\",\n  \"keep_alive\": \"5m\",\n  \"tools\": [\n    {}\n  ],\n  \"options\": {\n    \"temperature\": 0.8,\n    \"num_predict\": 16,\n    \"seed\": 0\n  }\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 1
+    },
+    {
+      "uid": "dIjgXiPKUlO7ieDNW8ORC",
+      "name": "api-copy",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/copy",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"source\": \"gemma3:4b\",\n  \"destination\": \"gemma3:4b-copy\"\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "FHJmna62Lljnzfm8t60LK",
+          "itemUid": "dIjgXiPKUlO7ieDNW8ORC",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/copy",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"source\": \"gemma3:4b\",\n  \"destination\": \"gemma3:4b-copy\"\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 2
+    },
+    {
+      "uid": "Xk9XEk7bvCC3ELzDQ0wxO",
+      "name": "api-create",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/create",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\",\n  \"from\": \"gemma3:4b\",\n  \"system\": \"You are helpful.\",\n  \"stream\": false\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "5vUy4R33hETiyWDXANeqX",
+          "itemUid": "Xk9XEk7bvCC3ELzDQ0wxO",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/create",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\",\n  \"from\": \"gemma3:4b\",\n  \"system\": \"You are helpful.\",\n  \"stream\": false\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 3
+    },
+    {
+      "uid": "dpDBD8c9v15DZTLcJ8Egk",
+      "name": "api-delete",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/delete",
+        "method": "DELETE",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\"\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "eUcD5vIz2SxIWybS7vOFZ",
+          "itemUid": "dpDBD8c9v15DZTLcJ8Egk",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/delete",
+            "method": "DELETE",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\"\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 4
+    },
+    {
+      "uid": "reAMYhrn7LLxBmQkG6dN2",
+      "name": "api-embed",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/embed",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\",\n  \"input\": \"Why is the sky blue?\",\n  \"truncate\": true,\n  \"keep_alive\": \"5m\",\n  \"options\": {}\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "jYYBH3L3DGdI1gH3242iw",
+          "itemUid": "reAMYhrn7LLxBmQkG6dN2",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/embed",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\",\n  \"input\": \"Why is the sky blue?\",\n  \"truncate\": true,\n  \"keep_alive\": \"5m\",\n  \"options\": {}\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 5
+    },
+    {
+      "uid": "bXrxc6CM6ptqXCUuOD00l",
+      "name": "api-embeddings",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/embeddings",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\",\n  \"prompt\": \"Why is the sky blue?\",\n  \"keep_alive\": \"5m\"\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "JlgyWmyyyBTkyNV9Qogzm",
+          "itemUid": "bXrxc6CM6ptqXCUuOD00l",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/embeddings",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\",\n  \"prompt\": \"Why is the sky blue?\",\n  \"keep_alive\": \"5m\"\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 6
+    },
+    {
+      "uid": "Pt40juV5r3VJujnpAqGuJ",
+      "name": "api-generate",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/generate",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\",\n  \"prompt\": \"Why is the sky blue?\",\n  \"suffix\": \"\",\n  \"system\": \"\",\n  \"template\": \"\",\n  \"context\": [\n    0\n  ],\n  \"stream\": false,\n  \"raw\": false,\n  \"think\": false,\n  \"format\": \"json\",\n  \"keep_alive\": \"5m\",\n  \"images\": [\n    \"\"\n  ],\n  \"options\": {\n    \"temperature\": 0.8,\n    \"top_k\": 40,\n    \"top_p\": 0.9,\n    \"seed\": 0,\n    \"num_predict\": 16,\n    \"num_ctx\": 2048,\n    \"stop\": [\n      \"\"\n    ]\n  }\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "VtHJN0dEwndvCXOKixhLK",
+          "itemUid": "Pt40juV5r3VJujnpAqGuJ",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/generate",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\",\n  \"prompt\": \"Why is the sky blue?\",\n  \"suffix\": \"\",\n  \"system\": \"\",\n  \"template\": \"\",\n  \"context\": [\n    0\n  ],\n  \"stream\": false,\n  \"raw\": false,\n  \"think\": false,\n  \"format\": \"json\",\n  \"keep_alive\": \"5m\",\n  \"images\": [\n    \"\"\n  ],\n  \"options\": {\n    \"temperature\": 0.8,\n    \"top_k\": 40,\n    \"top_p\": 0.9,\n    \"seed\": 0,\n    \"num_predict\": 16,\n    \"num_ctx\": 2048,\n    \"stop\": [\n      \"\"\n    ]\n  }\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 7
+    },
+    {
+      "uid": "154oS2ottvAOQRZ71lEfr",
+      "name": "api-ps",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/ps",
+        "method": "GET",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "fiS0JZJhr55ftemTucJmc",
+          "itemUid": "154oS2ottvAOQRZ71lEfr",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/ps",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "json": null,
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 8
+    },
+    {
+      "uid": "zKz5tPUk87L5Ga8oC7m8C",
+      "name": "api-pull",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/pull",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\",\n  \"insecure\": false,\n  \"stream\": false\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "9gYDMCkpkKVbIc718Q1Bu",
+          "itemUid": "zKz5tPUk87L5Ga8oC7m8C",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/pull",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\",\n  \"insecure\": false,\n  \"stream\": false\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 9
+    },
+    {
+      "uid": "ENA8dPLDReE74fDOMmFmQ",
+      "name": "api-push",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/push",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\",\n  \"insecure\": false,\n  \"stream\": false\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "7omLbf104U2IKI4NN2JYy",
+          "itemUid": "ENA8dPLDReE74fDOMmFmQ",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/push",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\",\n  \"insecure\": false,\n  \"stream\": false\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 10
+    },
+    {
+      "uid": "EoCAOKlTQQAPHu6rephQw",
+      "name": "api-show",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/show",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\",\n  \"verbose\": false\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "0Wp9uOxSp4BsUT4C4RoqM",
+          "itemUid": "EoCAOKlTQQAPHu6rephQw",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/show",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\",\n  \"verbose\": false\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 11
+    },
+    {
+      "uid": "jSU75FTrkr3Q0SwxhGuMg",
+      "name": "api-tags",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/tags",
+        "method": "GET",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "TZq7h7YgaqkKFA6d8Se7n",
+          "itemUid": "jSU75FTrkr3Q0SwxhGuMg",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/tags",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "json": null,
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 12
+    },
+    {
+      "uid": "VbMDf8KKaiASnZQ2uC1Or",
+      "name": "api-version",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/api/version",
+        "method": "GET",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "ch9sQaUGMxJjPe6Tg61PT",
+          "itemUid": "VbMDf8KKaiASnZQ2uC1Or",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/api/version",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "json": null,
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 13
+    },
+    {
+      "uid": "mKeP4zKr0blzNlEzFAXfT",
+      "name": "v1-chat-completions",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/v1/chat/completions",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Hello\"\n    }\n  ],\n  \"stream\": false,\n  \"temperature\": 0.8,\n  \"max_tokens\": 1000,\n  \"seed\": 0\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "u0MIOmyraNI6uQSnD8n9V",
+          "itemUid": "mKeP4zKr0blzNlEzFAXfT",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/v1/chat/completions",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Hello\"\n    }\n  ],\n  \"stream\": false,\n  \"temperature\": 0.8,\n  \"max_tokens\": 1000,\n  \"seed\": 0\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 14
+    },
+    {
+      "uid": "S3UbC66HeDdKwaYxrevjO",
+      "name": "v1-completions",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/v1/completions",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\",\n  \"prompt\": \"Why is the sky blue?\",\n  \"stream\": false,\n  \"max_tokens\": 1000\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "ck0ui4PcuNV7txM4YUB3h",
+          "itemUid": "S3UbC66HeDdKwaYxrevjO",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/v1/completions",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\",\n  \"prompt\": \"Why is the sky blue?\",\n  \"stream\": false,\n  \"max_tokens\": 1000\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 15
+    },
+    {
+      "uid": "2NGzF6K4qPqaBYIm2eaLa",
+      "name": "v1-embeddings",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/v1/embeddings",
+        "method": "POST",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"model\": \"{{model}}\",\n  \"input\": \"Why is the sky blue?\"\n}",
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "iN3FfwzHAP3pm19FpLpYU",
+          "itemUid": "2NGzF6K4qPqaBYIm2eaLa",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/v1/embeddings",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"model\": \"{{model}}\",\n  \"input\": \"Why is the sky blue?\"\n}",
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 16
+    },
+    {
+      "uid": "kBFQ1o6pR0PqlkLMYrUBV",
+      "name": "v1-models",
+      "type": "http-request",
+      "tags": [],
+      "request": {
+        "url": "{{baseUrl}}/v1/models",
+        "method": "GET",
+        "auth": {
+          "mode": "inherit",
+          "basic": null,
+          "bearer": null,
+          "digest": null,
+          "apikey": null,
+          "oauth2": null
+        },
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "none",
+          "json": null,
+          "text": null,
+          "xml": null,
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {
+          "res": null
+        }
+      },
+      "examples": [
+        {
+          "uid": "fYmyZbEMMErb2g0cwryBf",
+          "itemUid": "kBFQ1o6pR0PqlkLMYrUBV",
+          "name": "200 Response",
+          "description": "ok",
+          "type": "http-request",
+          "request": {
+            "url": "{{baseUrl}}/v1/models",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "json": null,
+              "text": null,
+              "xml": null,
+              "sparql": null,
+              "formUrlEncoded": [],
+              "multipartForm": []
+            }
+          },
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": [],
+            "body": {
+              "type": "text",
+              "content": ""
+            }
+          }
+        }
+      ],
+      "seq": 17
+    }
+  ],
+  "environments": [
+    {
+      "uid": "XPfAP7HWTCR53FTK1krCS",
+      "name": "Environment 1",
+      "variables": [
+        {
+          "uid": "5OWoa9ImV8WKtK2DZEF0h",
+          "name": "baseUrl",
+          "value": "https://api.example.test",
+          "type": "text",
+          "enabled": true,
+          "secret": false
+        }
+      ]
+    }
+  ],
+  "root": {
+    "request": {
+      "auth": {
+        "mode": "none",
+        "basic": null,
+        "bearer": null,
+        "digest": null,
+        "apikey": null,
+        "oauth2": null
+      }
+    },
+    "meta": {
+      "name": "ollama-bruno"
+    }
+  }
+}

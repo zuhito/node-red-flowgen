@@ -575,6 +575,217 @@ for (const engine of ENGINES) {
             await page.close();
         });
 
+        // The editor is the thing that must keep working, so these walk paths a
+        // user reaches by ordinary mistake or impatience rather than the happy
+        // route the tests above take.
+
+        test('a transient outage does not strand the panel for the session', async () => {
+            // load() caches its promise, so a failure that is remembered would
+            // leave the panel dead until the browser is reloaded.
+            const page = await browser.newPage();
+            const pageErrors = [];
+            page.on('pageerror', err => pageErrors.push(String(err.message)));
+
+            let broken = true;
+            await page.route('**/flowgen/generator.js', route => {
+                if (broken) { return route.abort('failed'); }
+                return route.continue();
+            });
+
+            await page.goto('http://127.0.0.1:' + port + '/', { waitUntil: 'networkidle' });
+            await page.waitForFunction(() => window.RED && window.RED.actions,
+                null, { timeout: 60000 });
+
+            const openDialog = async () => {
+                await page.evaluate(() => {
+                    const dialog = $('#red-ui-clipboard-dialog');
+                    if (dialog.hasClass('ui-dialog-content') && dialog.dialog('isOpen')) {
+                        dialog.dialog('close');
+                    }
+                });
+                await page.evaluate(() => window.RED.actions.invoke('core:show-import-dialog'));
+                await page.waitForTimeout(1400);
+                return (await page.$$('#flowgen-tab-link')).length;
+            };
+
+            assert.strictEqual(await openDialog(), 0, 'no tab while the asset is unreachable');
+
+            broken = false;
+            assert.strictEqual(await openDialog(), 1, 'the tab returns once the asset does');
+
+            await click(page, '#flowgen-tab-link');
+            await page.waitForFunction(
+                () => !!document.getElementById('flowgen-spec-text'), null, { timeout: 20000 });
+            await paste(page, ONE);
+            await page.waitForTimeout(1500);
+            assert.ok((await page.$$('#flowgen-op-list .flowgen-op')).length > 0,
+                'the panel has to work again, not merely reappear');
+
+            assert.deepStrictEqual(pageErrors, []);
+            await page.close();
+        });
+
+        test('closing the dialog while a spec is being read leaves no wreckage', async () => {
+            // Someone who pastes a spec and immediately changes their mind.
+            const page = await browser.newPage();
+            const pageErrors = [];
+            page.on('pageerror', err => pageErrors.push(String(err.message)));
+
+            await openImport(page);
+            await page.fill('#flowgen-spec-text', SPEC);
+            await page.dispatchEvent('#flowgen-spec-text', 'keyup');
+            // Close before the parse has had time to finish.
+            await page.evaluate(() => $('#red-ui-clipboard-dialog').dialog('close'));
+            await page.waitForTimeout(1500);
+
+            await openImport(page);
+            const state = await page.evaluate(() => ({
+                text: $('#flowgen-spec-text').val(),
+                ops: $('#flowgen-op-list .flowgen-op').length,
+                status: $('#flowgen-status').text()
+            }));
+            assert.strictEqual(state.text, '', 'the panel starts clean');
+            assert.strictEqual(state.ops, 0, 'no endpoints are carried over');
+            assert.strictEqual(state.status, '', 'no stale status message');
+            assert.deepStrictEqual(pageErrors, []);
+            await page.close();
+        });
+
+        test('pasting one spec over another shows only the newer one', async () => {
+            const page = await browser.newPage();
+            await openImport(page);
+
+            await paste(page, SPEC);
+            await page.waitForTimeout(800);
+            const first = await page.$$eval('#flowgen-op-list .flowgen-op',
+                els => els.map(el => el.textContent.trim()));
+            assert.ok(first.length > 1);
+
+            await paste(page, ONE);
+            await page.waitForTimeout(1200);
+            const second = await page.$$eval('#flowgen-op-list .flowgen-op',
+                els => els.map(el => el.textContent.trim()));
+
+            assert.ok(second.length < first.length,
+                'the shorter spec must replace the longer one, not add to it');
+            assert.strictEqual(new Set(second).size, second.length,
+                'no endpoint may appear twice');
+            await page.close();
+        });
+
+        test('malformed input is reported without breaking the panel', async () => {
+            const page = await browser.newPage();
+            const pageErrors = [];
+            page.on('pageerror', err => pageErrors.push(String(err.message)));
+
+            await openImport(page);
+            for (const bad of ['{ not json', 'openapi: [unclosed', ': : :', '\u0000\u0001']) {
+                await paste(page, bad);
+                await page.waitForTimeout(900);
+                assert.strictEqual((await page.$$('#flowgen-op-list .flowgen-op')).length, 0,
+                    'nothing should be listed for ' + JSON.stringify(bad));
+                await waitOk(page, true);
+            }
+
+            // And the panel still works afterwards.
+            await paste(page, ONE);
+            await page.waitForTimeout(1200);
+            assert.ok((await page.$$('#flowgen-op-list .flowgen-op')).length > 0,
+                'a valid spec after several bad ones must still list endpoints');
+
+            assert.deepStrictEqual(pageErrors, []);
+            await page.close();
+        });
+
+        test('an empty spec clears the list rather than leaving it stale', async () => {
+            const page = await browser.newPage();
+            await openImport(page);
+
+            await paste(page, ONE);
+            await page.waitForTimeout(900);
+            assert.ok((await page.$$('#flowgen-op-list .flowgen-op')).length > 0);
+
+            await paste(page, '');
+            await page.waitForTimeout(900);
+            assert.strictEqual((await page.$$('#flowgen-op-list .flowgen-op')).length, 0,
+                'clearing the box must clear what it produced');
+            await waitOk(page, true);
+            await page.close();
+        });
+
+        test('opening and closing the dialog repeatedly does not accumulate handlers',
+            async () => {
+                // Each open re-binds; if the old binding is not released the
+                // work done per keystroke grows with every visit.
+                const page = await browser.newPage();
+                const pageErrors = [];
+                page.on('pageerror', err => pageErrors.push(String(err.message)));
+
+                await openImport(page);
+                for (let i = 0; i < 6; i++) {
+                    await page.evaluate(() => $('#red-ui-clipboard-dialog').dialog('close'));
+                    await page.waitForTimeout(200);
+                    await page.evaluate(() =>
+                        window.RED.actions.invoke('core:show-import-dialog'));
+                    await page.waitForTimeout(900);
+                }
+
+                const counts = await page.evaluate(() => {
+                    const events = $._data(document, 'events') || {};
+                    return {
+                        dialogopen: (events.dialogopen || []).length,
+                        tabs: $('#flowgen-tab-link').length,
+                        panes: $('#red-ui-clipboard-dialog-import-tab-apispec').length
+                    };
+                });
+
+                assert.ok(counts.dialogopen <= 1,
+                    'dialogopen handlers accumulated: ' + counts.dialogopen);
+                assert.strictEqual(counts.tabs, 1);
+                assert.strictEqual(counts.panes, 1);
+                assert.deepStrictEqual(pageErrors, []);
+                await page.close();
+            });
+
+        test('a large spec lists its endpoints without hanging the editor', async () => {
+            // Parsing still happens in the browser, so a big document is the
+            // case most likely to freeze the tab.
+            const page = await browser.newPage();
+            await openImport(page);
+
+            const paths = [];
+            for (let i = 0; i < 400; i++) {
+                paths.push('  /resource' + i + ':', '    get:',
+                    '      summary: endpoint number ' + i,
+                    '      responses:', '        "200": { description: ok }');
+            }
+            const big = ['openapi: 3.0.3', 'info:', '  title: large', '  version: "1"',
+                'servers:', '  - url: https://api.test', 'paths:'].concat(paths).join('\n');
+
+            const started = Date.now();
+            await page.fill('#flowgen-spec-text', big);
+            await page.dispatchEvent('#flowgen-spec-text', 'keyup');
+            await page.waitForFunction(
+                () => document.querySelectorAll('#flowgen-op-list .flowgen-op').length > 0,
+                null, { timeout: 60000 });
+            const listed = (await page.$$('#flowgen-op-list .flowgen-op')).length;
+            const elapsed = Date.now() - started;
+
+            assert.strictEqual(listed, 400, 'every endpoint should be listed');
+
+            // The editor has to still answer afterwards.
+            const responsive = await page.evaluate(() => {
+                try {
+                    window.RED.nodes.eachNode(function () {});
+                    return !!(window.RED.view && window.RED.actions);
+                } catch (err) { return false; }
+            });
+            assert.ok(responsive, 'the editor stopped responding after a large spec');
+            assert.ok(elapsed < 60000, 'listing took ' + elapsed + 'ms');
+
+            await page.close();
+        });
+
         test('the tab disappears when the runtime stops serving the plugin', async () => {
             const page = await browser.newPage();
             await openImport(page);

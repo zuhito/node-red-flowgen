@@ -1,0 +1,189 @@
+openapi: 3.0.3
+info:
+  title: httpbingo
+  description: >-
+    A subset of the httpbingo.org service, covering the endpoints the tests use to check
+    authentication headers and status handling end to end.
+  version: 1.0.0
+servers:
+  - url: https://httpbingo.org
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    basicAuth:
+      type: http
+      scheme: basic
+    digestAuth:
+      type: http
+      scheme: digest
+paths:
+  /get:
+    get:
+      summary: Echo a GET request
+      responses:
+        '200':
+          description: Request details
+          content:
+            application/json:
+              schema:
+                type: object
+  /post:
+    post:
+      summary: Echo a POST request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hello
+              properties:
+                hello:
+                  type: string
+                  example: world
+      responses:
+        '200':
+          description: Request details
+          content:
+            application/json:
+              schema:
+                type: object
+  /bearer:
+    get:
+      summary: Require a bearer token
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: No bearer token was supplied
+  /basic-auth/{user}/{passwd}:
+    get:
+      summary: Require basic authentication
+      security:
+        - basicAuth: []
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: passwd
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Credentials were missing or wrong
+  /status/{code}:
+    get:
+      summary: Return the given status code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The requested status
+  /xml:
+    get:
+      summary: Return a sample XML document
+      responses:
+        '200':
+          description: Sample document
+  /deny:
+    get:
+      summary: Return a page the robots rules deny
+      responses:
+        '200':
+          description: Denied page
+  /put:
+    put:
+      summary: Echo a PUT request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hello
+              properties:
+                hello:
+                  type: string
+                  example: world
+      responses:
+        '200':
+          description: Request details
+  /patch:
+    patch:
+      summary: Echo a PATCH request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hello
+              properties:
+                hello:
+                  type: string
+                  example: world
+      responses:
+        '200':
+          description: Request details
+  /delete:
+    delete:
+      summary: Echo a DELETE request
+      responses:
+        '200':
+          description: Request details
+  /digest-auth/{qop}/{user}/{passwd}:
+    get:
+      summary: Require digest authentication
+      description: >-
+        Digest authentication needs a challenge and response exchange, so a single generated request
+        answers with 401 until the digest header is built from the server nonce.
+      security:
+        - digestAuth: []
+      parameters:
+        - name: qop
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - auth
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: passwd
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authenticated
+        '401':
+          description: Credentials were missing or wrong

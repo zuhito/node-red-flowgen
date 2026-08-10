@@ -90,6 +90,9 @@ jobs:
       - name: Bruno conversion equivalence tests
         run: npm run test:converters
 
+      - name: Cross format equivalence tests
+        run: npm run test:formats
+
       - name: Flow lint tests
         shell: bash
         run: |
