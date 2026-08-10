@@ -30,7 +30,17 @@ function retryNode() {
     return node;
 }
 
-function sign(challenge, cookies, url) {
+// A stand-in for the node context the function node is given, so nc can be
+// exercised over several messages without booting Node-RED.
+function fakeContext() {
+    const store = {};
+    return {
+        get: key => store[key],
+        set: (key, value) => { store[key] = value; }
+    };
+}
+
+function sign(challenge, cookies, url, context) {
     const code = retryNode().func
         .replace(/\{user\}/g, 'someuser').replace(/\{passwd\}/g, 'somepass');
     const msg = {
@@ -39,7 +49,8 @@ function sign(challenge, cookies, url) {
     };
     if (cookies) { msg.headers['set-cookie'] = cookies; }
     // The code carries its own MD5 and needs nothing passed in.
-    return new Function('msg', code).call(null, msg);
+    return new Function('msg', 'context', code)
+        .call(null, msg, context || fakeContext());
 }
 
 function parse(header) {
@@ -240,4 +251,39 @@ test('the flow authenticates against a challenging server', async () => {
         target.close();
         fs.rmSync(userDir, { recursive: true, force: true });
     }
+});
+
+
+test('nc increases for a nonce the server keeps alive', () => {
+    // A server that reissues the same nonce rejects a repeated nc as a replay,
+    // so a fixed count would authenticate once and fail every time after.
+    const context = fakeContext();
+    const counts = [];
+    for (let i = 0; i < 5; i++) {
+        const header = sign(CHALLENGE, null, null, context).headers.authorization;
+        counts.push(parse(header).nc);
+    }
+    assert.deepStrictEqual(counts,
+        ['00000001', '00000002', '00000003', '00000004', '00000005']);
+});
+
+test('nc restarts when the server issues a fresh nonce', () => {
+    const context = fakeContext();
+    const first = parse(sign(CHALLENGE, null, null, context).headers.authorization);
+    assert.strictEqual(first.nc, '00000001');
+
+    const other = 'Digest realm="httpbingo", nonce="different", qop="auth"';
+    const second = parse(sign(other, null, null, context).headers.authorization);
+    assert.strictEqual(second.nc, '00000001',
+        'a new nonce starts its own count');
+    assert.strictEqual(second.nonce, 'different');
+});
+
+test('the client nonce is fresh on every signature', () => {
+    const context = fakeContext();
+    const seen = new Set();
+    for (let i = 0; i < 20; i++) {
+        seen.add(parse(sign(CHALLENGE, null, null, context).headers.authorization).cnonce);
+    }
+    assert.strictEqual(seen.size, 20, 'a repeated cnonce would weaken the exchange');
 });
