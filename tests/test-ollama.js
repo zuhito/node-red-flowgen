@@ -12,7 +12,21 @@ const { spawn, execFileSync } = require('child_process');
 const flowgen = require('../flowgen');
 
 const SPECS = path.join(__dirname, 'specs');
-const MODEL = process.env.OLLAMA_MODEL || 'gemma3:270m';
+const MODEL = process.env.OLLAMA_MODEL || 'gemma3:4b';
+
+// The image the spec carries as its example, so the test sends exactly what a
+// reader of the definition would send.
+function exampleImage(doc) {
+    const body = doc.paths['/api/generate'].post;
+    const schema = body.requestBody
+        ? body.requestBody.content['application/json'].schema
+        : body.parameters.find(p => p.in === 'body').schema;
+    const images = schema.properties.images;
+    const example = images.example || (images.items && images.items.example);
+    assert.ok(Array.isArray(example) && example.length,
+        'the spec must carry an example image for a vision model');
+    return example[0];
+}
 const READ_ONLY = process.env.OLLAMA_READ_ONLY === '1';
 
 let ollama = null;
@@ -86,7 +100,9 @@ function tidy(payload, path) {
     if (!payload || typeof payload !== 'object') return payload;
     const out = JSON.parse(JSON.stringify(payload));
     if ('model' in out) out.model = MODEL;
-    if (Array.isArray(out.images)) delete out.images;
+    // gemma3:4b reads images, so the example is left in place rather than
+    // stripped the way a text only model needed.
+    if (Array.isArray(out.images) && !out.images.length) delete out.images;
     if (Array.isArray(out.context)) delete out.context;
     if (Array.isArray(out.tools)) delete out.tools;
     if (out.messages) {
@@ -244,6 +260,63 @@ for (const [format, load] of Object.entries(DOCS)) {
             }
             assert.ok(results.length >= 20, 'ran ' + results.length + ' calls');
         });
+
+        test('the model reads an image that was sent to it',
+            { skip: READ_ONLY }, async () => {
+                const image = exampleImage(doc);
+                // A 64x64 png is 145 bytes, so a base64 round trip has to land
+                // back on a valid PNG header or the model is being handed junk.
+                const bytes = Buffer.from(image, 'base64');
+                assert.strictEqual(bytes.slice(1, 4).toString(), 'PNG',
+                    'the example is not a png once decoded');
+
+                const nodes = flowgen.buildFlow(doc, 'post', '/api/generate');
+                const fn = nodes.find(n => n.type === 'function');
+                fn.func = fn.func
+                    .replace(/"http:\/\/127\.0\.0\.1:11434/g, '"' + baseUrl)
+                    .replace(/msg\.payload = [\s\S]*?\n\};/, 'msg.payload = ' + JSON.stringify({
+                        model: MODEL,
+                        prompt: 'What colour is the shape in this image? Answer with one word.',
+                        images: [image],
+                        stream: false,
+                        options: { num_predict: 16, temperature: 0, seed: 1 }
+                    }, null, 2) + ';');
+
+                const result = await callThroughNodeRed(nodes);
+                assert.strictEqual(result.status, 200,
+                    'the image request failed: ' + JSON.stringify(result.payload));
+
+                const answer = result.payload.response;
+                assert.strictEqual(typeof answer, 'string',
+                    'no response in ' + JSON.stringify(result.payload));
+                assert.ok(answer.trim().length > 0, 'the model said nothing');
+
+                // The image is a red square, so a vision model that actually
+                // received it should say so. Anything else means the bytes
+                // never arrived in a form it could read.
+                assert.match(answer, /red/i,
+                    'the model did not describe the image it was sent: ' + answer);
+            });
+
+        test('an image request is rejected when the bytes are not valid base64',
+            { skip: READ_ONLY }, async () => {
+                const nodes = flowgen.buildFlow(doc, 'post', '/api/generate');
+                const fn = nodes.find(n => n.type === 'function');
+                fn.func = fn.func
+                    .replace(/"http:\/\/127\.0\.0\.1:11434/g, '"' + baseUrl)
+                    .replace(/msg\.payload = [\s\S]*?\n\};/, 'msg.payload = ' + JSON.stringify({
+                        model: MODEL,
+                        prompt: 'Describe this image.',
+                        images: ['not-base64-at-all'],
+                        stream: false,
+                        options: { num_predict: 8, temperature: 0, seed: 1 }
+                    }, null, 2) + ';');
+
+                const result = await callThroughNodeRed(nodes);
+                assert.ok(result.status >= 400,
+                    'a malformed image should be refused, got HTTP ' + result.status +
+                    ' ' + JSON.stringify(result.payload));
+            });
 
         test('the model answers a chat request', { skip: READ_ONLY }, async () => {
             const nodes = flowgen.buildFlow(doc, 'post', '/api/chat');
