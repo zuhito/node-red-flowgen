@@ -184,7 +184,9 @@ const CASES = [
     { source: 'httpbingo', method: 'post', path: '/post' },
     // skipped: same call shape as httpbingo get /get
     // { source: 'httpbingo', method: 'get', path: '/headers' },
-    { source: 'httpbingo', method: 'get', path: '/bearer', expect: 401, strict: true },
+    // httpbingo answers /bearer without credentials too, unlike httpbin, so
+    // both outcomes are accepted here.
+    { source: 'httpbingo', method: 'get', path: '/bearer', expect: [200, 401] },
     { source: 'httpbingo', method: 'get', path: '/bearer',
         addAuth: { authorization: 'Bearer live-test-token' }, expect: 200, strict: true },
     { source: 'httpbingo', method: 'get', path: '/basic-auth/{user}/{passwd}',
@@ -674,10 +676,20 @@ async function main() {
         // failing on that would flag the very outcome being checked. But only
         // the rejection that was asked for is excused: any other complaint in
         // the body still has to surface, whatever the status code.
+        // Both callers seeing the same 5xx is the host being down, which says
+        // nothing about the generated request, so it is reported and not failed.
+        const hostIsDown = viaCurl.status !== null && result.status !== null &&
+            viaCurl.status >= 500 && result.status >= 500;
+
         for (const [source, body, status] of [
             ['curl', viaCurl.body, viaCurl.status],
             ['node-red', result.body, result.status]
         ]) {
+            if (hostIsDown) {
+                note('notice', label + ' -> the ' + source + ' call got HTTP ' + status +
+                    ', so the host is down rather than the request being wrong');
+                continue;
+            }
             const hits = unexpectedErrors(body, status, expected);
             if (!hits.length) {
                 const said = errorWords(body);
