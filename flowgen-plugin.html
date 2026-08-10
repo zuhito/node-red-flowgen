@@ -285,11 +285,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         okButton(false);
     }
 
-    function apiRoot() {
-        var root = (RED.settings.apiRootUrl || '');
-        if (root && !/\/$/.test(root)) { root += '/'; }
-        return root;
-    }
 
     function useCollection(files) {
         status('reading the collection...');
