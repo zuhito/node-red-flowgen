@@ -8,8 +8,139 @@
 }(typeof self !== 'undefined' ? self : this, function (yaml) {
 'use strict';
 
+// --------------------------------------------------------------------
+// Shared constants and small helpers used throughout
+// --------------------------------------------------------------------
+
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
+
 const BODYLESS = new Set(['get', 'head']);
+
+const SAMPLE_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR42mNgAAAAAgAB5Sfe/AAAAABJRU5ErkJggg==';
+
+const USER_PARAM = /^(user|username|userid|user_id|login)$/i;
+
+const PASSWD_PARAM = /^(passwd|password|pass|pwd)$/i;
+
+// Per character label widths read out of the editor itself, through the same
+// RED.view.calculateTextWidth the node renderer uses. Guessing at these from
+// character classes put short labels a whole grid cell out, which left the node
+// off the grid and closed up the gap in front of it.
+const GLYPH = {
+    ' ': 3, '!': 4, '"': 5, '#': 8, '$': 8, '%': 12, '&': 9, "'": 3,
+    '(': 5, ')': 5, '*': 5, '+': 8, ',': 4, '-': 5, '.': 4, '/': 4,
+    '0': 8, '1': 8, '2': 8, '3': 8, '4': 8, '5': 8, '6': 8, '7': 8, '8': 8, '9': 8,
+    ':': 4, ';': 4, '<': 8, '=': 8, '>': 8, '?': 8, '@': 14,
+    A: 9, B: 9, C: 10, D: 10, E: 9, F: 9, G: 11, H: 10, I: 4, J: 7, K: 9, L: 8, M: 12,
+    N: 10, O: 11, P: 9, Q: 11, R: 10, S: 9, T: 9, U: 10, V: 9, W: 13, X: 9, Y: 9, Z: 9,
+    '[': 4, '\\': 4, ']': 4, '^': 7, '_': 8, '`': 5,
+    a: 8, b: 8, c: 7, d: 8, e: 8, f: 4, g: 8, h: 8, i: 3, j: 3, k: 7, l: 3, m: 12,
+    n: 8, o: 8, p: 8, q: 8, r: 5, s: 7, t: 4, u: 8, v: 7, w: 10, x: 7, y: 7, z: 7,
+    '{': 5, '|': 4, '}': 5, '~': 8
+};
+
+// The editor rounds a node out to the grid once it has added the chrome around
+// the label, and an input port costs another cell's worth of it. Both figures
+// come from measuring nodes of each kind across labels of two to twenty five
+// characters, not from guesswork.
+const PADDING_WITH_INPUT = 57;
+
+const PADDING_NO_INPUT = 48;
+
+function quote(value) {
+    const text = String(value);
+    if (!/\{[^}]+\}/.test(text)) {
+        return '"' + text
+            .replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+            .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '"';
+    }
+    return '`' + text
+        .replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
+        .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '`';
+}
+
+function raw(expression) {
+    return { __raw: String(expression) };
+}
+
+function isRaw(value) {
+    return !!value && typeof value === 'object' && typeof value.__raw === 'string';
+}
+
+function literal(value, indent, schema, resolve) {
+    indent = indent || 0;
+    const pad = '    '.repeat(indent);
+    const inner = '    '.repeat(indent + 1);
+    if (value === null || value === undefined) return 'null';
+    if (isRaw(value)) return value.__raw;
+    if (Array.isArray(value)) {
+        if (!value.length) return '[]';
+        const items = schema && resolve ? resolve(schema.items || {}) : null;
+        return '[\n' + value.map(v => inner + literal(v, indent + 1, items, resolve))
+            .join(',\n') + '\n' + pad + ']';
+    }
+    if (typeof value === 'object') {
+        const keys = Object.keys(value);
+        if (!keys.length) return '{}';
+        const required = schema && Array.isArray(schema.required) && schema.required.length
+            ? schema.required : null;
+        const properties = (schema && schema.properties) || {};
+        const useRequired = required && keys.some(key => required.indexOf(key) !== -1);
+        const entries = keys.map(key => {
+            const optional = useRequired ? required.indexOf(key) === -1 : false;
+            const child = !optional && resolve && properties[key] ? resolve(properties[key]) : null;
+            return {
+                optional: optional,
+                body: inner + '"' + String(key).replace(/\\/g, '\\\\').replace(/"/g, '\\"') +
+                    '": ' + literal(value[key], indent + 1, child, resolve)
+            };
+        });
+        let lastActive = -1;
+        entries.forEach((entry, i) => { if (!entry.optional) lastActive = i; });
+        const lines = entries.map((entry, i) => {
+            const body = entry.body + (i === lastActive ? '' : ',');
+            return entry.optional
+                ? body.split('\n').map(line => inner + '// ' + line.slice(inner.length)).join('\n')
+                : body;
+        });
+        return '{\n' + lines.join('\n') + '\n' + pad + '}';
+    }
+    if (typeof value === 'string') return quote(value);
+    return String(value);
+}
+
+function typeOf(schema) {
+    if (!schema || typeof schema !== 'object') return null;
+    const type = Array.isArray(schema.type) ? schema.type[0] : schema.type;
+    if (type === 'array') {
+        const inner = typeOf(schema.items);
+        return inner ? 'array of ' + inner : 'array';
+    }
+    return type || null;
+}
+
+function dedupeHeaders(headers) {
+    const out = [];
+    for (const entry of headers) {
+        const at = out.findIndex(h => h[0].toLowerCase() === entry[0].toLowerCase());
+        if (at === -1) out.push(entry); else out[at] = [out[at][0], entry[1]];
+    }
+    return out;
+}
+
+function nodeWidth(label, hasInput) {
+    if (!label) return 100;
+    let width = 0;
+    for (const ch of String(label)) {
+        width += GLYPH[ch] === undefined ? 8 : GLYPH[ch];
+    }
+    const padding = hasInput ? PADDING_WITH_INPUT : PADDING_NO_INPUT;
+    return Math.max(100, 20 * Math.ceil((width + padding) / 20));
+}
+
+// --------------------------------------------------------------------
+// Reading a definition: yaml, json, and Bruno collections
+// --------------------------------------------------------------------
 
 function parseDocument(text) {
     if (/^\s*meta\s*\{/.test(String(text || ''))) {
@@ -263,88 +394,20 @@ function toBruno(doc) {
     return bruno;
 }
 
-function generate(doc, method, target) {
-    const format = detectFormat(doc);
-    if (format === 'bruno') {
-        const bruno = toBruno(doc);
-        const wanted = String(target || '').replace(/^\//, '');
-        let found = null;
-        const available = [];
-        for (const req of bruno.requests) {
-            available.push(req.method + ' ' + req._path);
-            if (req.method === String(method).toLowerCase() && req._path.replace(/^\//, '') === wanted) {
-                found = req;
-            }
-        }
-        if (!found) throw new Error('not found: ' + method + ' ' + target + '\navailable:\n  ' + available.join('\n  '));
+// --------------------------------------------------------------------
+// Authentication
+// --------------------------------------------------------------------
 
-        const todo = [];
-        const substitute = text => String(text)
-            .replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
-                bruno.vars[name] !== undefined && String(bruno.vars[name]) !== ''
-                    ? String(bruno.vars[name]) : '{' + name + '}');
-        const substituteDeep = value => {
-            if (typeof value === 'string') return substitute(value);
-            if (Array.isArray(value)) return value.map(substituteDeep);
-            if (value && typeof value === 'object') {
-                const out = {};
-                for (const key of Object.keys(value)) out[key] = substituteDeep(value[key]);
-                return out;
-            }
-            return value;
-        };
-        const url = substitute(found.url).replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
-        for (const match of url.matchAll(/(^|[^$])\{([^}]+)\}/g)) {
-            const name = match[2];
-            if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
-        }
-        const headers = found.headers.map(h =>
-            [h[0], isRaw(h[1]) ? h[1] : substitute(h[1])]);
-        if (found.credentials) {
-            const named = todo.map(t => t.name);
-            const pick = re => named.find(name => re.test(name));
-            found.credentials.user = pick(USER_PARAM) || found.credentials.user;
-            found.credentials.passwd = pick(PASSWD_PARAM) || found.credentials.passwd;
-        }
-        return assemble({
-            method: found.method,
-            urls: [url],
-            todo: todo,
-            headers: dedupeHeaders(headers),
-            cookies: [],
-            credentials: found.credentials || null,
-            hasBody: found.hasBody && !BODYLESS.has(found.method),
-            multipart: found.multipart,
-            payload: substituteDeep(found.payload)
-        });
-    }
-    if (format === 'swagger2') return generateSwagger2(doc, method, target);
-    return generateOpenApi3(doc, method, target);
-}
-
-function quote(value) {
-    const text = String(value);
-    if (!/\{[^}]+\}/.test(text)) {
-        return '"' + text
-            .replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-            .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '"';
-    }
-    return '`' + text
-        .replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
-        .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '`';
-}
-
-const SAMPLE_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR42mNgAAAAAgAB5Sfe/AAAAABJRU5ErkJggg==';
-const USER_PARAM = /^(user|username|userid|user_id|login)$/i;
-const PASSWD_PARAM = /^(passwd|password|pass|pwd)$/i;
-
-// Digest is a two pass exchange, and the two passes are two http request
-// nodes rather than two edits to one. This first pass carries no credentials
-// on purpose: it exists to collect the challenge.
-function digestLines(lines) {
-    lines.push('// Digest auth answers this call with 401 and a challenge. The node');
-    lines.push('// after the request reads that challenge and signs the retry, so no');
-    lines.push('// credentials are sent here.');
+function credentialsFrom(urlParams) {
+    const pick = re => (urlParams || []).find(p => p.in === 'path' && re.test(p.name));
+    const user = pick(USER_PARAM);
+    const passwd = pick(PASSWD_PARAM);
+    return {
+        user: user ? user.name : 'user',
+        userType: user ? user.type : null,
+        passwd: passwd ? passwd.name : 'passwd',
+        passwdType: passwd ? passwd.type : null
+    };
 }
 
 // The retry node: it runs on the 401, reads the challenge out of the response
@@ -368,6 +431,15 @@ function brunoCredentials(entry, scheme) {
         known: user.literal && passwd.literal,
         scheme: scheme, realm: raw(entry.realm)
     };
+}
+
+// Digest is a two pass exchange, and the two passes are two http request
+// nodes rather than two edits to one. This first pass carries no credentials
+// on purpose: it exists to collect the challenge.
+function digestLines(lines) {
+    lines.push('// Digest auth answers this call with 401 and a challenge. The node');
+    lines.push('// after the request reads that challenge and signs the retry, so no');
+    lines.push('// credentials are sent here.');
 }
 
 // Whether this operation is digest protected, and under what credential names.
@@ -530,86 +602,9 @@ function digestRetryCode(pair, method) {
     ].join('\n');
 }
 
-function credentialsFrom(urlParams) {
-    const pick = re => (urlParams || []).find(p => p.in === 'path' && re.test(p.name));
-    const user = pick(USER_PARAM);
-    const passwd = pick(PASSWD_PARAM);
-    return {
-        user: user ? user.name : 'user',
-        userType: user ? user.type : null,
-        passwd: passwd ? passwd.name : 'passwd',
-        passwdType: passwd ? passwd.type : null
-    };
-}
-
-function raw(expression) {
-    return { __raw: String(expression) };
-}
-
-function isRaw(value) {
-    return !!value && typeof value === 'object' && typeof value.__raw === 'string';
-}
-
-function literal(value, indent, schema, resolve) {
-    indent = indent || 0;
-    const pad = '    '.repeat(indent);
-    const inner = '    '.repeat(indent + 1);
-    if (value === null || value === undefined) return 'null';
-    if (isRaw(value)) return value.__raw;
-    if (Array.isArray(value)) {
-        if (!value.length) return '[]';
-        const items = schema && resolve ? resolve(schema.items || {}) : null;
-        return '[\n' + value.map(v => inner + literal(v, indent + 1, items, resolve))
-            .join(',\n') + '\n' + pad + ']';
-    }
-    if (typeof value === 'object') {
-        const keys = Object.keys(value);
-        if (!keys.length) return '{}';
-        const required = schema && Array.isArray(schema.required) && schema.required.length
-            ? schema.required : null;
-        const properties = (schema && schema.properties) || {};
-        const useRequired = required && keys.some(key => required.indexOf(key) !== -1);
-        const entries = keys.map(key => {
-            const optional = useRequired ? required.indexOf(key) === -1 : false;
-            const child = !optional && resolve && properties[key] ? resolve(properties[key]) : null;
-            return {
-                optional: optional,
-                body: inner + '"' + String(key).replace(/\\/g, '\\\\').replace(/"/g, '\\"') +
-                    '": ' + literal(value[key], indent + 1, child, resolve)
-            };
-        });
-        let lastActive = -1;
-        entries.forEach((entry, i) => { if (!entry.optional) lastActive = i; });
-        const lines = entries.map((entry, i) => {
-            const body = entry.body + (i === lastActive ? '' : ',');
-            return entry.optional
-                ? body.split('\n').map(line => inner + '// ' + line.slice(inner.length)).join('\n')
-                : body;
-        });
-        return '{\n' + lines.join('\n') + '\n' + pad + '}';
-    }
-    if (typeof value === 'string') return quote(value);
-    return String(value);
-}
-
-function typeOf(schema) {
-    if (!schema || typeof schema !== 'object') return null;
-    const type = Array.isArray(schema.type) ? schema.type[0] : schema.type;
-    if (type === 'array') {
-        const inner = typeOf(schema.items);
-        return inner ? 'array of ' + inner : 'array';
-    }
-    return type || null;
-}
-
-function dedupeHeaders(headers) {
-    const out = [];
-    for (const entry of headers) {
-        const at = out.findIndex(h => h[0].toLowerCase() === entry[0].toLowerCase());
-        if (at === -1) out.push(entry); else out[at] = [out[at][0], entry[1]];
-    }
-    return out;
-}
+// --------------------------------------------------------------------
+// Turning one operation into the text of a function node
+// --------------------------------------------------------------------
 
 function valuesFor(schema, param) {
     const out = [];
@@ -1139,67 +1134,113 @@ function generateSwagger2(doc, rawMethod, target) {
     });
 }
 
-// Per character label widths read out of the editor itself, through the same
-// RED.view.calculateTextWidth the node renderer uses. Guessing at these from
-// character classes put short labels a whole grid cell out, which left the node
-// off the grid and closed up the gap in front of it.
-const GLYPH = {
-    ' ': 3, '!': 4, '"': 5, '#': 8, '$': 8, '%': 12, '&': 9, "'": 3,
-    '(': 5, ')': 5, '*': 5, '+': 8, ',': 4, '-': 5, '.': 4, '/': 4,
-    '0': 8, '1': 8, '2': 8, '3': 8, '4': 8, '5': 8, '6': 8, '7': 8, '8': 8, '9': 8,
-    ':': 4, ';': 4, '<': 8, '=': 8, '>': 8, '?': 8, '@': 14,
-    A: 9, B: 9, C: 10, D: 10, E: 9, F: 9, G: 11, H: 10, I: 4, J: 7, K: 9, L: 8, M: 12,
-    N: 10, O: 11, P: 9, Q: 11, R: 10, S: 9, T: 9, U: 10, V: 9, W: 13, X: 9, Y: 9, Z: 9,
-    '[': 4, '\\': 4, ']': 4, '^': 7, '_': 8, '`': 5,
-    a: 8, b: 8, c: 7, d: 8, e: 8, f: 4, g: 8, h: 8, i: 3, j: 3, k: 7, l: 3, m: 12,
-    n: 8, o: 8, p: 8, q: 8, r: 5, s: 7, t: 4, u: 8, v: 7, w: 10, x: 7, y: 7, z: 7,
-    '{': 5, '|': 4, '}': 5, '~': 8
-};
+// --------------------------------------------------------------------
+// Listing what a definition contains
+// --------------------------------------------------------------------
 
-// The editor rounds a node out to the grid once it has added the chrome around
-// the label, and an input port costs another cell's worth of it. Both figures
-// come from measuring nodes of each kind across labels of two to twenty five
-// characters, not from guesswork.
-const PADDING_WITH_INPUT = 57;
-const PADDING_NO_INPUT = 48;
-
-function nodeWidth(label, hasInput) {
-    if (!label) return 100;
-    let width = 0;
-    for (const ch of String(label)) {
-        width += GLYPH[ch] === undefined ? 8 : GLYPH[ch];
+function listOperations(doc) {
+    const format = detectFormat(doc);
+    if (format === 'bruno') {
+        const bruno = toBruno(doc);
+        const operations = bruno.requests.map(req => ({
+            method: req.method, path: req._path, summary: req.name || null
+        }));
+        return { format: 'bruno', count: operations.length, operations: operations };
     }
-    const padding = hasInput ? PADDING_WITH_INPUT : PADDING_NO_INPUT;
-    return Math.max(100, 20 * Math.ceil((width + padding) / 20));
+    const resolve = node => {
+        const seen = new Set();
+        while (node && typeof node === 'object' && typeof node.$ref === 'string') {
+            const ref = node.$ref;
+            if (!ref.startsWith('#/') || seen.has(ref)) return {};
+            seen.add(ref);
+            node = ref.slice(2).split('/').reduce(
+                (acc, key) => (acc == null ? acc : acc[key.replace(/~1/g, '/').replace(/~0/g, '~')]), doc);
+        }
+        return node || {};
+    };
+
+    const operations = [];
+    for (const path of Object.keys(doc.paths || {})) {
+        const item = resolve(doc.paths[path]);
+        for (const method of METHODS) {
+            const op = item[method];
+            if (!op || op.deprecated) continue;
+            operations.push({ method: method, path: path, summary: op.summary || null });
+        }
+    }
+    return { format: format, count: operations.length, operations: operations };
 }
 
-function buildFlows(doc, targets, options) {
-    const withTab = !options || options.tab !== false;
-    const nodes = [];
-    let row = 0;
-    for (const entry of targets) {
-        const built = buildFlow(doc, entry.method, entry.path, { tab: false });
-        const offset = row * 100;
-        const suffix = '-' + row;
-        const rename = id => id + suffix;
-        for (const node of built) {
-            node.id = rename(node.id);
-            node.y = node.y + offset;
-            node.wires = (node.wires || []).map(list => list.map(rename));
-            nodes.push(node);
+function formatList(result) {
+    const rows = result.operations.map(op => ({
+        args: op.method + ' ' + op.path,
+        note: op.summary || ''
+    }));
+    const width = rows.reduce((max, r) => Math.max(max, r.args.length), 0);
+    return rows.map(r => r.args + ' '.repeat(width - r.args.length) + (r.note ? '  # ' + r.note : '')).join('\n');
+}
+
+// --------------------------------------------------------------------
+// The public entry points
+// --------------------------------------------------------------------
+
+function generate(doc, method, target) {
+    const format = detectFormat(doc);
+    if (format === 'bruno') {
+        const bruno = toBruno(doc);
+        const wanted = String(target || '').replace(/^\//, '');
+        let found = null;
+        const available = [];
+        for (const req of bruno.requests) {
+            available.push(req.method + ' ' + req._path);
+            if (req.method === String(method).toLowerCase() && req._path.replace(/^\//, '') === wanted) {
+                found = req;
+            }
         }
-        row++;
+        if (!found) throw new Error('not found: ' + method + ' ' + target + '\navailable:\n  ' + available.join('\n  '));
+
+        const todo = [];
+        const substitute = text => String(text)
+            .replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, name) =>
+                bruno.vars[name] !== undefined && String(bruno.vars[name]) !== ''
+                    ? String(bruno.vars[name]) : '{' + name + '}');
+        const substituteDeep = value => {
+            if (typeof value === 'string') return substitute(value);
+            if (Array.isArray(value)) return value.map(substituteDeep);
+            if (value && typeof value === 'object') {
+                const out = {};
+                for (const key of Object.keys(value)) out[key] = substituteDeep(value[key]);
+                return out;
+            }
+            return value;
+        };
+        const url = substitute(found.url).replace(/(^|\/):([A-Za-z_][\w-]*)/g, '$1{$2}');
+        for (const match of url.matchAll(/(^|[^$])\{([^}]+)\}/g)) {
+            const name = match[2];
+            if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
+        }
+        const headers = found.headers.map(h =>
+            [h[0], isRaw(h[1]) ? h[1] : substitute(h[1])]);
+        if (found.credentials) {
+            const named = todo.map(t => t.name);
+            const pick = re => named.find(name => re.test(name));
+            found.credentials.user = pick(USER_PARAM) || found.credentials.user;
+            found.credentials.passwd = pick(PASSWD_PARAM) || found.credentials.passwd;
+        }
+        return assemble({
+            method: found.method,
+            urls: [url],
+            todo: todo,
+            headers: dedupeHeaders(headers),
+            cookies: [],
+            credentials: found.credentials || null,
+            hasBody: found.hasBody && !BODYLESS.has(found.method),
+            multipart: found.multipart,
+            payload: substituteDeep(found.payload)
+        });
     }
-    if (!withTab) { return nodes; }
-    const tab = {
-        id: 'flowgen-tab', type: 'tab',
-        label: targets.length === 1
-            ? String(targets[0].method).toUpperCase() + ' ' + targets[0].path
-            : targets.length + ' endpoints',
-        disabled: false, info: '', env: []
-    };
-    for (const node of nodes) node.z = tab.id;
-    return [tab].concat(nodes);
+    if (format === 'swagger2') return generateSwagger2(doc, method, target);
+    return generateOpenApi3(doc, method, target);
 }
 
 function buildFlow(doc, method, target, options) {
@@ -1298,46 +1339,33 @@ function buildFlow(doc, method, target, options) {
     });
 }
 
-function listOperations(doc) {
-    const format = detectFormat(doc);
-    if (format === 'bruno') {
-        const bruno = toBruno(doc);
-        const operations = bruno.requests.map(req => ({
-            method: req.method, path: req._path, summary: req.name || null
-        }));
-        return { format: 'bruno', count: operations.length, operations: operations };
-    }
-    const resolve = node => {
-        const seen = new Set();
-        while (node && typeof node === 'object' && typeof node.$ref === 'string') {
-            const ref = node.$ref;
-            if (!ref.startsWith('#/') || seen.has(ref)) return {};
-            seen.add(ref);
-            node = ref.slice(2).split('/').reduce(
-                (acc, key) => (acc == null ? acc : acc[key.replace(/~1/g, '/').replace(/~0/g, '~')]), doc);
+function buildFlows(doc, targets, options) {
+    const withTab = !options || options.tab !== false;
+    const nodes = [];
+    let row = 0;
+    for (const entry of targets) {
+        const built = buildFlow(doc, entry.method, entry.path, { tab: false });
+        const offset = row * 100;
+        const suffix = '-' + row;
+        const rename = id => id + suffix;
+        for (const node of built) {
+            node.id = rename(node.id);
+            node.y = node.y + offset;
+            node.wires = (node.wires || []).map(list => list.map(rename));
+            nodes.push(node);
         }
-        return node || {};
+        row++;
+    }
+    if (!withTab) { return nodes; }
+    const tab = {
+        id: 'flowgen-tab', type: 'tab',
+        label: targets.length === 1
+            ? String(targets[0].method).toUpperCase() + ' ' + targets[0].path
+            : targets.length + ' endpoints',
+        disabled: false, info: '', env: []
     };
-
-    const operations = [];
-    for (const path of Object.keys(doc.paths || {})) {
-        const item = resolve(doc.paths[path]);
-        for (const method of METHODS) {
-            const op = item[method];
-            if (!op || op.deprecated) continue;
-            operations.push({ method: method, path: path, summary: op.summary || null });
-        }
-    }
-    return { format: format, count: operations.length, operations: operations };
-}
-
-function formatList(result) {
-    const rows = result.operations.map(op => ({
-        args: op.method + ' ' + op.path,
-        note: op.summary || ''
-    }));
-    const width = rows.reduce((max, r) => Math.max(max, r.args.length), 0);
-    return rows.map(r => r.args + ' '.repeat(width - r.args.length) + (r.note ? '  # ' + r.note : '')).join('\n');
+    for (const node of nodes) node.z = tab.id;
+    return [tab].concat(nodes);
 }
 
 return {
