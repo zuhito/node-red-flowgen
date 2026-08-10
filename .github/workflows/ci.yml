@@ -56,6 +56,17 @@ jobs:
         if: runner.os == 'Linux'
         run: npm run test:wizard
 
+      - name: Flow lint tests
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:nrlint 2>&1 | tee out.txt || {
+            (grep -A 18 "^not ok" out.txt | head -80; echo "--- tail ---"; tail -20 out.txt) | while read -r line; do
+              echo "::error::Flow lint tests: $line"
+            done
+            exit 1
+          }
+
       - name: Plugin package tests
         shell: bash
         run: |

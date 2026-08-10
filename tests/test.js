@@ -544,9 +544,14 @@ test('nodes snap to the grid with a two cell gap between them', () => {
     for (const target of ['/x', '/pet/{petId}/uploadImage']) {
         const doc = v3({ [target]: { get: {} } });
         const nodes = flowgen.buildFlow(doc, 'get', target, { tab: false });
-        const labels = ['timestamp', 'GET ' + target, 'http request', 'msg.payload'];
-        for (const node of nodes) {
-            assert.strictEqual(node.x % GRID, 0, node.type + ' x=' + node.x + ' is off grid');
+        const labels = nodes.map((node, i) => i === 1 ? node.name
+            : ['timestamp', null, 'http request', 'msg.payload'][i]);
+        for (let i = 0; i < nodes.length; i++) {
+            const width = flowgen.nodeWidth(labels[i], i > 0);
+            const edge = nodes[i].x - width / 2;
+            assert.strictEqual(edge % GRID, 0,
+                nodes[i].type + ' x=' + nodes[i].x + ' w=' + width +
+                ' puts the left edge at ' + edge + ', which is off grid');
         }
         for (let i = 0; i < nodes.length - 1; i++) {
             const wLeft = flowgen.nodeWidth(labels[i], i > 0);
@@ -1270,16 +1275,18 @@ test('the full httpbingo definition covers the endpoints the tests need', () => 
         path.join(__dirname, 'specs', 'httpbingo-full.yaml'), 'utf8'));
     const paths = flowgen.listOperations(doc).operations.map(o => o.method + ' ' + o.path);
 
-    for (const required of ['get /get', 'post /post', 'get /headers', 'get /bearer',
-        'get /basic-auth/{user}/{passwd}', 'get /hidden-basic-auth/{user}/{passwd}',
-        'get /status/{code}']) {
+    for (const required of ['get /get', 'post /post', 'put /put', 'patch /patch',
+        'delete /delete', 'get /bearer', 'get /basic-auth/{user}/{passwd}',
+        'get /digest-auth/{qop}/{user}/{passwd}', 'get /status/{code}',
+        'get /xml', 'get /deny']) {
         assert.ok(paths.indexOf(required) !== -1, 'missing ' + required);
     }
-    assert.ok(paths.length >= 30, 'the definition covers the whole service');
+    assert.ok(paths.length <= 12,
+        'endpoints that only repeat another call shape stay commented out');
     assert.match(flowgen.generate(doc, 'post', '/post'), /"hello": "world"/);
 
     for (const target of ['/bearer', '/basic-auth/{user}/{passwd}',
-        '/hidden-basic-auth/{user}/{passwd}']) {
+        '/digest-auth/{qop}/{user}/{passwd}']) {
         const code = flowgen.generate(doc, 'get', target);
         assert.match(code, /"authorization": `/,
             target + ' needs credentials, so the code must offer the header');
@@ -1288,8 +1295,7 @@ test('the full httpbingo definition covers the endpoints the tests need', () => 
         /"authorization": `Bearer \{token\}`/);
     assert.match(flowgen.generate(doc, 'get', '/bearer'),
         /\/\/ Fill in "authorization" below\./);
-    for (const target of ['/basic-auth/{user}/{passwd}',
-        '/hidden-basic-auth/{user}/{passwd}']) {
+    for (const target of ['/basic-auth/{user}/{passwd}']) {
         const code = flowgen.generate(doc, 'get', target);
         assert.match(code, /"authorization": `Basic \$\{credentials\}`/);
         assert.ok(code.includes(

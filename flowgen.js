@@ -858,7 +858,7 @@ function nodeWidth(label, hasInput) {
         else if (/[mwMW]/.test(ch)) width += 12;
         else width += 8;
     }
-    return Math.max(100, 20 * Math.ceil((width + 50 + (hasInput ? 7 : 0)) / 20));
+    return Math.max(100, 20 * Math.ceil((width + 30 + (hasInput ? 7 : 0)) / 20));
 }
 
 function buildFlows(doc, targets, options) {
@@ -906,9 +906,9 @@ function buildFlow(doc, method, target, options) {
     for (const entry of [['timestamp', false], [name, true],
         ['http request', true], ['msg.payload', true]]) {
         const width = nodeWidth(entry[0], entry[1]);
-        const centre = 20 * Math.round((left + width / 2) / 20);
-        xs.push(centre);
-        left = centre + width / 2 + 40;
+        const edge = 20 * Math.ceil(left / 20);
+        xs.push(edge + width / 2);
+        left = edge + width + 40;
     }
     const nodes = [
         {

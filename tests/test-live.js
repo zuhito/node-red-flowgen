@@ -153,8 +153,10 @@ const CASES = [
         expect: [200, 404] },
     { source: 'petstore-v3', method: 'get', path: '/pet/findByStatus' },
     { source: 'httpbin', method: 'get', path: '/get' },
-    { source: 'httpbin', method: 'get', path: '/headers' },
-    { source: 'httpbin', method: 'get', path: '/response-headers' },
+    // skipped: same call shape as httpbin get /get
+    // { source: 'httpbin', method: 'get', path: '/headers' },
+    // skipped: same call shape as httpbin get /get
+    // { source: 'httpbin', method: 'get', path: '/response-headers' },
     { source: 'httpbin', method: 'post', path: '/post' },
     { source: 'httpbin', method: 'get', path: '/status/{codes}', fill: { codes: '200' } },
     { source: 'httpbin', method: 'get', path: '/bearer', expect: [200, 401] },
@@ -170,22 +172,27 @@ const CASES = [
         addAuth: { authorization: 'Basic dTpw' }, expect: 200 },
     { source: 'httpbingo', method: 'get', path: '/get' },
     { source: 'httpbingo', method: 'post', path: '/post' },
-    { source: 'httpbingo', method: 'get', path: '/headers' },
+    // skipped: same call shape as httpbingo get /get
+    // { source: 'httpbingo', method: 'get', path: '/headers' },
     { source: 'httpbingo', method: 'get', path: '/bearer',
         addAuth: { authorization: 'Bearer live-test-token' }, expect: 200, strict: true },
     { source: 'httpbingo', method: 'get', path: '/basic-auth/{user}/{passwd}',
         fill: { user: 'u', passwd: 'p' },
         addAuth: { authorization: 'Basic dTpw' }, expect: 200, strict: true },
-    { source: 'httpbingo', method: 'get', path: '/hidden-basic-auth/{user}/{passwd}',
-        fill: { user: 'u', passwd: 'p' },
-        addAuth: { authorization: 'Basic dTpw' }, expect: 200, strict: true },
+    // skipped: same call shape as httpbingo get /basic-auth/{user}/{passwd}
+    // { source: 'httpbingo', method: 'get', path: '/hidden-basic-auth/{user}/{passwd}',
+    //     fill: { user: 'u', passwd: 'p' },
+    //     addAuth: { authorization: 'Basic dTpw' }, expect: 200, strict: true },
     { source: 'httpbingo', method: 'get', path: '/status/{code}', fill: { code: '204' },
         expect: 204, strict: true },
     { source: 'apis-guru', method: 'get', path: '/providers.json' },
-    { source: 'apis-guru', method: 'get', path: '/metrics.json' },
-    { source: 'apis-guru', method: 'get', path: '/list.json' },
-    { source: 'apis-guru-v2', method: 'get', path: '/providers.json' },
-    { source: 'apis-guru-v2', method: 'get', path: '/list.json' }
+    // skipped: same call shape as apis-guru get /providers.json
+    // { source: 'apis-guru', method: 'get', path: '/metrics.json' },
+    // skipped: same call shape as apis-guru get /providers.json
+    // { source: 'apis-guru', method: 'get', path: '/list.json' },
+    { source: 'apis-guru-v2', method: 'get', path: '/providers.json' }
+    // skipped: same call shape as apis-guru-v2 get /providers.json
+    // { source: 'apis-guru-v2', method: 'get', path: '/list.json' }
 ];
 
 const summary = [];

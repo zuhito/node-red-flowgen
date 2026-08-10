@@ -72,7 +72,6 @@ test('every node coordinate is a multiple of the grid', () => {
         for (const op of flowgen.listOperations(doc).operations) {
                 for (const node of flowgen.buildFlow(doc, op.method, op.path)) {
                         if (node.type === 'tab') continue;
-                        assert.strictEqual(node.x % 20, 0, node.type + ' x=' + node.x);
                         assert.strictEqual(node.y % 20, 0, node.type + ' y=' + node.y);
                 }
         }
@@ -88,4 +87,29 @@ test('a long function name still leaves the flow on the grid', () => {
         const flow = flowgen.buildFlow(doc, 'get',
                 '/a/very/long/path/that/stretches/the/function/node/label');
         assert.deepStrictEqual(messages(lint(flow)), []);
+});
+
+const LABEL = {
+        inject: ['timestamp', false],
+        'http request': ['http request', true],
+        debug: ['msg.payload', true]
+};
+
+test('every node left edge lands on the grid, which is what the editor checks', () => {
+        for (const name of ['ollama-swagger2.yaml', 'ollama-openapi3.yaml',
+                'httpbingo-openapi3.yaml']) {
+                const doc = loadSpec(name);
+                for (const op of flowgen.listOperations(doc).operations) {
+                        for (const node of flowgen.buildFlow(doc, op.method, op.path)) {
+                                if (node.type === 'tab') continue;
+                                const entry = node.type === 'function'
+                                        ? [node.name, true] : LABEL[node.type];
+                                const width = flowgen.nodeWidth(entry[0], entry[1]);
+                                const edge = node.x - width / 2;
+                                assert.strictEqual(edge % 20, 0, name + ' ' + op.method + ' ' +
+                                        op.path + ': ' + node.type + ' x=' + node.x +
+                                        ' w=' + width + ' puts the edge at ' + edge);
+                        }
+                }
+        }
 });

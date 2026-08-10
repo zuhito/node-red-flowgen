@@ -8,6 +8,7 @@ const path = require('path');
 const http = require('http');
 const express = require('express');
 const RED = require('node-red');
+const flowgen = require('../flowgen');
 const playwright = require('playwright');
 
 const ENGINES = (process.env.BROWSERS || 'chromium').split(',')
@@ -144,6 +145,70 @@ for (const engine of ENGINES) {
 
         after(async () => {
             if (browser) await browser.close();
+        });
+
+        test('the editor measures nodes at the width flowgen predicts', async () => {
+            const page = await browser.newPage();
+            await openImport(page);
+            await paste(page, ONE);
+            await page.waitForTimeout(800);
+            await click(page, '#red-ui-clipboard-dialog-ok');
+            await page.waitForTimeout(1500);
+
+            const measured = await page.evaluate(() => {
+                const out = [];
+                window.RED.nodes.eachNode(n => {
+                    if (typeof n.w === 'number') {
+                        out.push({ type: n.type, name: n.name || '', w: n.w });
+                    }
+                });
+                return out;
+            });
+            assert.ok(measured.length >= 4,
+                'the editor must have measured the imported nodes');
+
+            const LABEL = {
+                inject: ['timestamp', false],
+                'http request': ['http request', true],
+                debug: ['msg.payload', true]
+            };
+            const wrong = measured.filter(n => {
+                const entry = LABEL[n.type] || [n.name, true];
+                return flowgen.nodeWidth(entry[0], entry[1]) !== n.w;
+            }).map(n => n.type + ' ' + n.name + ' editor=' + n.w +
+                ' flowgen=' + flowgen.nodeWidth(
+                    (LABEL[n.type] || [n.name, true])[0],
+                    (LABEL[n.type] || [n.name, true])[1]));
+
+            assert.deepStrictEqual(wrong, [],
+                'nodeWidth must match the editor, or the grid maths is built on sand');
+
+            await page.close();
+        });
+
+        test('the editor reports no warnings for an imported flow', async () => {
+            const page = await browser.newPage();
+            const problems = [];
+            page.on('console', m => {
+                if (m.type() === 'warning' || m.type() === 'error') { problems.push(m.text()); }
+            });
+
+            await openImport(page);
+            await paste(page, ONE);
+            await page.waitForTimeout(800);
+            await click(page, '#red-ui-clipboard-dialog-ok');
+            await page.waitForTimeout(1500);
+
+            const notified = await page.evaluate(() =>
+                Array.from(document.querySelectorAll('.red-ui-notification'))
+                    .map(el => el.textContent.trim()).filter(Boolean));
+
+            assert.deepStrictEqual(notified.filter(t => /warn|invalid|error/i.test(t)), [],
+                'the editor raised a notification about the imported flow');
+            assert.deepStrictEqual(problems.filter(t => /grid|align|width/i.test(t)), [],
+                'the editor logged a grid or width complaint');
+
+            await page.close();
         });
 
         test('the API Spec tab is added to the import dialog', async () => {
