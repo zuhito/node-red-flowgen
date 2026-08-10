@@ -7,6 +7,10 @@ const path = require('path');
 const flowgen = require('../flowgen');
 const specs = require('./specs');
 
+const SAMPLE_PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR42mNgAAAAAgAB5Sfe/AAAAABJRU5ErkJggg==',
+    'base64');
+
 
 function run(code) {
     return new Function('msg', code)({});
@@ -298,12 +302,12 @@ test('swagger 2.0 multipart formData follows the http request node file upload s
     const code = flowgen.generate(doc, 'post', '/x');
     const msg = run(code);
     assert.deepStrictEqual(msg.payload, {
-        file: { value: Buffer.from(''), options: { filename: 'upload.bin' } },
+        file: { value: SAMPLE_PNG, options: { filename: 'gray1x1.png' } },
         note: ''
     });
     assert.strictEqual(msg.headers['content-type'], 'multipart/form-data');
-    assert.match(code, /const FILE_CONTENTS = Buffer\.from\(""\);/);
-    assert.match(code, /const FILENAME = "upload\.bin";/);
+    assert.match(code, /const FILE_CONTENTS = Buffer\.from\("[A-Za-z0-9+/=]+", "base64"\);/);
+    assert.match(code, /const FILENAME = "gray1x1\.png";/);
 });
 
 test('swagger 2.0 urlencoded formData stays a flat object', () => {
@@ -323,9 +327,43 @@ test('openapi 3 multipart binary fields follow the file upload shape', () => {
     } } } } } });
     const msg = run(flowgen.generate(doc, 'post', '/x'));
     assert.deepStrictEqual(msg.payload, {
-        file: { value: Buffer.from(''), options: { filename: 'upload.bin' } },
+        file: { value: SAMPLE_PNG, options: { filename: 'gray1x1.png' } },
         note: ''
     });
+});
+
+test('the sample multipart upload is a real PNG a server can decode', () => {
+    const doc = v3({ '/x': { post: { requestBody: { content: { 'multipart/form-data': {
+        schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } }
+    } } } } } });
+    const value = run(flowgen.generate(doc, 'post', '/x')).payload.file.value;
+
+    assert.ok(Buffer.isBuffer(value), 'the upload must be bytes, not a placeholder string');
+    assert.strictEqual(value.length, 67);
+    assert.strictEqual(value.slice(0, 8).toString('hex'), '89504e470d0a1a0a', 'PNG signature');
+    assert.strictEqual(value.readUInt32BE(16), 1, 'width');
+    assert.strictEqual(value.readUInt32BE(20), 1, 'height');
+    assert.ok([1, 2, 4, 8, 16].indexOf(value[24]) !== -1, 'bit depth must be one PNG allows');
+    assert.strictEqual(value.slice(-12).toString('hex'), '0000000049454e44ae426082', 'IEND');
+
+    const crcOf = buf => {
+        let crc = 0xFFFFFFFF;
+        for (const byte of buf) {
+            crc ^= byte;
+            for (let i = 0; i < 8; i++) { crc = crc & 1 ? (crc >>> 1) ^ 0xEDB88320 : crc >>> 1; }
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    };
+    const seen = [];
+    for (let at = 8; at < value.length;) {
+        const length = value.readUInt32BE(at);
+        const type = value.slice(at + 4, at + 8).toString('ascii');
+        assert.strictEqual(value.readUInt32BE(at + 8 + length),
+            crcOf(value.slice(at + 4, at + 8 + length)), type + ' checksum');
+        seen.push(type);
+        at += 12 + length;
+    }
+    assert.deepStrictEqual(seen, ['IHDR', 'IDAT', 'IEND']);
 });
 
 test('swagger 2.0 security definitions map to msg properties', () => {
@@ -690,8 +728,8 @@ test('the full example shape matches the requested format', () => {
     assert.match(blocks[1], /^\/\/ Replace \{petId\} \(integer\)/);
     assert.match(blocks[2], /^\/\/ Fill in \"authorization\"/);
     assert.match(blocks[3], /^\/\/ Point FILE_CONTENTS/);
-    assert.match(blocks[3], /const FILE_CONTENTS = Buffer\.from\(""\);/);
-    assert.match(blocks[3], /const FILENAME = "upload\.bin";/);
+    assert.match(blocks[3], /const FILE_CONTENTS = Buffer\.from\("[A-Za-z0-9+/=]+", "base64"\);/);
+    assert.match(blocks[3], /const FILENAME = "gray1x1\.png";/);
     assert.match(blocks[4], /^\/\/ Adjust the other multipart fields/);
     assert.match(blocks[4], /return msg;$/);
 });

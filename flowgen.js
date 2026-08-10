@@ -290,6 +290,10 @@ function quote(value) {
         .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '`';
 }
 
+// A complete 1x1 grayscale PNG, 67 bytes, so generated multipart code uploads
+// something a server will actually decode.
+const SAMPLE_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR42mNgAAAAAgAB5Sfe/AAAAABJRU5ErkJggg==';
+
 const USER_PARAM = /^(user|username|userid|user_id|login)$/i;
 const PASSWD_PARAM = /^(passwd|password|pass|pwd)$/i;
 
@@ -485,8 +489,8 @@ function assemble(parts) {
         lines.push('');
         if (parts.multipart && uses('FILE_CONTENTS')) {
             lines.push('// Point FILE_CONTENTS at the bytes to upload; a Buffer or a stream both work.');
-            lines.push('const FILE_CONTENTS = Buffer.from("");');
-            if (uses('FILENAME')) lines.push('const FILENAME = "upload.bin";');
+            lines.push('const FILE_CONTENTS = Buffer.from(' + quote(SAMPLE_PNG) + ', "base64");');
+            if (uses('FILENAME')) lines.push('const FILENAME = "gray1x1.png";');
             lines.push('');
         }
         lines.push(parts.multipart
