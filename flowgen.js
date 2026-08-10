@@ -959,17 +959,38 @@ function generateSwagger2(doc, rawMethod, target) {
     });
 }
 
+// Per character label widths read out of the editor itself, through the same
+// RED.view.calculateTextWidth the node renderer uses. Guessing at these from
+// character classes put short labels a whole grid cell out, which left the node
+// off the grid and closed up the gap in front of it.
+const GLYPH = {
+    ' ': 3, '!': 4, '"': 5, '#': 8, '$': 8, '%': 12, '&': 9, "'": 3,
+    '(': 5, ')': 5, '*': 5, '+': 8, ',': 4, '-': 5, '.': 4, '/': 4,
+    '0': 8, '1': 8, '2': 8, '3': 8, '4': 8, '5': 8, '6': 8, '7': 8, '8': 8, '9': 8,
+    ':': 4, ';': 4, '<': 8, '=': 8, '>': 8, '?': 8, '@': 14,
+    A: 9, B: 9, C: 10, D: 10, E: 9, F: 9, G: 11, H: 10, I: 4, J: 7, K: 9, L: 8, M: 12,
+    N: 10, O: 11, P: 9, Q: 11, R: 10, S: 9, T: 9, U: 10, V: 9, W: 13, X: 9, Y: 9, Z: 9,
+    '[': 4, '\\': 4, ']': 4, '^': 7, '_': 8, '`': 5,
+    a: 8, b: 8, c: 7, d: 8, e: 8, f: 4, g: 8, h: 8, i: 3, j: 3, k: 7, l: 3, m: 12,
+    n: 8, o: 8, p: 8, q: 8, r: 5, s: 7, t: 4, u: 8, v: 7, w: 10, x: 7, y: 7, z: 7,
+    '{': 5, '|': 4, '}': 5, '~': 8
+};
+
+// The editor rounds a node out to the grid once it has added the chrome around
+// the label, and an input port costs another cell's worth of it. Both figures
+// come from measuring nodes of each kind across labels of two to twenty five
+// characters, not from guesswork.
+const PADDING_WITH_INPUT = 57;
+const PADDING_NO_INPUT = 48;
+
 function nodeWidth(label, hasInput) {
     if (!label) return 100;
     let width = 0;
     for (const ch of String(label)) {
-        if (/[ijl.,:;'|!]/.test(ch)) width += 4;
-        else if (/[ftr()\[\]{}\/]/.test(ch)) width += 5.5;
-        else if (/[A-Z@#%&]/.test(ch)) width += 10;
-        else if (/[mwMW]/.test(ch)) width += 12;
-        else width += 8;
+        width += GLYPH[ch] === undefined ? 8 : GLYPH[ch];
     }
-    return Math.max(100, 20 * Math.ceil((width + 30 + (hasInput ? 7 : 0)) / 20));
+    const padding = hasInput ? PADDING_WITH_INPUT : PADDING_NO_INPUT;
+    return Math.max(100, 20 * Math.ceil((width + padding) / 20));
 }
 
 function buildFlows(doc, targets, options) {
