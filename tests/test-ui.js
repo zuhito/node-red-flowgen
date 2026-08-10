@@ -98,13 +98,43 @@ async function boot() {
     win.RED = RED;
     win.$ = win.jQuery = $;
 
-    $.getScript = function () {
-        const jsyaml = require('js-yaml');
-        win.eval('var module = undefined;');
-        win.jsyaml = jsyaml;
-        win.self = win;
-        win.eval(fs.readFileSync(path.join(__dirname, '..', 'flowgen.js'), 'utf8'));
-        return Promise.resolve();
+    // Parsing and generation moved to the runtime, so the editor calls routes
+    // instead of running flowgen itself. The stub answers those routes with the
+    // real flowgen, which is what the runtime does, so these tests still cover
+    // the editor rather than a mock of it.
+    const flowgen = require('../flowgen');
+    routeFailure = null;
+
+    $.ajax = function (options) {
+        const deferred = $.Deferred();
+        const body = JSON.parse(options.data || '{}');
+        setTimeout(function () {
+            if (routeFailure) {
+                return deferred.reject({ status: routeFailure.status,
+                    responseText: JSON.stringify({ error: routeFailure.error }) });
+            }
+            try {
+                if (/\/parse$/.test(options.url)) {
+                    const doc = body.files
+                        ? flowgen.parseCollection(body.files)
+                        : flowgen.parseDocument(String(body.text === undefined ? '' : body.text));
+                    const listed = flowgen.listOperations(doc);
+                    return deferred.resolve({
+                        doc: doc, count: listed.count, operations: listed.operations
+                    });
+                }
+                if (/\/flows$/.test(options.url)) {
+                    return deferred.resolve({
+                        nodes: flowgen.buildFlows(body.doc, body.targets || [], { tab: false })
+                    });
+                }
+                return deferred.reject({ status: 404, responseText: '{}' });
+            } catch (err) {
+                return deferred.reject({ status: 400,
+                    responseText: JSON.stringify({ error: err.message }) });
+            }
+        }, 0);
+        return deferred.promise();
     };
 
     pluginServed = true;
@@ -121,8 +151,13 @@ async function boot() {
     await wait(60);
 }
 
-const clickOk = () => win.document.getElementById('red-ui-clipboard-dialog-ok')
-    .dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true }));
+// Building the flow is a round trip to the runtime now, so importing is not
+// finished when the click returns.
+const clickOk = async () => {
+    win.document.getElementById('red-ui-clipboard-dialog-ok')
+        .dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true }));
+    await wait(40);
+};
 const specTab = () => $('#red-ui-clipboard-dialog-import-tabs li').last();
 const visible = () => $(CONTENT).children().filter((i, el) => $(el).css('display') !== 'none')
     .map((i, el) => el.id).get().join(',');
@@ -133,6 +168,8 @@ async function openSpecTab(spec) {
     $('#flowgen-spec-text').val(spec).trigger('keyup');
     await wait(400);
 }
+
+let routeFailure = null;
 
 const shown = () => ['paste', 'select']
     .filter(name => $('#flowgen-' + name + '-view').hasClass('flowgen-on')).join(',');
@@ -254,7 +291,7 @@ test('a document with one endpoint enables Import without a select step', async 
     assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
 
 
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 1);
     assert.match(imported[0].nodes.find(n => n.type === 'function').func, /one\.test\/only/);
 });
@@ -310,7 +347,7 @@ test('the Import button imports the selected endpoint as a flow', async () => {
     row.trigger('click');
     assert.strictEqual(row.hasClass('selected'), true);
 
-    clickOk();
+    await clickOk();
 
     assert.strictEqual(imported.length, 1);
     assert.strictEqual(okDefaultRuns, 0, 'the built-in import handler must not also run');
@@ -332,7 +369,7 @@ test('the new flow option is honoured', async () => {
     $('#red-ui-clipboard-dialog-import-opt-new').addClass('selected');
     $('#flowgen-select-btn').trigger('click');
     $('#flowgen-op-list .flowgen-op').first().trigger('click');
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported[0].opts.addFlow, true);
 });
 
@@ -343,7 +380,7 @@ test('the built-in import still runs when another tab is active', async () => {
     $('#red-ui-tab-red-ui-clipboard-dialog-import-tab-clipboard').trigger('click');
     await wait(20);
 
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 0, 'the plugin must not hijack the other tabs');
     assert.strictEqual(okDefaultRuns, 1);
 });
@@ -371,7 +408,7 @@ test('importing never submits the dialog form', async () => {
     await openSpecTab(SPEC_V3);
     $('#flowgen-select-btn').trigger('click');
     $('#flowgen-op-list .flowgen-op').first().trigger('click');
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 1);
     assert.strictEqual(submits, 0, 'a submit would reload the editor');
 });
@@ -390,7 +427,7 @@ test('the imported nodes carry the generated code and stay wired', async () => {
     $('#flowgen-select-btn').trigger('click');
     $('#flowgen-op-list .flowgen-op')
         .filter((i, el) => $(el).text().indexOf('/store/inventory') !== -1).first().trigger('click');
-    clickOk();
+    await clickOk();
 
     const nodes = imported[0].nodes;
     const ids = nodes.map(n => n.id);
@@ -498,6 +535,7 @@ test('double-clicking an endpoint row imports it immediately', async () => {
     assert.strictEqual(imported.length, 0, 'a single click only selects');
 
     row.trigger('dblclick');
+    await wait(40);
     assert.strictEqual(imported.length, 1, 'the double click imports');
     assert.strictEqual(dialogClosed, 1);
     assert.strictEqual(imported[0].nodes.map(n => n.type).join(','),
@@ -721,7 +759,7 @@ test('pasting and importing work with no network access at all', async () => {
         'parsing a pasted document must not touch the network');
 
     $('#flowgen-op-list .flowgen-op').first().trigger('click');
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 1, 'import must work offline');
 });
 
@@ -774,7 +812,7 @@ test('a pasted git url is fetched via the runtime and the text area is untouched
     assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false,
         'a single request enables Import straight away');
 
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 1);
     assert.match(imported[0].nodes.find(n => n.type === 'function').func,
         /api\.example\.test\/users\/1/);
@@ -814,7 +852,8 @@ test('a zip upload goes to the runtime, clears the text area and lists endpoints
     Object.defineProperty(input, 'files',
         { value: [{ name: 'collection.zip' }], configurable: true });
     $(input).trigger('change');
-    await wait(100);
+    // The upload is answered, then the collection is parsed by the runtime.
+    await wait(150);
 
     assert.match(posted.url, /flowgen\/source$/);
     assert.strictEqual(posted.method, 'POST');
@@ -825,6 +864,7 @@ test('a zip upload goes to the runtime, clears the text area and lists endpoints
     $('#flowgen-select-btn').trigger('click');
     assert.strictEqual($('#flowgen-op-list .flowgen-op').length, 2);
     $('#flowgen-op-list .flowgen-op').last().trigger('dblclick');
+    await wait(40);
     assert.strictEqual(imported.length, 1);
     assert.match(imported[0].nodes.find(n => n.type === 'function').func, /t\.test\/b/);
 });
@@ -883,7 +923,7 @@ test('reopening after a close cannot import the previous selection', async () =>
 
     assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true);
     assert.strictEqual($('#flowgen-select-btn').css('display'), 'none');
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 0, 'nothing can be imported after a reset');
 });
 
@@ -959,7 +999,7 @@ test('a search narrowing to one endpoint selects it automatically', async () => 
     assert.strictEqual(rowsShown(), 1);
     assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
 
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 1);
     assert.match(imported[0].nodes.find(n => n.type === 'function').func, /store\/inventory/);
 });
@@ -1003,6 +1043,7 @@ test('enter in the search box imports the selected endpoint', async () => {
     await openList();
     $('#flowgen-search').val('/store/inventory').trigger('input');
     $('#flowgen-search').trigger($.Event('keydown', { keyCode: 13 }));
+    await wait(40);
     assert.strictEqual(imported.length, 1);
     assert.strictEqual(dialogClosed, 1);
 });
@@ -1121,7 +1162,7 @@ test('the built-in Import works again after the plugin is removed', async () => 
     $('#red-ui-clipboard-dialog').trigger('dialogopen');
     await wait(80);
 
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 0, 'the plugin must not hijack Import any more');
     assert.strictEqual(okDefaultRuns, 1, 'the built-in handler runs again');
 });
@@ -1171,7 +1212,7 @@ test('several endpoints can be selected and imported together', async () => {
     assert.strictEqual($('#flowgen-chosen').text(), '3 selected');
     assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), false);
 
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 1, 'one import carries every endpoint');
     const nodes = imported[0].nodes;
     assert.strictEqual(nodes.filter(n => n.type === 'function').length, 3);
@@ -1238,7 +1279,7 @@ test('Back drops the selection and disables Import', async () => {
     assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 0);
     assert.strictEqual($('#red-ui-clipboard-dialog-ok').prop('disabled'), true);
 
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 0, 'nothing can be imported after Back');
 });
 
@@ -1356,7 +1397,7 @@ test('a shift selected range imports every endpoint in it', async () => {
     rows.eq(0).trigger('click');
     rows.eq(2).trigger($.Event('click', { shiftKey: true }));
 
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 1);
     assert.strictEqual(imported[0].nodes.filter(n => n.type === 'function').length, 3);
 });
@@ -1447,7 +1488,7 @@ test('a shift selected range from the keyboard imports every endpoint in it', as
     arrow(40, true);
     arrow(40, true);
 
-    clickOk();
+    await clickOk();
     assert.strictEqual(imported.length, 1);
     assert.strictEqual(imported[0].nodes.filter(n => n.type === 'function').length, 3);
 });

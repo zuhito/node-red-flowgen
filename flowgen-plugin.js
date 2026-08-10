@@ -224,6 +224,65 @@ module.exports = function (RED) {
         });
     });
 
+    // Parsing and code generation happen here rather than in the editor. The
+    // browser previously downloaded flowgen.js and a build of js-yaml and ran
+    // them itself, which put a YAML parser and the whole generator on every
+    // supported browser. Keeping it server side removes that surface, and a
+    // large document no longer risks freezing the tab the editor lives in.
+    const flowgen = require('./flowgen');
+
+    // The admin API already runs body-parser, so the stream is consumed before
+    // a route sees it and req.body holds the parsed value. Reading req directly
+    // here yields nothing, which is how this was first written and why the
+    // routes appeared to be missing.
+    //
+    // body-parser also enforces its own size limit, so the guard that belongs
+    // here is on what the parsed document costs to work with rather than on
+    // how many bytes arrived.
+    const MAX_TEXT = 16 * 1024 * 1024;
+
+    function tooLarge(body) {
+        if (typeof body.text === 'string' && body.text.length > MAX_TEXT) {
+            return 'the definition is larger than ' + MAX_TEXT + ' characters';
+        }
+        if (Array.isArray(body.files)) {
+            let total = 0;
+            for (const file of body.files) {
+                total += String((file && file.text) || '').length;
+                if (total > MAX_TEXT) {
+                    return 'the collection is larger than ' + MAX_TEXT + ' characters';
+                }
+            }
+        }
+        return null;
+    }
+
+    RED.httpAdmin.post('/flowgen/parse', needsPermission, function (req, res) {
+        const body = req.body || {};
+        const oversized = tooLarge(body);
+        if (oversized) { return res.status(413).json({ error: oversized }); }
+        try {
+            const doc = body.files
+                ? flowgen.parseCollection(body.files)
+                : flowgen.parseDocument(String(body.text === undefined ? '' : body.text));
+            const listed = flowgen.listOperations(doc);
+            res.json({ doc: doc, count: listed.count, operations: listed.operations });
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    });
+
+    RED.httpAdmin.post('/flowgen/flows', needsPermission, function (req, res) {
+        const body = req.body || {};
+        try {
+            res.json({
+                nodes: flowgen.buildFlows(body.doc, body.targets || [], { tab: false })
+            });
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    });
+
     RED.httpAdmin.get('/flowgen/:asset', needsPermission, function (req, res) {
         const file = assets[req.params.asset];
         if (!file) return res.status(404).end();

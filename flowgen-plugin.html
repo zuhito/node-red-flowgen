@@ -163,12 +163,14 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     var TAB_ID = 'red-ui-clipboard-dialog-import-tab-apispec';
     var loading = null;
     var doc = null;
+    var listed = null;
     var selected = null;
     var isActive = false;
     var anchor = null;
     var cursor = null;
     var fetching = null;
     var collectionDoc = null;
+    var collectionListed = null;
     var lastText = null;
 
     var PLACEHOLDER = [
@@ -190,14 +192,45 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         'https://petstore.swagger.io/v2/swagger.json'
     ].join('\n');
 
+    // Parsing and generation are done by the runtime. The editor used to
+    // download the generator and a YAML parser and run them itself, which put
+    // that whole surface on every browser and could lock up the tab on a large
+    // document. All that is left here is asking the backend and drawing the
+    // answer. load() stays so callers keep their shape, and confirms the
+    // routes are actually there before the tab offers itself.
     function load() {
         if (loading) { return loading; }
-        var root = (RED.settings.apiRootUrl || '');
-        if (root && !/\/$/.test(root)) { root += '/'; }
-        loading = $.getScript(root + 'flowgen/yaml-parser.js').then(function () {
-            return $.getScript(root + 'flowgen/generator.js');
+        loading = $.ajax({
+            url: apiRoot() + 'flowgen/parse',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ text: '' })
+        }).then(function () { return true; }, function (xhr) {
+            // A parse error means the route answered, which is all this asks.
+            if (xhr && xhr.status === 400) { return true; }
+            return $.Deferred().reject(xhr).promise();
         });
         return loading;
+    }
+
+    function apiRoot() {
+        var root = (RED.settings.apiRootUrl || '');
+        if (root && !/\/$/.test(root)) { root += '/'; }
+        return root;
+    }
+
+    function post(route, body) {
+        return $.ajax({
+            url: apiRoot() + 'flowgen/' + route,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(body)
+        });
+    }
+
+    function reason(xhr, fallback) {
+        try { return JSON.parse(xhr.responseText).error || fallback; }
+        catch (err) { return fallback; }
     }
 
     function status(text, isError) {
@@ -209,14 +242,8 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         selected = null;
         $('#flowgen-select-btn').hide();
         okButton(false);
-        if (!doc) { return; }
-        var result;
-        try {
-            result = flowgen.listOperations(doc);
-        } catch (err) {
-            status(err.message, true);
-            return;
-        }
+        if (!doc || !listed) { return; }
+        var result = listed;
         if (!result.count) {
             status('no operations found in this document', true);
             return;
@@ -265,13 +292,19 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     }
 
     function useCollection(files) {
-        try {
-            collectionDoc = flowgen.parseCollection(files);
+        status('reading the collection...');
+        post('parse', { files: files }).then(function (result) {
+            collectionDoc = result.doc;
+            collectionListed = result;
             doc = collectionDoc;
+            listed = result;
+            status('');
             render();
-        } catch (err) {
-            status(err.message, true);
-        }
+        }, function (xhr) {
+            collectionDoc = null;
+            collectionListed = null;
+            status(reason(xhr, 'the collection could not be read'), true);
+        });
     }
 
     function fetchGit(url) {
@@ -296,11 +329,17 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         lastText = text;
         reset();
         if (!text || !text.trim()) {
-            if (collectionDoc) { doc = collectionDoc; render(); return; }
+            if (collectionDoc) {
+                doc = collectionDoc;
+                listed = collectionListed;
+                render();
+                return;
+            }
             status('');
             return;
         }
         collectionDoc = null;
+        collectionListed = null;
         if (/\.git$/.test(String(text).trim()) &&
                 /^https?:\/\/\S+$/i.test(String(text || '').trim())) {
             return fetchGit(text.trim());
@@ -308,12 +347,18 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         if (/^https?:\/\/\S+$/i.test(String(text || '').trim())) {
             return fetchSpec(text.trim());
         }
-        try {
-            doc = flowgen.parseDocument(text);
+        status('reading the definition...');
+        post('parse', { text: text }).then(function (result) {
+            doc = result.doc;
+            listed = result;
+            status('');
             render();
-        } catch (err) {
-            status(err.message, true);
-        }
+        }, function (xhr) {
+            doc = null;
+            listed = null;
+            status(reason(xhr, 'the definition could not be read'), true);
+            render();
+        });
     }
 
     function pretty(text) {
@@ -644,18 +689,17 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     function importSelected() {
         var targets = chosen();
         if (!doc || !targets.length) { return; }
-        var nodes;
-        try {
-            nodes = flowgen.buildFlows(doc, targets, { tab: false });
-        } catch (err) {
-            status(err.message, true);
-            return;
-        }
         var newFlow = $('#red-ui-clipboard-dialog-import-opt > a.selected')
             .attr('id') === 'red-ui-clipboard-dialog-import-opt-new';
-        RED.view.importNodes(nodes, { generateIds: true, addFlow: newFlow });
-        $('#red-ui-clipboard-dialog').dialog('close');
-        RED.view.focus();
+        status('building the flow...');
+        post('flows', { doc: doc, targets: targets }).then(function (result) {
+            status('');
+            RED.view.importNodes(result.nodes, { generateIds: true, addFlow: newFlow });
+            $('#red-ui-clipboard-dialog').dialog('close');
+            RED.view.focus();
+        }, function (xhr) {
+            status(reason(xhr, 'the flow could not be built'), true);
+        });
     }
 
     function interceptOk() {
@@ -675,6 +719,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         isActive = false;
         doc = null;
         collectionDoc = null;
+        collectionListed = null;
         lastText = null;
         selected = null;
         fetching = null;
