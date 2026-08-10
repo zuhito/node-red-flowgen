@@ -518,6 +518,63 @@ for (const engine of ENGINES) {
             });
         }
 
+        test('installing and uninstalling repeatedly leaves nothing behind', async () => {
+            // Plugins get installed, removed and upgraded over a system's life.
+            // Each cycle must leave the import dialog exactly as it found it:
+            // a duplicated tab or an orphaned pane would degrade the editor a
+            // little more every time.
+            const page = await browser.newPage();
+            const pageErrors = [];
+            page.on('pageerror', err => pageErrors.push(String(err.message)));
+
+            let present = true;
+            await page.route('**/flowgen/generator.js', route => {
+                if (present) { return route.continue(); }
+                return route.fulfill({ status: 404, body: '' });
+            });
+
+            await page.goto('http://127.0.0.1:' + port + '/', { waitUntil: 'networkidle' });
+            await page.waitForFunction(() => window.RED && window.RED.actions,
+                null, { timeout: 60000 });
+
+            for (let cycle = 0; cycle < 8; cycle++) {
+                present = cycle % 2 === 0;
+                await page.evaluate(() => {
+                    const dialog = $('#red-ui-clipboard-dialog');
+                    if (dialog.hasClass('ui-dialog-content') && dialog.dialog('isOpen')) {
+                        dialog.dialog('close');
+                    }
+                });
+                await page.evaluate(() => window.RED.actions.invoke('core:show-import-dialog'));
+                await page.waitForTimeout(1400);
+
+                const state = await page.evaluate(() => ({
+                    tabLinks: $('#flowgen-tab-link').length,
+                    panes: $('#red-ui-clipboard-dialog-import-tab-apispec').length,
+                    allTabs: $('#red-ui-clipboard-dialog-import-tabs li').length,
+                    active: $('#red-ui-clipboard-dialog-import-tabs li.active').length,
+                    visible: $('#red-ui-clipboard-dialog-import-tabs-content > div:visible').length
+                }));
+
+                const where = 'cycle ' + cycle + (present ? ' (installed)' : ' (removed)');
+                assert.strictEqual(state.tabLinks, present ? 1 : 0,
+                    where + ': wrong number of tabs, ' + JSON.stringify(state));
+                assert.strictEqual(state.panes, present ? 1 : 0,
+                    where + ': wrong number of panes, ' + JSON.stringify(state));
+                assert.strictEqual(state.allTabs, present ? 4 : 3,
+                    where + ': the dialog gained or lost a tab, ' + JSON.stringify(state));
+                assert.strictEqual(state.active, 1,
+                    where + ': exactly one tab must be selected, ' + JSON.stringify(state));
+                assert.strictEqual(state.visible, 1,
+                    where + ': exactly one pane must be visible, ' + JSON.stringify(state));
+            }
+
+            assert.deepStrictEqual(pageErrors, [],
+                'cycling the plugin must not raise errors in the editor');
+
+            await page.close();
+        });
+
         test('the tab disappears when the runtime stops serving the plugin', async () => {
             const page = await browser.newPage();
             await openImport(page);
