@@ -79,6 +79,9 @@ jobs:
       - name: Digest and response scanning tests
         run: npm run test:digest
 
+      - name: Bruno conversion equivalence tests
+        run: npm run test:converters
+
       - name: Flow lint tests
         shell: bash
         run: |

@@ -74,6 +74,12 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     background: #e7f0f9;
     border-color: #97b7d8;
     font-family: sans-serif;
+    /* Rows are picked, not read as text: a shift click should extend the
+       selection rather than highlight the path. */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 #flowgen-op-list .flowgen-op .flowgen-method {
     flex: 0 0 auto;
@@ -488,11 +494,76 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         if (row[0] && row[0].scrollIntoView) { row[0].scrollIntoView({ block: 'nearest' }); }
     }
 
+    function visibleRows() {
+        return $('#flowgen-op-list .flowgen-op').not('.flowgen-hidden');
+    }
+
+    // Windows Explorer treats ctrl on Windows and Linux the way macOS uses the
+    // command key, so either one stands for the same intent here.
+    function commandKey(ev) {
+        return ev.ctrlKey || ev.metaKey;
+    }
+
+    function selectAll() {
+        var rows = visibleRows();
+        if (!rows.length) { return; }
+        rows.addClass('selected');
+        anchor = rows.first();
+        cursor = rows.last();
+        refreshChoice();
+    }
+
+    // Ctrl with an arrow key walks the cursor without disturbing the selection,
+    // which is how Explorer lets you reach a row before toggling it with space.
+    function moveCursor(delta) {
+        var rows = visibleRows();
+        if (!rows.length) { return; }
+        var at = cursor && cursor.length ? rows.index(cursor) : -1;
+        var next = at === -1 ? (delta > 0 ? 0 : rows.length - 1) : at + delta;
+        if (next < 0 || next >= rows.length) { return; }
+        cursor = rows.eq(next);
+        if (cursor[0] && cursor[0].scrollIntoView) {
+            cursor[0].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    function jumpTo(index, extend) {
+        var rows = visibleRows();
+        if (!rows.length) { return; }
+        var row = rows.eq(index === 'end' ? rows.length - 1 : 0);
+        if (extend && (!anchor || !anchor.length || rows.index(anchor) === -1)) {
+            anchor = cursor && cursor.length ? cursor : row;
+        }
+        choose(row, row.data('flowgen-op'), false, !!extend);
+    }
+
     function onListKey(ev) {
-        if (ev.keyCode === 40) { ev.preventDefault(); moveSelection(1, ev.shiftKey); }
-        if (ev.keyCode === 38) { ev.preventDefault(); moveSelection(-1, ev.shiftKey); }
+        // Ctrl+A, or Cmd+A on macOS, takes the whole visible list.
+        if (commandKey(ev) && (ev.keyCode === 65 || ev.key === 'a' || ev.key === 'A')) {
+            ev.preventDefault();
+            selectAll();
+            return;
+        }
+        if (ev.keyCode === 40 || ev.keyCode === 38) {
+            ev.preventDefault();
+            var step = ev.keyCode === 40 ? 1 : -1;
+            if (commandKey(ev) && !ev.shiftKey) { moveCursor(step); }
+            else { moveSelection(step, ev.shiftKey); }
+            return;
+        }
+        if (ev.keyCode === 36 || ev.keyCode === 35) {
+            ev.preventDefault();
+            jumpTo(ev.keyCode === 36 ? 'home' : 'end', ev.shiftKey);
+            return;
+        }
         if (ev.keyCode === 32) {
             ev.preventDefault();
+            // Ctrl+Space toggles the row under the cursor and leaves the rest
+            // alone, matching Explorer.
+            if (commandKey(ev) && cursor && cursor.length) {
+                choose(cursor, cursor.data('flowgen-op'), true);
+                return;
+            }
             var row = $('#flowgen-op-list .flowgen-op.selected').last();
             var next = row.length ? row.nextAll('.flowgen-op').not('.flowgen-hidden').first() : null;
             if (row.length) { row.addClass('selected'); }

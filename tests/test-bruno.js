@@ -322,8 +322,9 @@ test('the v2 yaml nests auth under http.auth', () => {
         '  auth:', '    type: basic', '    username: u', '    password: "p"', ''
     ].join('\n');
     const code = flowgen.generate(flowgen.parseDocument(yml), 'get', '/secret');
-    assert.match(code, /"authorization": `Basic {credentials}`/);
-    assert.match(code, /\/\/ Fill in \"authorization\" below\./);
+    assert.match(code, /"authorization": `Basic \$\{credentials\}`/);
+    assert.ok(code.includes('const credentials = Buffer.from("u:p")'),
+        'the collection already knows the credentials, so use them');
 });
 
 test('a bearer token in http.auth becomes an authorization header', () => {

@@ -1451,3 +1451,87 @@ test('a shift selected range from the keyboard imports every endpoint in it', as
     assert.strictEqual(imported.length, 1);
     assert.strictEqual(imported[0].nodes.filter(n => n.type === 'function').length, 3);
 });
+
+
+test('endpoint rows are not selectable as text', () => {
+    const styles = PLUGIN_HTML.replace(/[\s\S]*?<style>/, '').replace(/<\/style>[\s\S]*/, '');
+    const rule = styles.match(/#flowgen-op-list \.flowgen-op \{([^}]*)\}/)[1];
+    assert.match(rule, /(^|[^-])user-select:\s*none/,
+        'a shift click must extend the selection, not highlight the path');
+});
+
+test('ctrl+a takes every visible endpoint', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(0).trigger('click');
+
+    $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 65, ctrlKey: true }));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, rows.length);
+});
+
+test('cmd+a takes every visible endpoint on macOS', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 65, metaKey: true }));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, rows.length);
+});
+
+test('ctrl+a spans only what a search leaves visible', async () => {
+    await openList();
+    $('#flowgen-search').val('pet').trigger('input');
+    const visible = $('#flowgen-op-list .flowgen-op').filter((i, el) =>
+        !$(el).hasClass('flowgen-hidden'));
+
+    $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 65, ctrlKey: true }));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, visible.length);
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected.flowgen-hidden').length, 0);
+});
+
+test('ctrl+a then shift+arrow narrows back down from the last row', async () => {
+    await openList();
+    $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 65, ctrlKey: true }));
+    const all = $('#flowgen-op-list .flowgen-op').length;
+
+    $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 38, shiftKey: true }));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, all - 1);
+});
+
+test('home and end jump to the ends of the list', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(2).trigger('click');
+
+    $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 36 }));
+    assert.ok(rows.eq(0).hasClass('selected'));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 1);
+
+    $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 35 }));
+    assert.ok(rows.eq(rows.length - 1).hasClass('selected'));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 1);
+});
+
+test('shift+home and shift+end extend to the ends of the list', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(1).trigger('click');
+
+    $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 35, shiftKey: true }));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, rows.length - 1);
+    assert.ok(!rows.eq(0).hasClass('selected'));
+});
+
+test('ctrl+arrow moves the cursor without changing the selection', async () => {
+    await openList();
+    const rows = $('#flowgen-op-list .flowgen-op');
+    rows.eq(0).trigger('click');
+
+    $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 40, ctrlKey: true }));
+    $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 40, ctrlKey: true }));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 1);
+    assert.ok(rows.eq(0).hasClass('selected'), 'the original row stays selected');
+
+    // Ctrl+Space then picks up the row the cursor walked to.
+    $('#flowgen-op-list').trigger($.Event('keydown', { keyCode: 32, ctrlKey: true }));
+    assert.strictEqual($('#flowgen-op-list .flowgen-op.selected').length, 2);
+    assert.ok(rows.eq(2).hasClass('selected'));
+});

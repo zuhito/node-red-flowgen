@@ -106,7 +106,14 @@ function normalizeRequest(nameHint, source) {
                 const token = (auth.bearer && auth.bearer.token) || auth.token || '';
                 req.headers.push(['authorization', 'Bearer ' + (token || '{token}')]);
             } else if (auth.basic || kind === 'basic') {
-                req.headers.push(['authorization', 'Basic {credentials}']);
+                const entry = auth.basic || auth;
+                req.credentials = brunoCredentials(entry, 'basic');
+                req.headers.push(['authorization', raw('`Basic ${credentials}`')]);
+            } else if (auth.digest || kind === 'digest') {
+                const entry = auth.digest || auth;
+                req.credentials = brunoCredentials(entry, 'digest');
+                req.headers.push(['authorization',
+                    raw('credentials ? `Digest ${credentials}` : undefined')]);
             } else if (auth.apikey || kind === 'apikey' || kind === 'api-key') {
                 const entry = auth.apikey || auth;
                 const name = entry.key || entry.name || 'api-key';
@@ -119,13 +126,25 @@ function normalizeRequest(nameHint, source) {
         if (body && typeof body === 'object') {
             const mode = body.type || body.mode;
             const data = body.data !== undefined ? body.data : body[mode];
+            // Bruno records the body mode rather than a content type header, so
+            // the type has to be put back or the request goes out untyped.
+            const declareType = value => {
+                if (req.headers.some(h => String(h[0]).toLowerCase() === 'content-type')) return;
+                req.headers.push(['content-type', value]);
+            };
             if (mode === 'json') {
                 req.hasBody = true;
+                declareType('application/json');
                 if (typeof data === 'string') { try { req.payload = JSON.parse(data); } catch (err) { req.payload = data; } }
                 else req.payload = data === undefined ? {} : data;
-            } else if (mode === 'text') { req.hasBody = true; req.payload = String(data || ''); }
+            } else if (mode === 'text') {
+                req.hasBody = true;
+                declareType('text/plain');
+                req.payload = String(data || '');
+            }
             else if (mode === 'formUrlEncoded' || mode === 'form-urlencoded') {
-                req.hasBody = true; req.payload = {};
+                req.hasBody = true; declareType('application/x-www-form-urlencoded');
+                req.payload = {};
                 for (const e of data || []) if (e.enabled !== false) req.payload[e.name] = e.value || '';
             } else if (mode === 'multipartForm' || mode === 'multipart-form') {
                 req.hasBody = true; req.multipart = true; req.payload = {};
@@ -262,13 +281,24 @@ function generate(doc, method, target) {
             const name = match[2];
             if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
         }
-        const headers = found.headers.map(h => [h[0], substitute(h[1])]);
+        const headers = found.headers.map(h =>
+            [h[0], isRaw(h[1]) ? h[1] : substitute(h[1])]);
+        // Bruno names the credential variables itself, but when the url already
+        // carries matching placeholders the two must line up or the reader ends
+        // up filling the same secret in twice under different names.
+        if (found.credentials) {
+            const named = todo.map(t => t.name);
+            const pick = re => named.find(name => re.test(name));
+            found.credentials.user = pick(USER_PARAM) || found.credentials.user;
+            found.credentials.passwd = pick(PASSWD_PARAM) || found.credentials.passwd;
+        }
         return assemble({
             method: found.method,
             urls: [url],
             todo: todo,
             headers: dedupeHeaders(headers),
             cookies: [],
+            credentials: found.credentials || null,
             hasBody: found.hasBody && !BODYLESS.has(found.method),
             multipart: found.multipart,
             payload: substituteDeep(found.payload)
@@ -343,6 +373,30 @@ function digestLines(lines, pair, parts) {
     lines.push('//     opaque ? `opaque="${opaque}"` : null');
     lines.push('// ].filter(Boolean).join(", ");');
     lines.push('// --------------------------------------------------------------------');
+}
+
+// Bruno records the username and password as template variables, so the
+// generated code keeps whatever names the collection used rather than
+// inventing its own.
+function brunoCredentials(entry, scheme) {
+    const raw = value => String(value === undefined || value === null ? '' : value).trim();
+    // A {{variable}} is a name the reader still has to fill in; anything else is
+    // a value the collection already knows, and should be used as it stands.
+    const read = (value, fallback) => {
+        const text = raw(value);
+        if (!text) return { name: fallback, literal: false };
+        const stripped = text.replace(/^\{\{|\}\}$/g, '').replace(/^\{|\}$/g, '').trim();
+        const isVariable = /^\{\{.*\}\}$/.test(text) || /^\{.*\}$/.test(text);
+        return { name: stripped || fallback, literal: !isVariable };
+    };
+    const user = read(entry.username !== undefined ? entry.username : entry.user, 'user');
+    const passwd = read(entry.password !== undefined ? entry.password : entry.passwd, 'passwd');
+    return {
+        user: user.name, passwd: passwd.name,
+        userType: null, passwdType: null,
+        known: user.literal && passwd.literal,
+        scheme: scheme, realm: raw(entry.realm)
+    };
 }
 
 function credentialsFrom(urlParams) {
@@ -517,14 +571,18 @@ function assemble(parts) {
             const pair = parts.credentials;
             const names = [{ name: pair.user, type: pair.userType },
                 { name: pair.passwd, type: pair.passwdType }];
-            lines.push('// Replace ' +
-                phrase(names.map(item => typed('{' + item.name + '}', item.type))) +
-                ' below with real values.');
+            if (!pair.known) {
+                lines.push('// Replace ' +
+                    phrase(names.map(item => typed('{' + item.name + '}', item.type))) +
+                    ' below with real values.');
+            }
             if (pair.scheme === 'digest') {
                 digestLines(lines, pair, parts);
             } else {
-                lines.push('const credentials = Buffer.from(' +
-                    quote('{' + pair.user + '}:{' + pair.passwd + '}') +
+                const secret = pair.known
+                    ? pair.user + ':' + pair.passwd
+                    : '{' + pair.user + '}:{' + pair.passwd + '}';
+                lines.push('const credentials = Buffer.from(' + quote(secret) +
                     ').toString("base64");');
             }
         }
