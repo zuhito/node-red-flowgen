@@ -12,7 +12,7 @@ const { spawn, execFileSync } = require('child_process');
 const flowgen = require('../flowgen');
 
 const SPECS = path.join(__dirname, 'specs');
-const MODEL = process.env.OLLAMA_MODEL || 'gemma3:4b';
+const MODEL = process.env.OLLAMA_MODEL || 'gemma4:e2b-mlx';
 
 // The image the spec carries as its example, so the test sends exactly what a
 // reader of the definition would send.
@@ -270,6 +270,11 @@ for (const [format, load] of Object.entries(DOCS)) {
             { skip: READ_ONLY }, async () => {
                 const image = exampleImage(doc);
                 if (!image) {
+                    // A Bruno collection carries no schema, so there is no
+                    // example to send and nothing this case can prove.
+                    return;
+                }
+                if (!image) {
                     // A Bruno collection has no schema to hold the example.
                     return;
                 }
@@ -295,8 +300,11 @@ for (const [format, load] of Object.entries(DOCS)) {
                 assert.strictEqual(result.status, 200,
                     'the image request failed: ' + JSON.stringify(result.payload));
 
-                const answer = result.payload.response;
-                assert.strictEqual(typeof answer, 'string',
+                // Gemma 4 can split its output between response and thinking,
+                // so both are read before deciding the model said nothing.
+                const answer = [result.payload.response, result.payload.thinking]
+                    .filter(part => typeof part === 'string').join(' ');
+                assert.ok(typeof result.payload.response === 'string',
                     'no response in ' + JSON.stringify(result.payload));
                 assert.ok(answer.trim().length > 0, 'the model said nothing');
 

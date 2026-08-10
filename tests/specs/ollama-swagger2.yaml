@@ -27,7 +27,7 @@ paths:
             properties:
               model:
                 type: string
-                example: gemma3:4b
+                example: gemma4:e2b-mlx
               prompt:
                 type: string
                 example: Why is the sky blue?
@@ -59,7 +59,7 @@ paths:
                 example: 5m
               images:
                 description: >-
-                  Base64 encoded images for a vision model such as gemma3:4b.
+                  Base64 encoded images for a vision model such as gemma4:e2b-mlx.
                   The example is a 64x64 PNG holding a red square on white.
                 type: array
                 items:
@@ -110,7 +110,7 @@ paths:
             properties:
               model:
                 type: string
-                example: gemma3:4b
+                example: gemma4:e2b-mlx
               messages:
                 type: array
                 items:
@@ -177,7 +177,7 @@ paths:
             properties:
               model:
                 type: string
-                example: gemma3:4b
+                example: gemma4:e2b-mlx
               input:
                 type: string
                 example: Why is the sky blue?
@@ -207,7 +207,7 @@ paths:
             properties:
               model:
                 type: string
-                example: gemma3:4b
+                example: gemma4:e2b-mlx
               prompt:
                 type: string
                 example: Why is the sky blue?
@@ -250,7 +250,7 @@ paths:
             properties:
               model:
                 type: string
-                example: gemma3:4b
+                example: gemma4:e2b-mlx
               verbose:
                 type: boolean
                 default: false
@@ -271,10 +271,10 @@ paths:
             properties:
               source:
                 type: string
-                example: gemma3:4b
+                example: gemma4:e2b-mlx
               destination:
                 type: string
-                example: gemma3:4b-copy
+                example: gemma4:e2b-mlx-copy
             required:
               - source
               - destination
@@ -293,7 +293,7 @@ paths:
             properties:
               model:
                 type: string
-                example: gemma3:4b-copy
+                example: gemma4:e2b-mlx-copy
             required:
               - model
   /api/pull:
@@ -311,7 +311,7 @@ paths:
             properties:
               model:
                 type: string
-                example: gemma3:4b
+                example: gemma4:e2b-mlx
               insecure:
                 type: boolean
                 default: false
@@ -335,7 +335,7 @@ paths:
             properties:
               model:
                 type: string
-                example: user/gemma3:270m
+                example: user/gemma4:e2b-mlx
               insecure:
                 type: boolean
                 default: false
@@ -359,10 +359,10 @@ paths:
             properties:
               model:
                 type: string
-                example: gemma3-custom
+                example: gemma4-custom
               from:
                 type: string
-                example: gemma3:4b
+                example: gemma4:e2b-mlx
               system:
                 type: string
                 example: You are helpful.
@@ -393,7 +393,7 @@ paths:
             properties:
               model:
                 type: string
-                example: gemma3:4b
+                example: gemma4:e2b-mlx
               messages:
                 type: array
                 items:
@@ -438,7 +438,7 @@ paths:
             properties:
               model:
                 type: string
-                example: gemma3:4b
+                example: gemma4:e2b-mlx
               prompt:
                 type: string
                 example: Why is the sky blue?
@@ -466,7 +466,7 @@ paths:
             properties:
               model:
                 type: string
-                example: gemma3:4b
+                example: gemma4:e2b-mlx
               input:
                 type: string
                 example: Why is the sky blue?

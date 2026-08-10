@@ -658,6 +658,8 @@ async function main() {
                 failures++;
                 note('error', label + ' -> curl saw HTTP ' + viaCurl.status +
                     ' but Node-RED saw HTTP ' + result.status);
+                dump(label, 'request headers curl was given', curlHeaders);
+                dump(label, 'request headers the flow built', built.headers);
                 dump(label, 'curl HTTP ' + viaCurl.status, viaCurl.body);
                 dump(label, 'node-red HTTP ' + result.status, result.body);
             } else if (left !== null && right !== null && left !== right) {

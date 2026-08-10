@@ -28,6 +28,12 @@ function errorWords(body) {
     let text = typeof body === 'string' ? body : JSON.stringify(body);
     if (!text) return [];
     for (const pattern of ERROR_EXEMPT) text = text.replace(pattern, ' ');
+    // Numeric values keyed by free text are data, not a message.
+    if (body && typeof body === 'object' && !Array.isArray(body) &&
+        Object.keys(body).length &&
+        Object.values(body).every(value => typeof value === 'number')) {
+        return [];
+    }
     const found = [];
     for (const word of ERROR_WORDS) {
         const escaped = word

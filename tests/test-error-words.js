@@ -90,3 +90,12 @@ test('every configured word is actually detectable', () => {
             word + ' is configured but never matches');
     }
 });
+
+test('a map of counts keyed by free text is data, not a message', () => {
+    // The petstore inventory returns a count per status string, and those
+    // strings are whatever callers happened to create.
+    assert.deepStrictEqual(errorWords({ pending: 1, unavailable: 4, sold: 2 }), []);
+    assert.deepStrictEqual(errorWords({ invalid: 3, available: 5 }), []);
+    // A map that carries prose is still scanned.
+    assert.ok(errorWords({ status: 'invalid' }).length > 0);
+});

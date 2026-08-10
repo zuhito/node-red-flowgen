@@ -184,11 +184,15 @@ jobs:
         run: npm run test:live
 
   ollama:
-    runs-on: ubuntu-latest
+    # gemma4:e2b-mlx is an MLX build, which needs the Metal stack on Apple
+    # silicon, so this job runs on macOS while every other job stays on Linux.
+    runs-on: macos-latest
     needs: test
-    # gemma3:4b is a 3.3GB download and answers on CPU, so this job needs far
-    # longer than the text only model it replaced.
-    timeout-minutes: 45
+    # A 6.5GB pull plus local inference, so the job needs far longer than a
+    # plain unit test run.
+    timeout-minutes: 60
+    env:
+      OLLAMA_MODEL: gemma4:e2b-mlx
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -197,26 +201,34 @@ jobs:
       - run: npm install
 
       - name: Install Ollama
-        run: curl -fsSL https://ollama.com/install.sh | sh
+        run: |
+          set -e
+          brew install --cask ollama-app || brew install ollama
+          # The cask and the formula land the binary in different places.
+          ollama --version || /Applications/Ollama.app/Contents/Resources/ollama --version
 
       - name: Start Ollama and pull the model
         run: |
           set -e
-          ollama serve > ollama.log 2>&1 &
-          for i in $(seq 1 60); do
+          OLLAMA_BIN="$(command -v ollama || echo /Applications/Ollama.app/Contents/Resources/ollama)"
+          echo "OLLAMA_BIN=$OLLAMA_BIN" >> "$GITHUB_ENV"
+          "$OLLAMA_BIN" serve > ollama.log 2>&1 &
+          for i in $(seq 1 90); do
             curl -sf http://127.0.0.1:11434/api/version && break
-            sleep 1
+            sleep 2
           done
-          ollama pull "$OLLAMA_MODEL"
-          ollama list
-        env:
-          OLLAMA_MODEL: gemma3:4b
+          curl -sf http://127.0.0.1:11434/api/version || {
+            echo '::error::ollama: the server never came up'
+            tail -40 ollama.log
+            exit 1
+          }
+          "$OLLAMA_BIN" pull "$OLLAMA_MODEL"
+          "$OLLAMA_BIN" list
 
       - name: Exercise every Ollama endpoint through Node-RED
         shell: bash
         env:
           OLLAMA_URL: http://127.0.0.1:11434
-          OLLAMA_MODEL: gemma3:4b
         run: |
           set -o pipefail
           npm run test:ollama 2>&1 | tee ollama-tests.log || {
