@@ -165,15 +165,6 @@ test('the installed package resolves js-yaml from its own node_modules', () => {
 test('the collection endpoint clones a git url and returns its files', async () => {
     const os = require('os');
     const { execFileSync } = require('child_process');
-
-const WINDOWS = process.platform === 'win32';
-const NPM = WINDOWS ? 'npm.cmd' : 'npm';
-
-function npm(args, options) {
-    const safe = WINDOWS ? args.map(a => /[\s"]/.test(a) ? '"' + a + '"' : a) : args;
-    return execFileSync(NPM, safe,
-        Object.assign({ shell: WINDOWS, windowsHide: true }, options));
-}
     const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-ep-git-'));
     fs.writeFileSync(path.join(repo, 'get-user.yml'),
         'info:\n  name: Get user\nhttp:\n  method: GET\n  url: https://api.example.test/users/1\n');

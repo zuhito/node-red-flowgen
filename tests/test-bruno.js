@@ -6,7 +6,6 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFile, execFileSync } = require('child_process');
-const yazl = null;
 const zipwriter = require('./zipwriter');
 const flowgen = require('../flowgen');
 

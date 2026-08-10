@@ -578,7 +578,6 @@ test('an api key in the query becomes a placeholder', () => {
 
 test('nodes snap to the grid with a two cell gap between them', () => {
     const GRID = 20;
-    const label = name => name === '' ? null : name;
     for (const target of ['/x', '/pet/{petId}/uploadImage']) {
         const doc = v3({ [target]: { get: {} } });
         const nodes = flowgen.buildFlow(doc, 'get', target, { tab: false });

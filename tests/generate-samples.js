@@ -3,32 +3,11 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const https = require('https');
 const { execFileSync } = require('child_process');
 const flowgen = require('../flowgen');
 const specs = require('./specs');
 
 const OUT = process.env.SAMPLES_DIR || path.join(__dirname, '..', 'samples');
-
-function download(url, redirects) {
-    return new Promise((resolve, reject) => {
-        https.get(url, { headers: { 'user-agent': 'flowgen-samples' } }, res => {
-            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                res.resume();
-                if (!redirects) return reject(new Error('too many redirects'));
-                return download(new URL(res.headers.location, url).toString(), redirects - 1)
-                    .then(resolve, reject);
-            }
-            if (res.statusCode !== 200) {
-                res.resume();
-                return reject(new Error('HTTP ' + res.statusCode));
-            }
-            const chunks = [];
-            res.on('data', c => chunks.push(c));
-            res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-        }).on('error', reject);
-    });
-}
 
 function collectionFiles(dir) {
     const files = [];
