@@ -330,7 +330,9 @@ function dump(label, what, body) {
 }
 
 function curlBody(method, url, headers, body) {
-    const args = ['-sS', '-i', '--max-time', '25',
+    // --globoff, or curl reads {a,b} and [1-9] in the url as a range to expand
+    // rather than as the literal placeholder the generated code put there.
+    const args = ['-sS', '-i', '--globoff', '--max-time', '25',
         '-X', String(method || 'get').toUpperCase(), url];
     for (const [name, value] of Object.entries(headers || {})) {
         args.push('-H', name + ': ' + value);
@@ -571,13 +573,6 @@ async function main() {
             }
             if (node.type === 'function') {
                 node.func = applyFill(node.func, testCase.fill);
-                // Match what curl is given: a header still holding a {name}
-                // placeholder was never filled in, so it does not go out.
-                node.func = node.func.replace(/\nreturn msg;\s*$/,
-                    '\nfor (const [name, value] of Object.entries(msg.headers || {})) {\n' +
-                    '    if (value === undefined || /\\{[^}]+\\}/.test(String(value))) {\n' +
-                    '        delete msg.headers[name];\n' +
-                    '    }\n}\nreturn msg;');
             }
             if (node.type === 'http request') { node.ret = 'obj'; node.senderr = true; }
         }
@@ -622,16 +617,6 @@ async function main() {
         // above, so built.headers carries them. Merging them again here would
         // send the header twice and the server would reject the request.
         const curlHeaders = Object.assign({}, built.headers || {});
-        // A header the reader was meant to fill in still holds its {name}
-        // placeholder. Node-RED passes that through and the server ignores it,
-        // but curl rejects the braces outright, so neither caller should send
-        // it and the two stay comparable.
-        for (const [name, value] of Object.entries(curlHeaders)) {
-            if (value === undefined || /\{[^}]+\}/.test(String(value))) {
-                delete curlHeaders[name];
-                delete built.headers[name];
-            }
-        }
         const curlBodyText = built.payload === undefined ? null
             : (typeof built.payload === 'string'
                 ? built.payload : JSON.stringify(built.payload));
@@ -780,7 +765,7 @@ async function main() {
 
     if (process.env.LIVE_CORPUS) {
         const probeWithCurl = (url, method) => new Promise(resolve => {
-            execFile('curl', ['-sS', '-o', '/dev/null', '-w', '%{http_code}',
+            execFile('curl', ['-sS', '-o', '/dev/null', '-w', '%{http_code}', '--globoff',
                 '--max-time', '15', '-X', String(method || 'get').toUpperCase(), url],
             { timeout: 15000 }, (err, stdout) => {
                 const code = parseInt(String(stdout).trim(), 10);

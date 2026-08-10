@@ -8,6 +8,14 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      ollama_mlx:
+        description: >-
+          Run the Ollama tests on macOS against the MLX build of Gemma 4.
+          The hosted macOS runner leaves Ollama about 4GB, which is under
+          what gemma4:e2b-mlx needs, so this needs a larger runner.
+        type: boolean
+        default: false
 
 jobs:
   lint:
@@ -184,15 +192,17 @@ jobs:
         run: npm run test:live
 
   ollama:
-    # gemma4:e2b-mlx is an MLX build, which needs the Metal stack on Apple
-    # silicon, so this job runs on macOS while every other job stays on Linux.
-    runs-on: macos-latest
+    # An MLX build needs the Metal stack on Apple silicon, so the Gemma 4 run
+    # goes to macOS. The hosted macOS runner only leaves Ollama around 4GB
+    # though, and gemma4:e2b-mlx asks for 6GB, so that path is opt in and the
+    # everyday run stays on Linux with a model that fits.
+    runs-on: ${{ inputs.ollama_mlx && 'macos-latest' || 'ubuntu-latest' }}
     needs: test
-    # A 6.5GB pull plus local inference, so the job needs far longer than a
-    # plain unit test run.
+    # A multi gigabyte pull plus local inference, so far longer than a unit
+    # test run.
     timeout-minutes: 60
     env:
-      OLLAMA_MODEL: gemma4:e2b-mlx
+      OLLAMA_MODEL: ${{ inputs.ollama_mlx && 'gemma4:e2b-mlx' || 'gemma3:4b' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -203,9 +213,11 @@ jobs:
       - name: Install Ollama
         run: |
           set -e
-          brew install --cask ollama-app || brew install ollama
-          # The cask and the formula land the binary in different places.
-          ollama --version || /Applications/Ollama.app/Contents/Resources/ollama --version
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install --cask ollama-app || brew install ollama
+          else
+            curl -fsSL https://ollama.com/install.sh | sh
+          fi
 
       - name: Start Ollama and pull the model
         run: |

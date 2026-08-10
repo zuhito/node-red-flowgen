@@ -35,8 +35,10 @@ function note(level, text) {
 }
 
 function curl(method, url, headers, body) {
-    const args = ['-sS', '-o', '/dev/null', '-w', '%{http_code}', '--max-time', '20',
-        '-X', method.toUpperCase(), url];
+    // --globoff, or curl treats {a,b} and [1-9] in the url as ranges to expand
+    // instead of the literal text the generated code produced.
+    const args = ['-sS', '-o', '/dev/null', '-w', '%{http_code}', '--globoff',
+        '--max-time', '20', '-X', method.toUpperCase(), url];
     for (const [name, value] of Object.entries(headers || {})) {
         args.push('-H', name + ': ' + value);
     }

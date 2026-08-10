@@ -222,7 +222,15 @@ async function main() {
         const throttled = status => status === 429 ||
             (status === 403 && /rate limit/i.test(JSON.stringify(nodered.body || '')));
 
-        if (bruno.status !== nodered.status && throttled(nodered.status)) {
+        // A gateway error is the service having a bad moment, not a difference
+        // between the two callers, so it is reported without failing the run.
+        const flaky = status => status === 502 || status === 503 || status === 504;
+
+        if (bruno.status !== nodered.status &&
+            (flaky(bruno.status) || flaky(nodered.status))) {
+            note('notice', label + ' -> a gateway error made the two disagree: Bruno ' +
+                bruno.status + ', Node-RED ' + nodered.status);
+        } else if (bruno.status !== nodered.status && throttled(nodered.status)) {
             note('notice', label + ' -> Node-RED was rate limited (HTTP ' +
                 nodered.status + ') where Bruno saw ' + bruno.status);
         } else if (bruno.status !== nodered.status) {

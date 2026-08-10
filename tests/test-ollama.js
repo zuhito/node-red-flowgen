@@ -12,7 +12,7 @@ const { spawn, execFileSync } = require('child_process');
 const flowgen = require('../flowgen');
 
 const SPECS = path.join(__dirname, 'specs');
-const MODEL = process.env.OLLAMA_MODEL || 'gemma4:e2b-mlx';
+const MODEL = process.env.OLLAMA_MODEL || 'gemma3:4b';
 
 // The image the spec carries as its example, so the test sends exactly what a
 // reader of the definition would send.

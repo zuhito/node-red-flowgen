@@ -21,7 +21,7 @@ paths:
               properties:
                 model:
                   type: string
-                  example: gemma4:e2b-mlx
+                  example: gemma3:4b
                 prompt:
                   type: string
                   example: Why is the sky blue?
@@ -52,7 +52,7 @@ paths:
                   example: 5m
                 images:
                   description: >-
-                    Base64 encoded images for a vision model such as gemma4:e2b-mlx.
+                    Base64 encoded images for a vision model such as gemma3:4b.
                     The example is a 64x64 PNG holding a red square on white.
                   type: array
                   items:
@@ -107,7 +107,7 @@ paths:
               properties:
                 model:
                   type: string
-                  example: gemma4:e2b-mlx
+                  example: gemma3:4b
                 messages:
                   type: array
                   items:
@@ -173,7 +173,7 @@ paths:
               properties:
                 model:
                   type: string
-                  example: gemma4:e2b-mlx
+                  example: gemma3:4b
                 input:
                   type: string
                   example: Why is the sky blue?
@@ -207,7 +207,7 @@ paths:
               properties:
                 model:
                   type: string
-                  example: gemma4:e2b-mlx
+                  example: gemma3:4b
                 prompt:
                   type: string
                   example: Why is the sky blue?
@@ -265,7 +265,7 @@ paths:
               properties:
                 model:
                   type: string
-                  example: gemma4:e2b-mlx
+                  example: gemma3:4b
                 verbose:
                   type: boolean
                   default: false
@@ -291,10 +291,10 @@ paths:
               properties:
                 source:
                   type: string
-                  example: gemma4:e2b-mlx
+                  example: gemma3:4b
                 destination:
                   type: string
-                  example: gemma4:e2b-mlx-copy
+                  example: gemma3:4b-copy
       responses:
         '200':
           description: Copied
@@ -312,7 +312,7 @@ paths:
               properties:
                 model:
                   type: string
-                  example: gemma4:e2b-mlx-copy
+                  example: gemma3:4b-copy
       responses:
         '200':
           description: Deleted
@@ -330,7 +330,7 @@ paths:
               properties:
                 model:
                   type: string
-                  example: gemma4:e2b-mlx
+                  example: gemma3:4b
                 insecure:
                   type: boolean
                   default: false
@@ -354,7 +354,7 @@ paths:
               properties:
                 model:
                   type: string
-                  example: user/gemma4:e2b-mlx
+                  example: user/gemma3:4b
                 insecure:
                   type: boolean
                   default: false
@@ -379,10 +379,10 @@ paths:
               properties:
                 model:
                   type: string
-                  example: gemma4-custom
+                  example: gemma3-custom
                 from:
                   type: string
-                  example: gemma4:e2b-mlx
+                  example: gemma3:4b
                 system:
                   type: string
                   example: You are helpful.
@@ -417,7 +417,7 @@ paths:
               properties:
                 model:
                   type: string
-                  example: gemma4:e2b-mlx
+                  example: gemma3:4b
                 messages:
                   type: array
                   items:
@@ -463,7 +463,7 @@ paths:
               properties:
                 model:
                   type: string
-                  example: gemma4:e2b-mlx
+                  example: gemma3:4b
                 prompt:
                   type: string
                   example: Why is the sky blue?
@@ -495,7 +495,7 @@ paths:
               properties:
                 model:
                   type: string
-                  example: gemma4:e2b-mlx
+                  example: gemma3:4b
                 input:
                   type: string
                   example: Why is the sky blue?
