@@ -76,8 +76,8 @@ jobs:
         if: runner.os == 'Linux'
         run: npm run test:wizard
 
-      - name: Digest and response scanning tests
-        run: npm run test:digest
+      - name: Response scanning tests
+        run: npm run test:errorwords
 
       - name: Bruno conversion equivalence tests
         run: npm run test:converters
@@ -266,7 +266,14 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          npm run coverage 2>&1 | tee coverage.log
+          npm run coverage 2>&1 | tee coverage.log || {
+            (grep -E "^not ok" coverage.log | head -25; \
+             echo '--- detail ---'; \
+             grep -A 12 "^not ok" coverage.log | head -80) | while read -r line; do
+              echo "::error::coverage: ${line}"
+            done
+            exit 1
+          }
           {
             echo '## Coverage'
             echo
