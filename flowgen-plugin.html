@@ -74,8 +74,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     background: #e7f0f9;
     border-color: #97b7d8;
     font-family: sans-serif;
-    /* Rows are picked, not read as text: a shift click should extend the
-       selection rather than highlight the path. */
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
@@ -498,8 +496,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         return $('#flowgen-op-list .flowgen-op').not('.flowgen-hidden');
     }
 
-    // Windows Explorer treats ctrl on Windows and Linux the way macOS uses the
-    // command key, so either one stands for the same intent here.
     function commandKey(ev) {
         return ev.ctrlKey || ev.metaKey;
     }
@@ -513,8 +509,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         refreshChoice();
     }
 
-    // Ctrl with an arrow key walks the cursor without disturbing the selection,
-    // which is how Explorer lets you reach a row before toggling it with space.
     function moveCursor(delta) {
         var rows = visibleRows();
         if (!rows.length) { return; }
@@ -538,7 +532,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     }
 
     function onListKey(ev) {
-        // Ctrl+A, or Cmd+A on macOS, takes the whole visible list.
         if (commandKey(ev) && (ev.keyCode === 65 || ev.key === 'a' || ev.key === 'A')) {
             ev.preventDefault();
             selectAll();
@@ -558,8 +551,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         }
         if (ev.keyCode === 32) {
             ev.preventDefault();
-            // Ctrl+Space toggles the row under the cursor and leaves the rest
-            // alone, matching Explorer.
             if (commandKey(ev) && cursor && cursor.length) {
                 choose(cursor, cursor.data('flowgen-op'), true);
                 return;

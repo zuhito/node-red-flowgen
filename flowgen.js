@@ -126,8 +126,6 @@ function normalizeRequest(nameHint, source) {
         if (body && typeof body === 'object') {
             const mode = body.type || body.mode;
             const data = body.data !== undefined ? body.data : body[mode];
-            // Bruno records the body mode rather than a content type header, so
-            // the type has to be put back or the request goes out untyped.
             const declareType = value => {
                 if (req.headers.some(h => String(h[0]).toLowerCase() === 'content-type')) return;
                 req.headers.push(['content-type', value]);
@@ -283,9 +281,6 @@ function generate(doc, method, target) {
         }
         const headers = found.headers.map(h =>
             [h[0], isRaw(h[1]) ? h[1] : substitute(h[1])]);
-        // Bruno names the credential variables itself, but when the url already
-        // carries matching placeholders the two must line up or the reader ends
-        // up filling the same secret in twice under different names.
         if (found.credentials) {
             const named = todo.map(t => t.name);
             const pick = re => named.find(name => re.test(name));
@@ -320,17 +315,11 @@ function quote(value) {
         .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '`';
 }
 
-// A complete 1x1 grayscale PNG, 67 bytes, so generated multipart code uploads
-// something a server will actually decode.
 const SAMPLE_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR42mNgAAAAAgAB5Sfe/AAAAABJRU5ErkJggg==';
 
 const USER_PARAM = /^(user|username|userid|user_id|login)$/i;
 const PASSWD_PARAM = /^(passwd|password|pass|pwd)$/i;
 
-// Digest auth is a two pass exchange: the first call is expected to come back
-// 401 carrying a WWW-Authenticate challenge, and only a second call can answer
-// it. Both passes are written out, the second one commented, so the reader
-// swaps them over once the first has handed them a nonce.
 function digestLines(lines, pair, parts) {
     const user = '{' + pair.user + '}';
     const passwd = '{' + pair.passwd + '}';
@@ -375,13 +364,8 @@ function digestLines(lines, pair, parts) {
     lines.push('// --------------------------------------------------------------------');
 }
 
-// Bruno records the username and password as template variables, so the
-// generated code keeps whatever names the collection used rather than
-// inventing its own.
 function brunoCredentials(entry, scheme) {
     const raw = value => String(value === undefined || value === null ? '' : value).trim();
-    // A {{variable}} is a name the reader still has to fill in; anything else is
-    // a value the collection already knows, and should be used as it stands.
     const read = (value, fallback) => {
         const text = raw(value);
         if (!text) return { name: fallback, literal: false };
@@ -610,9 +594,6 @@ function assemble(parts) {
         lines.push('msg.payload = ' +
             literal(parts.payload, 0, parts.payloadSchema, parts.resolve) + ';');
     } else {
-        // The inject node ships a timestamp in msg.payload by default, and the
-        // http request node would send it as the body of a request that never
-        // asked for one. Clearing it keeps the call to what the spec describes.
         lines.push('');
         lines.push('// This request carries no body, so drop whatever msg.payload held.');
         lines.push('delete msg.payload;');
