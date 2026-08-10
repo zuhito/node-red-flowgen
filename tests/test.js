@@ -18,7 +18,7 @@ function run(code) {
 
 // The line explaining the cleared payload is bookkeeping rather than a
 // prompt to the reader, so it stays out of these assertions.
-const HOUSEKEEPING = /drop whatever msg\.payload held/;
+const HOUSEKEEPING = /drop whatever `msg\.payload` held/;
 
 function comments(code) {
     return code.split('\n').filter(l => l.startsWith('//'))

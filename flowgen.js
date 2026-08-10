@@ -694,7 +694,7 @@ function assemble(parts) {
         // whatever the inject node left in msg.payload. GET and HEAD never send
         // a body at all, so there is nothing to clear and nothing to explain.
         lines.push('');
-        lines.push('// This request carries no body, so drop whatever msg.payload held.');
+        lines.push('// This request carries no body, so drop whatever `msg.payload` held.');
         lines.push('delete msg.payload;');
     }
     lines.push('return msg;');
