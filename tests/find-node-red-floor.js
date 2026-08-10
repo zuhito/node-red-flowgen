@@ -51,7 +51,11 @@ const server = http.createServer(app);
         userDir: userDir,
         flowFile: 'flows.json',
         editorTheme: { tours: false },
-        logging: { console: { level: 'fatal', metrics: false, audit: false } }
+        // The logger must be exercised, not silenced. Node-RED 3.0.0 logs
+        // through util.log, which Node removed in 22, so a run that never
+        // writes a log line looks healthy while being fatally broken the
+        // moment anything goes wrong.
+        logging: { console: { level: 'info', metrics: false, audit: false } }
     });
     app.use('/', RED.httpAdmin);
     fs.writeFileSync(path.join(userDir, 'flows.json'), '[]');
@@ -76,6 +80,13 @@ const server = http.createServer(app);
         process.stderr.write('the plugin never registered\\n');
         process.exit(2);
     }
+
+    // Drive the logger on purpose. A release whose logging is broken on this
+    // runtime will throw here rather than in production.
+    RED.log.info('flowgen floor probe: logging works');
+    RED.log.warn('flowgen floor probe: warning path works');
+    RED.log.error('flowgen floor probe: error path works');
+
     process.exit(0);
 })().catch(err => {
     process.stderr.write(String((err && err.stack) || err) + '\\n');
