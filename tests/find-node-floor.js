@@ -214,8 +214,13 @@ async function works(version) {
                 await page.goto('http://127.0.0.1:' + port + '/', { waitUntil: 'networkidle' });
                 await page.waitForFunction(() => window.RED && window.RED.actions,
                     null, { timeout: 60000 });
+                // The plugin registers its tab once the runtime has answered,
+                // so how long that takes depends on the machine. A fixed wait
+                // passes most of the time and fails the rest, which is exactly
+                // what this was doing on CI.
                 await page.evaluate(() => window.RED.actions.invoke('core:show-import-dialog'));
-                await page.waitForTimeout(2500);
+                await page.waitForSelector('#flowgen-tab-link', { timeout: 30000 })
+                    .catch(() => {});
 
                 // Opening the tab is not enough: drive an actual import, which
                 // exercises flowgen.js in the browser and the plugin's routes.
@@ -227,7 +232,9 @@ async function works(version) {
                         null, { timeout: 20000 });
                     await page.fill('#flowgen-spec-text', SPEC);
                     await page.dispatchEvent('#flowgen-spec-text', 'keyup');
-                    await page.waitForTimeout(2500);
+                    await page.waitForFunction(
+                        () => document.querySelectorAll('#flowgen-op-list .flowgen-op').length > 0,
+                        null, { timeout: 30000 }).catch(() => {});
                     const listed = await page.$$eval('#flowgen-op-list .flowgen-op',
                         els => els.length);
                     if (!listed) { failures.push(engine + ': the spec produced no endpoints'); }
