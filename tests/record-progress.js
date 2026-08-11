@@ -44,6 +44,9 @@ function allJobs(runId) {
 
 // What makes this definition unlike the others, so a reader can tell at a
 // glance why it was worth calling.
+// The verbs actually requested, not the ones the definition declares. Saying
+// the run covered POST and DELETE when it only ever issued GETs would overstate
+// what was proven.
 function methodBreakdown(entry) {
     const methods = entry.methods || {};
     const parts = Object.keys(methods).sort()
@@ -144,7 +147,7 @@ function main() {
         '',
         '検証済み **' + all.length + '** 定義（うち成功 ' + passes + '）。',
         '',
-        '| 定義 | 結果 | 形式 | エンドポイント数 | メソッド内訳 | 実際に呼んだ数 | 到達確認に使った経路 | flowgen | この定義の特徴 |',
+        '| 定義 | 結果 | 形式 | 定義されたエンドポイント数 | 実際に呼んだ内訳 | 実際に呼んだ数 | 到達確認に使った経路 | flowgen | この定義の特徴 |',
         '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
         all.join('\n'),
         ''

@@ -73,21 +73,28 @@ function probeTarget(doc) {
 
 // How many endpoints this run will actually call: the ones needing no
 // credentials and no invented parameter.
+// The endpoints this run will actually call, broken down by verb. What the
+// definition declares is a different number, and reporting that would say the
+// run exercised things it never touched.
 function probeCount(doc) {
     let operations;
     try { operations = flowgen.listOperations(doc).operations; }
-    catch (err) { return 0; }
+    catch (err) { return { count: 0, methods: {} }; }
+
+    const methods = {};
     let count = 0;
     for (const op of operations) {
         if (op.method !== 'get') { continue; }
         if (/\{[A-Za-z_][\w.-]*\}/.test(op.path)) { continue; }
         try {
-            if (!/\{[A-Za-z_][\w.-]*\}/.test(flowgen.generate(doc, op.method, op.path))) {
-                count++;
+            if (/\{[A-Za-z_][\w.-]*\}/.test(flowgen.generate(doc, op.method, op.path))) {
+                continue;
             }
-        } catch (err) { /* not generatable, so not callable */ }
+        } catch (err) { continue; }
+        methods[op.method] = (methods[op.method] || 0) + 1;
+        count++;
     }
-    return count;
+    return { count: count, methods: methods };
 }
 
 function curl(url) {
@@ -154,20 +161,21 @@ async function main() {
             continue;
         }
 
-        // What the definition is made of, so the progress table can say how
-        // this one differed from the rest rather than only that it passed.
-        const byMethod = {};
+        // Two different numbers: what the definition declares, and what this
+        // run can actually reach without credentials or invented parameters.
+        const declared = {};
         for (const op of flowgen.listOperations(doc).operations) {
-            byMethod[op.method] = (byMethod[op.method] || 0) + 1;
+            declared[op.method] = (declared[op.method] || 0) + 1;
         }
-        const callable = probeCount(doc);
+        const reachable = probeCount(doc);
 
         const entry = {
             id: relative.replace(/[^\w.-]+/g, '-').replace(/\.(ya?ml|json)$/, ''),
             spec: relative,
             endpoints: count,
-            methods: byMethod,
-            callable: callable,
+            declaredMethods: declared,
+            methods: reachable.methods,
+            callable: reachable.count,
             format: doc.swagger === '2.0' ? 'swagger 2'
                 : (doc.openapi ? 'openapi ' + String(doc.openapi).slice(0, 3) : 'unknown'),
             probe: { method: target.method, path: target.path }
