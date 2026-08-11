@@ -249,7 +249,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 20
       matrix:
         definition: ${{ fromJson(needs.corpus-matrix.outputs.definitions) }}
     steps:

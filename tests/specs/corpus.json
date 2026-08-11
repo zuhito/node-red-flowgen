@@ -3,6 +3,114 @@
   "maxEndpoints": 256,
   "definitions": [
     {
+      "id": "1forge.com-0.0.1-swagger",
+      "spec": "1forge.com/0.0.1/swagger.yaml",
+      "endpoints": 2,
+      "probe": {
+        "method": "get",
+        "path": "/quotes"
+      }
+    },
+    {
+      "id": "amadeus.com-amadeus-flight-price-analysis-1.0.1-openapi",
+      "spec": "amadeus.com/amadeus-flight-price-analysis/1.0.1/openapi.yaml",
+      "endpoints": 1,
+      "probe": {
+        "method": "get",
+        "path": "/analytics/itinerary-price-metrics"
+      }
+    },
+    {
+      "id": "amadeus.com-amadeus-location-score-1.0.2-openapi",
+      "spec": "amadeus.com/amadeus-location-score/1.0.2/openapi.yaml",
+      "endpoints": 1,
+      "probe": {
+        "method": "get",
+        "path": "/location/analytics/category-rated-areas"
+      }
+    },
+    {
+      "id": "apache.org-qakka-v1-openapi",
+      "spec": "apache.org/qakka/v1/openapi.yaml",
+      "endpoints": 10,
+      "probe": {
+        "method": "get",
+        "path": "/queues"
+      }
+    },
+    {
+      "id": "apis.guru-2.2.0-openapi",
+      "spec": "apis.guru/2.2.0/openapi.yaml",
+      "endpoints": 7,
+      "probe": {
+        "method": "get",
+        "path": "/list.json"
+      }
+    },
+    {
+      "id": "asuarez.dev-searchly-1.0-openapi",
+      "spec": "asuarez.dev/searchly/1.0/openapi.yaml",
+      "endpoints": 3,
+      "probe": {
+        "method": "get",
+        "path": "/similarity/by_song"
+      }
+    },
+    {
+      "id": "aviationdata.systems-v1-swagger",
+      "spec": "aviationdata.systems/v1/swagger.yaml",
+      "endpoints": 6,
+      "probe": {
+        "method": "get",
+        "path": "/v1/country_list"
+      }
+    },
+    {
+      "id": "azure.com-alertsmanagement-AlertsManagement-2019-03-01-preview-swagger",
+      "spec": "azure.com/alertsmanagement-AlertsManagement/2019-03-01-preview/swagger.yaml",
+      "endpoints": 10,
+      "probe": {
+        "method": "get",
+        "path": "/providers/Microsoft.AlertsManagement/operations"
+      }
+    },
+    {
+      "id": "azure.com-alertsmanagement-AlertsManagement-2019-05-05-preview-swagger",
+      "spec": "azure.com/alertsmanagement-AlertsManagement/2019-05-05-preview/swagger.yaml",
+      "endpoints": 17,
+      "probe": {
+        "method": "get",
+        "path": "/providers/Microsoft.AlertsManagement/alertsMetaData"
+      }
+    },
+    {
+      "id": "azure.com-attestation-2018-09-01-preview-swagger",
+      "spec": "azure.com/attestation/2018-09-01-preview/swagger.yaml",
+      "endpoints": 6,
+      "probe": {
+        "method": "get",
+        "path": "/.well-known/openid-configuration"
+      }
+    },
+    {
+      "id": "azure.com-dynamicstelemetry-2019-01-24-swagger",
+      "spec": "azure.com/dynamicstelemetry/2019-01-24/swagger.yaml",
+      "endpoints": 1,
+      "probe": {
+        "method": "get",
+        "path": "/providers/Microsoft.DynamicsTelemetry/operations"
+      }
+    },
+    {
+      "id": "azure.com-iotcentral-preview-swagger",
+      "spec": "azure.com/iotcentral/preview/swagger.yaml",
+      "endpoints": 30,
+      "probe": {
+        "method": "get",
+        "path": "/apiTokens"
+      }
+    },
+    {
       "id": "balldontlie.io-1.0.0-openapi",
       "spec": "balldontlie.io/1.0.0/openapi.yaml",
       "endpoints": 7,
@@ -26,7 +134,106 @@
       "endpoints": 6,
       "probe": {
         "method": "get",
-        "path": "/api/v1/spec"
+        "path": "/api/v1"
+      }
+    },
+    {
+      "id": "carbone.io-1.2.0-openapi",
+      "spec": "carbone.io/1.2.0/openapi.yaml",
+      "endpoints": 6,
+      "probe": {
+        "method": "get",
+        "path": "/status"
+      }
+    },
+    {
+      "id": "clickup.com-1.0.0-openapi",
+      "spec": "clickup.com/1.0.0/openapi.yaml",
+      "endpoints": 2,
+      "probe": {
+        "method": "get",
+        "path": "/questions"
+      }
+    },
+    {
+      "id": "color.pizza-1.0.0-openapi",
+      "spec": "color.pizza/1.0.0/openapi.yaml",
+      "endpoints": 4,
+      "probe": {
+        "method": "get",
+        "path": "/lists/"
+      }
+    },
+    {
+      "id": "consumerfinance.gov-1.0-swagger",
+      "spec": "consumerfinance.gov/1.0/swagger.yaml",
+      "endpoints": 6,
+      "probe": {
+        "method": "get",
+        "path": "/data"
+      }
+    },
+    {
+      "id": "corrently.io-2.0.0-openapi",
+      "spec": "corrently.io/2.0.0/openapi.yaml",
+      "endpoints": 26,
+      "probe": {
+        "method": "get",
+        "path": "/alternative/ocpp/lastSessions"
+      }
+    },
+    {
+      "id": "deutschebahn.com-flinkster-v1-swagger",
+      "spec": "deutschebahn.com/flinkster/v1/swagger.yaml",
+      "endpoints": 10,
+      "probe": {
+        "method": "get",
+        "path": "/index"
+      }
+    },
+    {
+      "id": "digitallocker.gov.in-authpartner-1.0.0-openapi",
+      "spec": "digitallocker.gov.in/authpartner/1.0.0/openapi.yaml",
+      "endpoints": 22,
+      "probe": {
+        "method": "get",
+        "path": "/oauth2/2/files/issued"
+      }
+    },
+    {
+      "id": "docker.com-hub-beta-openapi",
+      "spec": "docker.com/hub/beta/openapi.yaml",
+      "endpoints": 28,
+      "probe": {
+        "method": "get",
+        "path": "/v2/access-tokens"
+      }
+    },
+    {
+      "id": "enode.io-1.3.10-openapi",
+      "spec": "enode.io/1.3.10/openapi.yaml",
+      "endpoints": 28,
+      "probe": {
+        "method": "get",
+        "path": "/health/ready"
+      }
+    },
+    {
+      "id": "evemarketer.com-1.0.1-swagger",
+      "spec": "evemarketer.com/1.0.1/swagger.yaml",
+      "endpoints": 4,
+      "probe": {
+        "method": "get",
+        "path": "/marketstat/json"
+      }
+    },
+    {
+      "id": "exhibitday.com-v1-swagger",
+      "spec": "exhibitday.com/v1/swagger.yaml",
+      "endpoints": 23,
+      "probe": {
+        "method": "get",
+        "path": "/api/docs/Swagger"
       }
     },
     {
@@ -36,6 +243,24 @@
       "probe": {
         "method": "get",
         "path": "/featureCategories"
+      }
+    },
+    {
+      "id": "gov.bc.ca-jobposting-1.0.0-openapi",
+      "spec": "gov.bc.ca/jobposting/1.0.0/openapi.yaml",
+      "endpoints": 5,
+      "probe": {
+        "method": "get",
+        "path": "/Industries"
+      }
+    },
+    {
+      "id": "gov.bc.ca-news-1.0-openapi",
+      "spec": "gov.bc.ca/news/1.0/openapi.yaml",
+      "endpoints": 27,
+      "probe": {
+        "method": "get",
+        "path": "/api/Home"
       }
     },
     {
@@ -53,7 +278,7 @@
       "endpoints": 5,
       "probe": {
         "method": "get",
-        "path": "/api/v1/spec"
+        "path": "/api/v1"
       }
     },
     {
@@ -71,7 +296,70 @@
       "endpoints": 30,
       "probe": {
         "method": "get",
-        "path": "/countries/list"
+        "path": "/cards/list"
+      }
+    },
+    {
+      "id": "hsbc.com-atm-2.2.1-swagger",
+      "spec": "hsbc.com/atm/2.2.1/swagger.yaml",
+      "endpoints": 5,
+      "probe": {
+        "method": "get",
+        "path": "/open-banking/v2.2/atms"
+      }
+    },
+    {
+      "id": "hsbc.com-branches-2.2.1-swagger",
+      "spec": "hsbc.com/branches/2.2.1/swagger.yaml",
+      "endpoints": 6,
+      "probe": {
+        "method": "get",
+        "path": "/open-banking/v2.2/branches"
+      }
+    },
+    {
+      "id": "hsbc.com-product-2.2.1-swagger",
+      "spec": "hsbc.com/product/2.2.1/swagger.yaml",
+      "endpoints": 8,
+      "probe": {
+        "method": "get",
+        "path": "/open-banking/v2.2/business-current-accounts"
+      }
+    },
+    {
+      "id": "hubapi.com-crm-v3-openapi",
+      "spec": "hubapi.com/crm/v3/openapi.yaml",
+      "endpoints": 6,
+      "probe": {
+        "method": "get",
+        "path": "/sample-response"
+      }
+    },
+    {
+      "id": "ideaconsult.net-nanoreg-4.0.0-openapi",
+      "spec": "ideaconsult.net/nanoreg/4.0.0/openapi.yaml",
+      "endpoints": 13,
+      "probe": {
+        "method": "get",
+        "path": "/select"
+      }
+    },
+    {
+      "id": "jokes.one-1.1-swagger",
+      "spec": "jokes.one/1.1/swagger.yaml",
+      "endpoints": 12,
+      "probe": {
+        "method": "get",
+        "path": "/joke/list"
+      }
+    },
+    {
+      "id": "journy.io-1.0.0-openapi",
+      "spec": "journy.io/1.0.0/openapi.yaml",
+      "endpoints": 15,
+      "probe": {
+        "method": "get",
+        "path": "/events"
       }
     },
     {
@@ -84,12 +372,93 @@
       }
     },
     {
+      "id": "languagetool.org-1.1.2-swagger",
+      "spec": "languagetool.org/1.1.2/swagger.yaml",
+      "endpoints": 5,
+      "probe": {
+        "method": "get",
+        "path": "/languages"
+      }
+    },
+    {
+      "id": "lgtm.com-v1.0-openapi",
+      "spec": "lgtm.com/v1.0/openapi.yaml",
+      "endpoints": 29,
+      "probe": {
+        "method": "get",
+        "path": "/openapi"
+      }
+    },
+    {
+      "id": "mastercard.com-BINTableResource-1.0-swagger",
+      "spec": "mastercard.com/BINTableResource/1.0/swagger.yaml",
+      "endpoints": 1,
+      "probe": {
+        "method": "get",
+        "path": "/binlisting"
+      }
+    },
+    {
+      "id": "mastercard.com-CurrencyConversionCalculator-1.0.0-swagger",
+      "spec": "mastercard.com/CurrencyConversionCalculator/1.0.0/swagger.yaml",
+      "endpoints": 3,
+      "probe": {
+        "method": "get",
+        "path": "/settlement-currencies"
+      }
+    },
+    {
+      "id": "mastercard.com-Locations-1.0.0-swagger",
+      "spec": "mastercard.com/Locations/1.0.0/swagger.yaml",
+      "endpoints": 7,
+      "probe": {
+        "method": "get",
+        "path": "/atms/v1/country"
+      }
+    },
+    {
+      "id": "mastercard.com-MDES-2.0.7-swagger",
+      "spec": "mastercard.com/MDES/2.0.7/swagger.yaml",
+      "endpoints": 15,
+      "probe": {
+        "method": "get",
+        "path": "/systemstatus"
+      }
+    },
+    {
       "id": "mermade.org.uk-openapi-converter-1.0.0-openapi",
       "spec": "mermade.org.uk/openapi-converter/1.0.0/openapi.yaml",
       "endpoints": 6,
       "probe": {
         "method": "get",
         "path": "/badge"
+      }
+    },
+    {
+      "id": "mozilla.com-kinto-1.22-openapi",
+      "spec": "mozilla.com/kinto/1.22/openapi.yaml",
+      "endpoints": 19,
+      "probe": {
+        "method": "get",
+        "path": "/"
+      }
+    },
+    {
+      "id": "ndhm.gov.in-ndhm-hip-0.5-openapi",
+      "spec": "ndhm.gov.in/ndhm-hip/0.5/openapi.yaml",
+      "endpoints": 30,
+      "probe": {
+        "method": "get",
+        "path": "/v0.5/.well-known/openid-configuration"
+      }
+    },
+    {
+      "id": "nexmo.com-media-1.0.2-openapi",
+      "spec": "nexmo.com/media/1.0.2/openapi.yaml",
+      "endpoints": 4,
+      "probe": {
+        "method": "get",
+        "path": "/"
       }
     },
     {
@@ -102,12 +471,57 @@
       }
     },
     {
+      "id": "o2.cz-mobility-1.2.0-swagger",
+      "spec": "o2.cz/mobility/1.2.0/swagger.yaml",
+      "endpoints": 2,
+      "probe": {
+        "method": "get",
+        "path": "/info"
+      }
+    },
+    {
       "id": "oceandrivers.com-1.0-openapi",
       "spec": "oceandrivers.com/1.0/openapi.yaml",
       "endpoints": 10,
       "probe": {
         "method": "get",
         "path": "/v1.0/getWebCams/"
+      }
+    },
+    {
+      "id": "openai.com-1.2.0-openapi",
+      "spec": "openai.com/1.2.0/openapi.yaml",
+      "endpoints": 23,
+      "probe": {
+        "method": "get",
+        "path": "/files"
+      }
+    },
+    {
+      "id": "openalpr.com-3.0.1-swagger",
+      "spec": "openalpr.com/3.0.1/swagger.yaml",
+      "endpoints": 4,
+      "probe": {
+        "method": "get",
+        "path": "/config"
+      }
+    },
+    {
+      "id": "openlinksw.com-osdb-1.0.0-openapi",
+      "spec": "openlinksw.com/osdb/1.0.0/openapi.yaml",
+      "endpoints": 10,
+      "probe": {
+        "method": "get",
+        "path": "/api/v1/login"
+      }
+    },
+    {
+      "id": "opentrials.local-0.0.1-swagger",
+      "spec": "opentrials.local/0.0.1/swagger.yaml",
+      "endpoints": 17,
+      "probe": {
+        "method": "get",
+        "path": "/document_categories"
       }
     },
     {
@@ -120,6 +534,87 @@
       }
     },
     {
+      "id": "parliament.uk-search-Live-openapi",
+      "spec": "parliament.uk/search/Live/openapi.yaml",
+      "endpoints": 3,
+      "probe": {
+        "method": "get",
+        "path": "/description"
+      }
+    },
+    {
+      "id": "patientview.org-1.0-openapi",
+      "spec": "patientview.org/1.0/openapi.yaml",
+      "endpoints": 15,
+      "probe": {
+        "method": "get",
+        "path": "/patientmanagement/diagnoses"
+      }
+    },
+    {
+      "id": "personio.de-personnel-1.0-openapi",
+      "spec": "personio.de/personnel/1.0/openapi.yaml",
+      "endpoints": 13,
+      "probe": {
+        "method": "get",
+        "path": "/company/employees"
+      }
+    },
+    {
+      "id": "poemist.com-1.0-swagger",
+      "spec": "poemist.com/1.0/swagger.yaml",
+      "endpoints": 1,
+      "probe": {
+        "method": "get",
+        "path": "/randompoems"
+      }
+    },
+    {
+      "id": "quarantine.country-1.0-swagger",
+      "spec": "quarantine.country/1.0/swagger.yaml",
+      "endpoints": 6,
+      "probe": {
+        "method": "get",
+        "path": "/summary/latest"
+      }
+    },
+    {
+      "id": "randomlovecraft.com-1.0-openapi",
+      "spec": "randomlovecraft.com/1.0/openapi.yaml",
+      "endpoints": 4,
+      "probe": {
+        "method": "get",
+        "path": "/books"
+      }
+    },
+    {
+      "id": "rapidapi.com-ecowetter-1.0.0-openapi",
+      "spec": "rapidapi.com/ecowetter/1.0.0/openapi.yaml",
+      "endpoints": 1,
+      "probe": {
+        "method": "get",
+        "path": "/public/history"
+      }
+    },
+    {
+      "id": "rbaskets.in-1.0.0-swagger",
+      "spec": "rbaskets.in/1.0.0/swagger.yaml",
+      "endpoints": 11,
+      "probe": {
+        "method": "get",
+        "path": "/api/version"
+      }
+    },
+    {
+      "id": "ritekit.com-1.0.0-openapi",
+      "spec": "ritekit.com/1.0.0/openapi.yaml",
+      "endpoints": 13,
+      "probe": {
+        "method": "get",
+        "path": "/v1/emoji/auto-emojify"
+      }
+    },
+    {
       "id": "sheetlabs.com-rig-veda-1.2-swagger",
       "spec": "sheetlabs.com/rig-veda/1.2/swagger.yaml",
       "endpoints": 1,
@@ -129,12 +624,30 @@
       }
     },
     {
+      "id": "slideroom.com-v2-swagger",
+      "spec": "slideroom.com/v2/swagger.yaml",
+      "endpoints": 11,
+      "probe": {
+        "method": "get",
+        "path": "/api/v2/applicant/attributes/names"
+      }
+    },
+    {
       "id": "swagger.io-generator-2.4.31-swagger",
       "spec": "swagger.io/generator/2.4.31/swagger.yaml",
       "endpoints": 7,
       "probe": {
         "method": "get",
         "path": "/gen/clients"
+      }
+    },
+    {
+      "id": "telematicssdk.com-1.0.0-openapi",
+      "spec": "telematicssdk.com/1.0.0/openapi.yaml",
+      "endpoints": 9,
+      "probe": {
+        "method": "get",
+        "path": "/statistics/v1/Scorings/individual/"
       }
     },
     {
@@ -156,12 +669,39 @@
       }
     },
     {
+      "id": "vonage.com-vgis-1.0.1-openapi",
+      "spec": "vonage.com/vgis/1.0.1/openapi.yaml",
+      "endpoints": 20,
+      "probe": {
+        "method": "get",
+        "path": "/self"
+      }
+    },
+    {
+      "id": "vtex.local-Intelligent-Search-API-0.1.12-openapi",
+      "spec": "vtex.local/Intelligent-Search-API/0.1.12/openapi.yaml",
+      "endpoints": 7,
+      "probe": {
+        "method": "get",
+        "path": "/top_searches"
+      }
+    },
+    {
       "id": "vtex.local-Session-Manager-API-1.0-openapi",
       "spec": "vtex.local/Session-Manager-API/1.0/openapi.yaml",
       "endpoints": 4,
       "probe": {
         "method": "get",
         "path": "/segments"
+      }
+    },
+    {
+      "id": "wealthreader.com-1.0.0-openapi",
+      "spec": "wealthreader.com/1.0.0/openapi.yaml",
+      "endpoints": 3,
+      "probe": {
+        "method": "get",
+        "path": "/entities"
       }
     },
     {
@@ -180,6 +720,312 @@
       "probe": {
         "method": "get",
         "path": "/listOrganisms"
+      }
+    },
+    {
+      "id": "zalando.com-v1.0-swagger",
+      "spec": "zalando.com/v1.0/swagger.yaml",
+      "endpoints": 20,
+      "probe": {
+        "method": "get",
+        "path": "/domains"
+      }
+    },
+    {
+      "id": "apicurio.local-registry-2.4.x-openapi",
+      "spec": "apicurio.local/registry/2.4.x/openapi.yaml",
+      "endpoints": 65,
+      "probe": {
+        "method": "get",
+        "path": "/admin/artifactTypes"
+      }
+    },
+    {
+      "id": "avaza.com-v1-swagger",
+      "spec": "avaza.com/v1/swagger.yaml",
+      "endpoints": 86,
+      "probe": {
+        "method": "get",
+        "path": "/api/Currency"
+      }
+    },
+    {
+      "id": "beezup.com-2.0-openapi",
+      "spec": "beezup.com/2.0/openapi.yaml",
+      "endpoints": 211,
+      "probe": {
+        "method": "get",
+        "path": "/v2/user/analytics/"
+      }
+    },
+    {
+      "id": "bigredcloud.com-v1-openapi",
+      "spec": "bigredcloud.com/v1/openapi.yaml",
+      "endpoints": 111,
+      "probe": {
+        "method": "get",
+        "path": "/v1/accounts"
+      }
+    },
+    {
+      "id": "billbee.io-v1-openapi",
+      "spec": "billbee.io/v1/openapi.yaml",
+      "endpoints": 75,
+      "probe": {
+        "method": "get",
+        "path": "/api/v1/automaticprovision/termsinfo"
+      }
+    },
+    {
+      "id": "bluemix.net-containers-3.0.0-openapi",
+      "spec": "bluemix.net/containers/3.0.0/openapi.yaml",
+      "endpoints": 47,
+      "probe": {
+        "method": "get",
+        "path": "/containers/version"
+      }
+    },
+    {
+      "id": "braze.com-1.0.0-openapi",
+      "spec": "braze.com/1.0.0/openapi.yaml",
+      "endpoints": 31,
+      "probe": {
+        "method": "get",
+        "path": "/campaigns/data_series"
+      }
+    },
+    {
+      "id": "contribly.com-1.0.0-openapi",
+      "spec": "contribly.com/1.0.0/openapi.yaml",
+      "endpoints": 44,
+      "probe": {
+        "method": "get",
+        "path": "/artifact-formats"
+      }
+    },
+    {
+      "id": "cpy.re-peertube-5.1.0-openapi",
+      "spec": "cpy.re/peertube/5.1.0/openapi.yaml",
+      "endpoints": 185,
+      "probe": {
+        "method": "get",
+        "path": "/api/v1/config"
+      }
+    },
+    {
+      "id": "crucible.local-1.0.0-swagger",
+      "spec": "crucible.local/1.0.0/swagger.yaml",
+      "endpoints": 79,
+      "probe": {
+        "method": "get",
+        "path": "/rest-service/projects-v1"
+      }
+    },
+    {
+      "id": "dev.to-1.0.0-openapi",
+      "spec": "dev.to/1.0.0/openapi.yaml",
+      "endpoints": 40,
+      "probe": {
+        "method": "get",
+        "path": "/api/articles"
+      }
+    },
+    {
+      "id": "discourse.local-latest-openapi",
+      "spec": "discourse.local/latest/openapi.yaml",
+      "endpoints": 84,
+      "probe": {
+        "method": "get",
+        "path": "/admin/backups.json"
+      }
+    },
+    {
+      "id": "dropx.io-1.0.0-swagger",
+      "spec": "dropx.io/1.0.0/swagger.yaml",
+      "endpoints": 7,
+      "probe": {
+        "method": "get",
+        "path": "/users/usage"
+      }
+    },
+    {
+      "id": "epa.gov-dfr-0.0.0-swagger",
+      "spec": "epa.gov/dfr/0.0.0/swagger.yaml",
+      "endpoints": 94,
+      "probe": {
+        "method": "get",
+        "path": "/dfr_rest_services.air_3_yr_download"
+      }
+    },
+    {
+      "id": "etsi.local-MEC010-2_AppPkgMgmt-2.1.1-openapi",
+      "spec": "etsi.local/MEC010-2_AppPkgMgmt/2.1.1/openapi.yaml",
+      "endpoints": 16,
+      "probe": {
+        "method": "get",
+        "path": "/subscriptions"
+      }
+    },
+    {
+      "id": "figshare.com-2.0.0-openapi",
+      "spec": "figshare.com/2.0.0/openapi.yaml",
+      "endpoints": 136,
+      "probe": {
+        "method": "get",
+        "path": "/categories"
+      }
+    },
+    {
+      "id": "fisheye.local-1.0.0-swagger",
+      "spec": "fisheye.local/1.0.0/swagger.yaml",
+      "endpoints": 16,
+      "probe": {
+        "method": "get",
+        "path": "/rest-service-fe/repositories-v1"
+      }
+    },
+    {
+      "id": "getpostman.com-1.20.0-openapi",
+      "spec": "getpostman.com/1.20.0/openapi.yaml",
+      "endpoints": 57,
+      "probe": {
+        "method": "get",
+        "path": "/apis"
+      }
+    },
+    {
+      "id": "gov.bc.ca-open511-1.0.0-openapi",
+      "spec": "gov.bc.ca/open511/1.0.0/openapi.yaml",
+      "endpoints": 4,
+      "probe": {
+        "method": "get",
+        "path": "/areas"
+      }
+    },
+    {
+      "id": "hetzner.cloud-1.0.0-openapi",
+      "spec": "hetzner.cloud/1.0.0/openapi.yaml",
+      "endpoints": 144,
+      "probe": {
+        "method": "get",
+        "path": "/pricing"
+      }
+    },
+    {
+      "id": "httpbin.org-0.9.2-openapi",
+      "spec": "httpbin.org/0.9.2/openapi.yaml",
+      "endpoints": 78,
+      "probe": {
+        "method": "get",
+        "path": "/anything"
+      }
+    },
+    {
+      "id": "maif.local-otoroshi-1.5.0-dev-openapi",
+      "spec": "maif.local/otoroshi/1.5.0-dev/openapi.yaml",
+      "endpoints": 102,
+      "probe": {
+        "method": "get",
+        "path": "/health"
+      }
+    },
+    {
+      "id": "medium.com-1.0-openapi",
+      "spec": "medium.com/1.0/openapi.yaml",
+      "endpoints": 32,
+      "probe": {
+        "method": "get",
+        "path": "/"
+      }
+    },
+    {
+      "id": "naviplancentral.com-plan-v1-swagger",
+      "spec": "naviplancentral.com/plan/v1/swagger.yaml",
+      "endpoints": 64,
+      "probe": {
+        "method": "get",
+        "path": "/api/Advisors"
+      }
+    },
+    {
+      "id": "ndhm.gov.in-ndhm-gateway-0.5-openapi",
+      "spec": "ndhm.gov.in/ndhm-gateway/0.5/openapi.yaml",
+      "endpoints": 48,
+      "probe": {
+        "method": "get",
+        "path": "/v0.5/.well-known/openid-configuration"
+      }
+    },
+    {
+      "id": "ndhm.gov.in-ndhm-hiu-0.5-openapi",
+      "spec": "ndhm.gov.in/ndhm-hiu/0.5/openapi.yaml",
+      "endpoints": 32,
+      "probe": {
+        "method": "get",
+        "path": "/v0.5/.well-known/openid-configuration"
+      }
+    },
+    {
+      "id": "neowsapp.com-1.0-openapi",
+      "spec": "neowsapp.com/1.0/openapi.yaml",
+      "endpoints": 7,
+      "probe": {
+        "method": "get",
+        "path": "/rest/v1/neo/browse"
+      }
+    },
+    {
+      "id": "o2.cz-sociodemo-1.2.0-swagger",
+      "spec": "o2.cz/sociodemo/1.2.0/swagger.yaml",
+      "endpoints": 3,
+      "probe": {
+        "method": "get",
+        "path": "/info"
+      }
+    },
+    {
+      "id": "okta.local-1.0.0-openapi",
+      "spec": "okta.local/1.0.0/openapi.yaml",
+      "endpoints": 19,
+      "probe": {
+        "method": "get",
+        "path": "/api/v1/users"
+      }
+    },
+    {
+      "id": "openfintech.io-2017-08-24-swagger",
+      "spec": "openfintech.io/2017-08-24/swagger.yaml",
+      "endpoints": 18,
+      "probe": {
+        "method": "get",
+        "path": "/banks"
+      }
+    },
+    {
+      "id": "openpolicy.local-0.28.0-openapi",
+      "spec": "openpolicy.local/0.28.0/openapi.yaml",
+      "endpoints": 16,
+      "probe": {
+        "method": "get",
+        "path": "/health"
+      }
+    },
+    {
+      "id": "optimade.local-1.1.0-develop-openapi",
+      "spec": "optimade.local/1.1.0~develop/openapi.yaml",
+      "endpoints": 8,
+      "probe": {
+        "method": "get",
+        "path": "/info"
+      }
+    },
+    {
+      "id": "peel-ci.com-1.0.0-swagger",
+      "spec": "peel-ci.com/1.0.0/swagger.yaml",
+      "endpoints": 5,
+      "probe": {
+        "method": "get",
+        "path": "/health"
       }
     }
   ]

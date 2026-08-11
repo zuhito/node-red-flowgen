@@ -54,11 +54,14 @@ function probeTarget(doc) {
 
     for (const op of operations) {
         if (op.method !== 'get') { continue; }
-        if (/\{[^}]+\}/.test(op.path)) { continue; }
+        if (/\{[A-Za-z_][\w.-]*\}/.test(op.path)) { continue; }
         let code;
         try { code = flowgen.generate(doc, op.method, op.path); }
         catch (err) { continue; }
-        if (/\{[^}]+\}/.test(code)) { continue; }
+        // A placeholder is a single name in braces. Matching anything between
+        // braces caught the object literal that every generated file contains,
+        // which quietly rejected 424 of 492 definitions.
+        if (/\{[A-Za-z_][\w.-]*\}/.test(code)) { continue; }
         return op;
     }
     return null;
