@@ -22,6 +22,10 @@ const flowgen = require('../flowgen');
 const RAW = 'https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/';
 const OUT = path.join(__dirname, 'specs', 'corpus.json');
 const MAX_ENDPOINTS = 256;
+// One run fetches a bounded number of candidates. The source list holds every
+// definition in the directory, and working through it in one pass takes longer
+// than any single run is given; each run picks up where the last left off.
+const BATCH = Number(process.env.BATCH || 250);
 const PROBE = process.argv.includes('--probe');
 
 function fetch(url, redirects) {
@@ -118,8 +122,11 @@ async function main() {
     const kept = [];
     const rejected = [];
 
+    let examined = 0;
     for (const relative of wanted) {
         if (proven.has(relative)) { continue; }
+        if (examined >= BATCH) { break; }
+        examined++;
         const url = RAW + relative;
         const text = await fetch(url);
         if (!text) { rejected.push([relative, 'could not be fetched']); continue; }
@@ -194,8 +201,9 @@ async function main() {
         definitions: kept
     }, null, 2) + '\n');
 
-    process.stdout.write('\nkept ' + kept.length + ' of ' + wanted.length +
-        ', written to ' + path.relative(path.join(__dirname, '..'), OUT) + '\n');
+    process.stdout.write('\nkept ' + kept.length + ' of ' + examined + ' examined, ' +
+        proven.size + ' already proven, ' + wanted.length + ' in the source list' +
+        '\nwritten to ' + path.relative(path.join(__dirname, '..'), OUT) + '\n');
 }
 
 main().catch(err => {
