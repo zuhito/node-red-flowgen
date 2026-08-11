@@ -748,10 +748,21 @@ async function main() {
         // failing on that would flag the very outcome being checked. But only
         // the rejection that was asked for is excused: any other complaint in
         // the body still has to surface, whatever the status code.
+        // Prose is only worth scanning when something already went wrong. An
+        // html page returned with a 200 is content, and content uses the same
+        // words as ordinary English: httpbingo's /html serves a passage of
+        // Moby-Dick carrying "fatal". On an error status the same page is the
+        // server explaining itself, and then it is worth reading.
+        const structured = value => {
+            if (value && typeof value === 'object') { return true; }
+            return /^\s*[{[]/.test(String(value === undefined ? '' : value));
+        };
+
         for (const [source, body, status] of [
             ['curl', viaCurl.body, viaCurl.status],
             ['node-red', result.body, result.status]
         ]) {
+            if (status !== null && status < 400 && !structured(body)) { continue; }
             // A 5xx is the host having a bad moment, whichever caller met it.
             // Its body says so in words, but that describes the service rather
             // than the request the generated code built.
