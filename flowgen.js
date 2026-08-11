@@ -59,20 +59,13 @@ function quote(value) {
         .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '`';
 }
 
-function raw(expression) {
-    return { __raw: String(expression) };
-}
-
-function isRaw(value) {
-    return !!value && typeof value === 'object' && typeof value.__raw === 'string';
-}
 
 function literal(value, indent, schema, resolve) {
     indent = indent || 0;
     const pad = '    '.repeat(indent);
     const inner = '    '.repeat(indent + 1);
     if (value === null || value === undefined) return 'null';
-    if (isRaw(value)) return value.__raw;
+    if ((value && typeof value === 'object' && typeof value.__raw === 'string')) return value.__raw;
     if (Array.isArray(value)) {
         if (!value.length) return '[]';
         const items = schema && resolve ? resolve(schema.items || {}) : null;
@@ -204,7 +197,7 @@ function normalizeRequest(nameHint, source) {
             };
             req.credentials = brunoCredentials(
                 { username: value('username'), password: value('password') }, 'basic');
-            req.headers.push(['authorization', raw('`Basic ${credentials}`')]);
+            req.headers.push(['authorization', { __raw: '`Basic ${credentials}`' }]);
         }
         if (blocks['auth:digest']) {
             const pairs = blocks['auth:digest'];
@@ -233,7 +226,7 @@ function normalizeRequest(nameHint, source) {
             req.payload = {};
             for (const [k, v] of blocks['body:multipart-form']) {
                 req.payload[k] = /^@file\(/.test(v)
-                    ? { value: raw('FILE_CONTENTS'), options: { filename: v.replace(/^@file\(|\)$/g, '') || raw('FILENAME') } }
+                    ? { value: { __raw: 'FILE_CONTENTS' }, options: { filename: v.replace(/^@file\(|\)$/g, '') || { __raw: 'FILENAME' } } }
                     : v;
             }
         }
@@ -258,7 +251,7 @@ function normalizeRequest(nameHint, source) {
             } else if (auth.basic || kind === 'basic') {
                 const entry = auth.basic || auth;
                 req.credentials = brunoCredentials(entry, 'basic');
-                req.headers.push(['authorization', raw('`Basic ${credentials}`')]);
+                req.headers.push(['authorization', { __raw: '`Basic ${credentials}`' }]);
             } else if (auth.digest || kind === 'digest') {
                 const entry = auth.digest || auth;
                 // No header here: the retry node in the flow signs the
@@ -299,7 +292,7 @@ function normalizeRequest(nameHint, source) {
                 for (const e of data || []) {
                     if (e.enabled === false) continue;
                     req.payload[e.name] = e.type === 'file'
-                        ? { value: raw('FILE_CONTENTS'), options: { filename: raw('FILENAME') } }
+                        ? { value: { __raw: 'FILE_CONTENTS' }, options: { filename: { __raw: 'FILENAME' } } }
                         : (e.value || '');
                 }
             }
@@ -415,9 +408,11 @@ function credentialsFrom(urlParams) {
 // accept. The cookies matter as much as the nonce, because httpbin and its
 // successors hand one out with the challenge and refuse the retry without it.
 function brunoCredentials(entry, scheme) {
-    const raw = value => String(value === undefined || value === null ? '' : value).trim();
+    // Named trim rather than raw: the outer file has no raw() any more, and
+    // reusing the name here is what let a blanket rewrite damage this.
+    const clean = value => String(value === undefined || value === null ? '' : value).trim();
     const read = (value, fallback) => {
-        const text = raw(value);
+        const text = clean(value);
         if (!text) return { name: fallback, literal: false };
         const stripped = text.replace(/^\{\{|\}\}$/g, '').replace(/^\{|\}$/g, '').trim();
         const isVariable = /^\{\{.*\}\}$/.test(text) || /^\{.*\}$/.test(text);
@@ -429,18 +424,10 @@ function brunoCredentials(entry, scheme) {
         user: user.name, passwd: passwd.name,
         userType: null, passwdType: null,
         known: user.literal && passwd.literal,
-        scheme: scheme, realm: raw(entry.realm)
+        scheme: scheme, realm: { __raw: String(entry.realm) }
     };
 }
 
-// Digest is a two pass exchange, and the two passes are two http request
-// nodes rather than two edits to one. This first pass carries no credentials
-// on purpose: it exists to collect the challenge.
-function digestLines(lines) {
-    lines.push('// Digest auth answers this call with 401 and a challenge. The node');
-    lines.push('// after the request reads that challenge and signs the retry, so no');
-    lines.push('// credentials are sent here.');
-}
 
 // Whether this operation is digest protected, and under what credential names.
 // The generator already worked this out while producing the code, so the answer
@@ -682,7 +669,8 @@ function assemble(parts) {
         const named = [];
         const empty = [];
         for (const entry of pairs) {
-            if (isRaw(entry[1])) continue;
+            if ((entry[1] && typeof entry[1] === 'object' &&
+                typeof entry[1].__raw === 'string')) continue;
             const value = String(entry[1]);
             const holes = value.match(/\{[^}]+\}/g);
             if (holes) {
@@ -712,7 +700,12 @@ function assemble(parts) {
     if (credentialsSink && parts.credentials) { credentialsSink(parts.credentials); }
     if (parts.credentials && parts.credentials.scheme === 'digest') {
         lines.push('');
-        digestLines(lines);
+        // Digest is a two pass exchange, and the two passes are two http
+        // request nodes rather than two edits to one. This first pass carries
+        // no credentials on purpose: it exists to collect the challenge.
+        lines.push('// Digest auth answers this call with 401 and a challenge. The node');
+        lines.push('// after the request reads that challenge and signs the retry, so no');
+        lines.push('// credentials are sent here.');
     }
     for (const [key, pairs] of [['headers', parts.headers], ['cookies', parts.cookies]]) {
         if (!pairs.length) continue;
@@ -750,7 +743,9 @@ function assemble(parts) {
     if (parts.hasBody) {
         const uses = name => JSON.stringify(parts.payload || {}).indexOf('"' + name + '"') !== -1 ||
             (function scan(node) {
-                if (isRaw(node)) return node.__raw === name;
+                if (node && typeof node === 'object' && typeof node.__raw === 'string') {
+                    return node.__raw === name;
+                }
                 if (Array.isArray(node)) return node.some(scan);
                 if (node && typeof node === 'object') return Object.keys(node).some(k => scan(node[k]));
                 return false;
@@ -868,7 +863,7 @@ function generateOpenApi3(doc, rawMethod, target) {
                         // No header on the first pass: it goes out to collect
                         // the challenge, and the retry node signs the second.
                     } else {
-                        headers.push(['authorization', raw('`Basic ${credentials}`')]);
+                        headers.push(['authorization', { __raw: '`Basic ${credentials}`' }]);
                     }
                 } else {
                     headers.push(['authorization',
@@ -937,7 +932,7 @@ function generateOpenApi3(doc, rawMethod, target) {
                 const isFile = prop.format === 'binary' ||
                     (prop.type === 'array' && resolve(prop.items || {}).format === 'binary');
                 payload[key] = isFile
-                    ? { value: raw('FILE_CONTENTS'), options: { filename: raw('FILENAME') } }
+                    ? { value: { __raw: 'FILE_CONTENTS' }, options: { filename: { __raw: 'FILENAME' } } }
                     : sample(prop);
             }
         } else if (media.example !== undefined) payload = media.example;
@@ -1100,7 +1095,7 @@ function generateSwagger2(doc, rawMethod, target) {
         } else if (multipart) {
             payload = formParams.reduce((acc, p) => {
                 acc[p.name] = p.type === 'file'
-                    ? { value: raw('FILE_CONTENTS'), options: { filename: raw('FILENAME') } }
+                    ? { value: { __raw: 'FILE_CONTENTS' }, options: { filename: { __raw: 'FILENAME' } } }
                     : sample(p);
                 return acc;
             }, {});
@@ -1220,7 +1215,7 @@ function generate(doc, method, target) {
             if (!todo.some(t => t.name === name)) todo.push({ name: name, type: null });
         }
         const headers = found.headers.map(h =>
-            [h[0], isRaw(h[1]) ? h[1] : substitute(h[1])]);
+            [h[0], (h[1] && typeof h[1] === 'object' && typeof h[1].__raw === 'string') ? h[1] : substitute(h[1])]);
         if (found.credentials) {
             const named = todo.map(t => t.name);
             const pick = re => named.find(name => re.test(name));
