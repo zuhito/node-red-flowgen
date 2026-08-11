@@ -676,6 +676,7 @@ function assemble(parts) {
                 const secret = pair.known
                     ? pair.user + ':' + pair.passwd
                     : '{' + pair.user + '}:{' + pair.passwd + '}';
+                lines.push('/* global Buffer */');
                 lines.push('const credentials = Buffer.from(' + quote(secret) +
                     ').toString("base64");');
             }
@@ -705,6 +706,7 @@ function assemble(parts) {
         lines.push('');
         if (parts.multipart && uses('FILE_CONTENTS')) {
             lines.push('// Point FILE_CONTENTS at the bytes to upload; a Buffer or a stream both work.');
+            lines.push('/* global Buffer */');
             lines.push('const FILE_CONTENTS = Buffer.from(' + quote(SAMPLE_PNG) + ', "base64");');
             if (uses('FILENAME')) lines.push('const FILENAME = "gray1x1.png";');
             lines.push('');

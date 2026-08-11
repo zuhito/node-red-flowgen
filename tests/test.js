@@ -1438,3 +1438,34 @@ test('only methods that can carry a body clear the inject default', () => {
             method + ' must not carry the explanation either');
     }
 });
+
+
+test('code that reaches for Buffer declares it as a global', () => {
+    // nrlint runs eslint over the function node, and a bare Buffer is an
+    // undefined variable to it. The declaration is what keeps a generated flow
+    // from being reported as broken the moment it is imported.
+    const v3 = paths => ({
+        openapi: '3.0.3', info: { title: 't', version: '1' },
+        servers: [{ url: 'https://api.test' }],
+        components: { securitySchemes: { b: { type: 'http', scheme: 'basic' } } },
+        paths: paths
+    });
+
+    const basic = flowgen.generate(v3({
+        '/x': { get: { security: [{ b: [] }], responses: { 200: { description: 'ok' } } } }
+    }), 'get', '/x');
+    assert.match(basic, /\/\* global Buffer \*\/\nconst credentials = Buffer\.from\(/);
+
+    const upload = flowgen.generate(v3({
+        '/u': { post: { requestBody: { content: { 'multipart/form-data': { schema: {
+            type: 'object', properties: { file: { type: 'string', format: 'binary' } }
+        } } } }, responses: { 200: { description: 'ok' } } } }
+    }), 'post', '/u');
+    assert.match(upload, /\/\* global Buffer \*\/\nconst FILE_CONTENTS = Buffer\.from\(/);
+
+    // Anything that never mentions Buffer must not carry the declaration.
+    const plain = flowgen.generate(v3({
+        '/p': { get: { responses: { 200: { description: 'ok' } } } }
+    }), 'get', '/p');
+    assert.ok(!/global Buffer/.test(plain));
+});
