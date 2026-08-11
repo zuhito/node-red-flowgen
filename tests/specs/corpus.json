@@ -1,53 +1,5 @@
 {
   "source": "https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/",
   "maxEndpoints": 256,
-  "definitions": [
-    {
-      "id": "consumerfinance.gov-1.0-swagger",
-      "spec": "consumerfinance.gov/1.0/swagger.yaml",
-      "endpoints": 6,
-      "methods": {
-        "get": 6
-      },
-      "callable": 2,
-      "format": "swagger 2",
-      "probe": {
-        "method": "get",
-        "path": "/data"
-      }
-    },
-    {
-      "id": "randomlovecraft.com-1.0-openapi",
-      "spec": "randomlovecraft.com/1.0/openapi.yaml",
-      "endpoints": 4,
-      "methods": {
-        "get": 4
-      },
-      "callable": 2,
-      "format": "openapi 3.0",
-      "probe": {
-        "method": "get",
-        "path": "/books"
-      }
-    },
-    {
-      "id": "httpbin.org-0.9.2-openapi",
-      "spec": "httpbin.org/0.9.2/openapi.yaml",
-      "endpoints": 78,
-      "methods": {
-        "get": 48,
-        "put": 6,
-        "post": 7,
-        "delete": 6,
-        "patch": 6,
-        "trace": 5
-      },
-      "callable": 22,
-      "format": "openapi 3.0",
-      "probe": {
-        "method": "get",
-        "path": "/anything"
-      }
-    }
-  ]
+  "definitions": []
 }

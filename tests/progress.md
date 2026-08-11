@@ -122,3 +122,6 @@ that fails stays, because that is the reason to keep looking.
 | `wellknown.ai/1.0.0/openapi.yaml` | pass | openapi 3.0 | 2 | GET 2 | 2 | `GET /api/plugins` | `ce61d5ae` | read only; tiny surface |
 | `wikipathways.org/1.0/openapi.yaml` | pass | openapi 3.0 | 27 | GET 26, POST 1 | 1 | `GET /listOrganisms` | `ce61d5ae` | 1 of 27 callable anonymously |
 | `zalando.com/v1.0/swagger.yaml` | pass | swagger 2 | 20 | GET 20 | 1 | `GET /domains` | `ce61d5ae` | read only; 1 of 20 callable anonymously |
+| `consumerfinance.gov/1.0/swagger.yaml` | pass | swagger 2 | 6 | GET 6 | 2 | `GET /data` | `85ebc9da` | read only; 2 of 6 callable anonymously; government |
+| `httpbin.org/0.9.2/openapi.yaml` | pass | openapi 3.0 | 78 | DELETE 6, GET 48, PATCH 6, POST 7, PUT 6, TRACE 5 | 22 | `GET /anything` | `85ebc9da` | many verbs; 22 of 78 callable anonymously |
+| `randomlovecraft.com/1.0/openapi.yaml` | pass | openapi 3.0 | 4 | GET 4 | 2 | `GET /books` | `85ebc9da` | read only; 2 of 4 callable anonymously |
