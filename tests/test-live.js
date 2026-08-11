@@ -210,16 +210,25 @@ const CASES = [
     { source: 'httpbingo', method: 'get', path: '/html' },
     { source: 'httpbingo', method: 'get', path: '/robots.txt' },
     { source: 'httpbingo', method: 'get', path: '/encoding/utf8' },
-    { source: 'httpbingo', method: 'get', path: '/gzip' },
-    { source: 'httpbingo', method: 'get', path: '/deflate' },
     { source: 'httpbingo', method: 'get', path: '/anything' },
     { source: 'httpbingo', method: 'get', path: '/base64/{value}',
         fill: { value: 'SFRUUEJJTkdP' } },
-    { source: 'httpbingo', method: 'get', path: '/bytes/{n}', fill: { n: '16' } },
     { source: 'httpbingo', method: 'get', path: '/cache' },
     { source: 'httpbingo', method: 'get', path: '/etag/{etag}', fill: { etag: 'abc' } },
-    { source: 'httpbingo', method: 'get', path: '/cookies' },
-    { source: 'httpbingo', method: 'get', path: '/redirect/{n}', fill: { n: '2' } }
+    { source: 'httpbingo', method: 'get', path: '/cookies' }
+
+    // skipped: /bytes returns random bytes, so the two callers cannot agree
+    // { source: 'httpbingo', method: 'get', path: '/bytes/{n}', fill: { n: '16' } },
+
+    // skipped: curl stops at the 302 while the http request node follows it, so
+    // the difference is in how the two are configured rather than in the
+    // request that was generated
+    // { source: 'httpbingo', method: 'get', path: '/redirect/{n}', fill: { n: '2' } },
+
+    // skipped: curl leaves the body compressed and the http request node
+    // decompresses it, so the bodies differ for the same reason
+    // { source: 'httpbingo', method: 'get', path: '/gzip' },
+    // { source: 'httpbingo', method: 'get', path: '/deflate' },
 
     // skipped: these change on every call, so curl and Node-RED can never agree
     // { source: 'httpbingo', method: 'get', path: '/ip' },
