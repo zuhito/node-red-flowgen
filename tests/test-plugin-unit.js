@@ -249,6 +249,167 @@ test('a corrupt zip is reported rather than throwing', async () => {
     assert.match(JSON.parse(res.body).error, /zip/i);
 });
 
+// ---------------------------------------------------------------------------
+// Malformed and hostile input
+//
+// The runtime shares a process with Node-RED, so a route that throws where
+// nothing catches takes every flow on the host down with it. What matters in
+// each case below is not the status code but that the process is still
+// answering afterwards.
+// ---------------------------------------------------------------------------
+
+const postJson = (route, body) => request({
+    path: '/flowgen/' + route, method: 'POST',
+    headers: { 'content-type': 'application/json' }
+}, typeof body === 'string' ? body : JSON.stringify(body));
+
+async function stillAlive() {
+    const res = await get('/flowgen/generator.js');
+    assert.strictEqual(res.status, 200, 'the runtime stopped answering');
+}
+
+test('a body that is not json is refused rather than thrown', async () => {
+    for (const body of ['', 'not json', '{', '[1,2', '"a string"', '123']) {
+        const res = await postJson('parse', body);
+        assert.ok(res.status < 500, JSON.stringify(body) + ' gave ' + res.status);
+    }
+    await stillAlive();
+});
+
+test('a parse request with nothing usable in it is refused', async () => {
+    for (const body of [{}, { text: null }, { text: 42 }, { files: 'not an array' },
+        { files: [null] }, { files: [{}] }, { files: [{ path: 1, text: 2 }] }]) {
+        const res = await postJson('parse', body);
+        assert.ok(res.status < 500, JSON.stringify(body) + ' gave ' + res.status);
+    }
+    await stillAlive();
+});
+
+test('a flows request with a nonsense document is refused', async () => {
+    for (const body of [{}, { doc: null }, { doc: 'text' }, { doc: {}, targets: 'x' },
+        { doc: { openapi: '3.0.0' }, targets: [{ method: 'get', path: '/nope' }] },
+        { doc: { openapi: '3.0.0', paths: {} }, targets: [null] }]) {
+        const res = await postJson('flows', body);
+        assert.ok(res.status < 500, JSON.stringify(body) + ' gave ' + res.status);
+    }
+    await stillAlive();
+});
+
+test('a document that is valid yaml but not a specification is refused', async () => {
+    for (const text of ['just a string', '- 1\n- 2\n', 'a: 1\n', 'null\n']) {
+        const res = await postJson('parse', { text: text });
+        assert.ok(res.status < 500, JSON.stringify(text) + ' gave ' + res.status);
+    }
+    await stillAlive();
+});
+
+test('yaml that cannot be parsed is reported, not thrown', async () => {
+    for (const text of ['a:\n  - b\n c: broken', '{unclosed: ',
+        '!!python/object:os.system []']) {
+        const res = await postJson('parse', { text: text });
+        assert.ok(res.status < 500, JSON.stringify(text) + ' gave ' + res.status);
+    }
+    await stillAlive();
+});
+
+test('a deeply nested document does not blow the stack', async () => {
+    // Recursion over the document is the risk: a stack overflow is not a
+    // catchable error the way a thrown Error is, so it would end the process.
+    let nested = 'x';
+    for (let depth = 0; depth < 5000; depth++) { nested = '{a: ' + nested + '}'; }
+    const res = await postJson('parse', { text: 'openapi: 3.0.3\nx: ' + nested });
+    assert.ok(res.status < 500, 'gave ' + res.status);
+    await stillAlive();
+});
+
+test('a self referencing schema does not spin forever', async () => {
+    const text = [
+        'openapi: 3.0.3',
+        'info: { title: loop, version: "1" }',
+        'servers: [{ url: "https://x.test" }]',
+        'components:',
+        '  schemas:',
+        '    Node:',
+        '      type: object',
+        '      properties:',
+        '        child: { $ref: "#/components/schemas/Node" }',
+        'paths:',
+        '  /x:',
+        '    post:',
+        '      requestBody:',
+        '        content:',
+        '          application/json:',
+        '            schema: { $ref: "#/components/schemas/Node" }',
+        '      responses: { "200": { description: ok } }'
+    ].join('\n');
+
+    const started = Date.now();
+    const res = await postJson('parse', { text: text });
+    assert.ok(Date.now() - started < 20000, 'the request took too long to come back');
+    assert.ok(res.status < 500, 'gave ' + res.status);
+
+    if (res.status === 200) {
+        const built = await postJson('flows', {
+            doc: JSON.parse(res.body).doc,
+            targets: [{ method: 'post', path: '/x' }]
+        });
+        assert.ok(built.status < 500, 'building gave ' + built.status);
+    }
+    await stillAlive();
+});
+
+test('a document with a great many endpoints is handled or refused, not fatal', async () => {
+    const lines = ['openapi: 3.0.3', 'info: { title: many, version: "1" }',
+        'servers: [{ url: "https://x.test" }]', 'paths:'];
+    for (let i = 0; i < 3000; i++) {
+        lines.push('  /p' + i + ':', '    get:',
+            '      responses: { "200": { description: ok } }');
+    }
+    const res = await postJson('parse', { text: lines.join('\n') });
+    assert.ok(res.status < 500, 'gave ' + res.status);
+    await stillAlive();
+});
+
+test('a source url that is malformed is refused', async () => {
+    for (const bad of ['', ' ', 'javascript:alert(1)', 'file:///etc/passwd',
+        'http://', 'https://', 'ht!tp://x', '//example.test/x']) {
+        const res = await get('/flowgen/source?url=' + encodeURIComponent(bad));
+        assert.ok(res.status >= 400 && res.status < 500,
+            JSON.stringify(bad) + ' gave ' + res.status);
+    }
+    await stillAlive();
+});
+
+test('an upload that is not a zip at all is reported', async () => {
+    for (const body of [Buffer.alloc(0), Buffer.from('not a zip'),
+        Buffer.from('PK\u0003\u0004 truncated'), Buffer.alloc(64, 0)]) {
+        const res = await request({
+            path: '/flowgen/source', method: 'POST',
+            headers: { 'content-type': 'application/zip', 'content-length': body.length }
+        }, body);
+        assert.ok(res.status < 500, 'gave ' + res.status);
+    }
+    await stillAlive();
+});
+
+test('several awkward requests at once do not disturb each other', async () => {
+    const work = [];
+    for (let i = 0; i < 10; i++) {
+        work.push(postJson('parse', { text: 'not: [a, spec' }));
+        work.push(postJson('flows', { doc: null }));
+        work.push(postJson('parse', {
+            text: 'openapi: 3.0.3\ninfo: { title: t, version: "1" }\n' +
+                'servers: [{ url: "https://x.test" }]\n' +
+                'paths: { /x: { get: { responses: { "200": { description: ok } } } } }'
+        }));
+    }
+    const results = await Promise.all(work);
+    assert.strictEqual(results.filter(r => r.status >= 500).length, 0,
+        'nothing should have produced a server error');
+    assert.ok(results.some(r => r.status === 200), 'the valid ones should still succeed');
+    await stillAlive();
+});
+
 test('every route demands the flows.write permission', () => {
     const asked = [];
     const guard = function (req, res, next) { next(); };
