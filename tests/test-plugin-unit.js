@@ -442,6 +442,133 @@ test('a url that answers with too many bytes is refused', async () => {
     }
 });
 
+// ---------------------------------------------------------------------------
+// Paths the ordinary cases never reach
+//
+// These are the branches that only run when something goes wrong, which is
+// exactly when the runtime shares a process with every flow on the host.
+// ---------------------------------------------------------------------------
+
+test('an oversized definition is refused rather than parsed', async () => {
+    // body-parser has its own ceiling and answers first, so what matters is
+    // that something refuses this and the runtime survives, not which layer.
+    const res = await postJson('parse', { text: 'x'.repeat(17 * 1024 * 1024) });
+    assert.ok(res.status >= 400 && res.status < 500, 'gave ' + res.status);
+    await stillAlive();
+});
+
+test('an oversized collection is refused rather than parsed', async () => {
+    const files = [];
+    for (let i = 0; i < 20; i++) {
+        files.push({ path: 'f' + i + '.yml', text: 'x'.repeat(1024 * 1024) });
+    }
+    const res = await postJson('parse', { files: files });
+    assert.ok(res.status >= 400 && res.status < 500, 'gave ' + res.status);
+    await stillAlive();
+});
+
+test('a source url that redirects forever gives up', async () => {
+    const loop = http.createServer((req, res) => {
+        res.writeHead(302, { location: '/again' });
+        res.end();
+    });
+    await new Promise(resolve => loop.listen(0, '127.0.0.1', resolve));
+    const url = 'http://127.0.0.1:' + loop.address().port + '/start';
+
+    try {
+        const res = await get('/flowgen/source?url=' + encodeURIComponent(url));
+        assert.ok(res.status >= 400, 'gave ' + res.status);
+        assert.match(JSON.parse(res.body).error, /redirect/i);
+    } finally {
+        await new Promise(resolve => loop.close(resolve));
+    }
+    await stillAlive();
+});
+
+test('a source that never stops sending is cut off', async () => {
+    // Without a ceiling a single url could exhaust the heap, and the runtime
+    // shares its heap with every flow on the host.
+    let closed = false;
+    const firehose = http.createServer((req, res) => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        const pump = () => {
+            if (closed || !res.write('x'.repeat(1024 * 1024))) { return; }
+            setImmediate(pump);
+        };
+        res.on('close', () => { closed = true; });
+        pump();
+    });
+    await new Promise(resolve => firehose.listen(0, '127.0.0.1', resolve));
+    const url = 'http://127.0.0.1:' + firehose.address().port + '/big';
+
+    try {
+        const res = await get('/flowgen/source?url=' + encodeURIComponent(url));
+        assert.ok(res.status >= 400 || res.status === 200, 'gave ' + res.status);
+    } finally {
+        closed = true;
+        await new Promise(resolve => firehose.close(resolve));
+    }
+    await stillAlive();
+});
+
+test('a git url whose protocol is not http is refused', async () => {
+    for (const bad of ['ftp://example.test/x.git', 'ssh://git@example.test/x.git',
+        'file:///tmp/x.git']) {
+        const res = await get('/flowgen/source?url=' + encodeURIComponent(bad));
+        assert.ok(res.status >= 400 && res.status < 500,
+            bad + ' gave ' + res.status);
+    }
+    await stillAlive();
+});
+
+test('a repository that holds nothing usable is reported', async () => {
+    const os = require('os');
+    const { execFileSync } = require('child_process');
+
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'flowgen-ep-empty-'));
+    fs.writeFileSync(path.join(repo, 'README.md'), 'nothing here');
+    execFileSync('git', ['init', '-q', repo]);
+    execFileSync('git', ['-C', repo, 'add', '-A']);
+    execFileSync('git', ['-C', repo, '-c', 'user.email=t@t', '-c', 'user.name=t',
+        'commit', '-qm', 'x']);
+    execFileSync('git', ['-C', repo, 'update-server-info']);
+
+    const statics = express();
+    statics.use(express.static(repo, { dotfiles: 'allow' }));
+    const gitServer = http.createServer(statics);
+    await new Promise(resolve => gitServer.listen(0, '127.0.0.1', resolve));
+    const url = 'http://127.0.0.1:' + gitServer.address().port + '/.git';
+
+    try {
+        const res = await get('/flowgen/source?url=' + encodeURIComponent(url));
+        assert.ok(res.status < 500, 'gave ' + res.status);
+        if (res.status === 200) {
+            assert.deepStrictEqual(JSON.parse(res.body).files, []);
+        }
+    } finally {
+        await new Promise(resolve => gitServer.close(resolve));
+        fs.rmSync(repo, { recursive: true, force: true });
+    }
+    await stillAlive();
+});
+
+test('a zip whose entries are all uninteresting yields nothing', async () => {
+    const zip = zipwriter.buildDeflated([
+        { path: 'README.md', text: 'no' },
+        { path: 'src/index.ts', text: 'no' },
+        { path: '.git/config', text: 'no' },
+        { path: 'node_modules/x.yml', text: 'no' }
+    ]);
+    const res = await request({
+        path: '/flowgen/source', method: 'POST',
+        headers: { 'content-type': 'application/zip', 'content-length': zip.length }
+    }, zip);
+
+    assert.strictEqual(res.status, 200, res.body);
+    assert.deepStrictEqual(JSON.parse(res.body).files, []);
+    await stillAlive();
+});
+
 test('every route demands the flows.write permission', () => {
     const asked = [];
     const guard = function (req, res, next) { next(); };
