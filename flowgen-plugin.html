@@ -192,12 +192,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         'https://petstore.swagger.io/v2/swagger.json'
     ].join('\n');
 
-    // Parsing and generation are done by the runtime. The editor used to
-    // download the generator and a YAML parser and run them itself, which put
-    // that whole surface on every browser and could lock up the tab on a large
-    // document. All that is left here is asking the backend and drawing the
-    // answer. load() stays so callers keep their shape, and confirms the
-    // routes are actually there before the tab offers itself.
     function load() {
         if (loading) { return loading; }
         loading = $.ajax({
@@ -206,7 +200,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
             contentType: 'application/json',
             data: JSON.stringify({ text: '' })
         }).then(function () { return true; }, function (xhr) {
-            // A parse error means the route answered, which is all this asks.
             if (xhr && xhr.status === 400) { return true; }
             return $.Deferred().reject(xhr).promise();
         });
@@ -284,7 +277,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         $('#flowgen-select-btn').hide();
         okButton(false);
     }
-
 
     function useCollection(files) {
         status('reading the collection...');

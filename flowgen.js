@@ -8,10 +8,6 @@
 }(typeof self !== 'undefined' ? self : this, function (yaml) {
 'use strict';
 
-// --------------------------------------------------------------------
-// Shared constants and small helpers used throughout
-// --------------------------------------------------------------------
-
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
 
 const BODYLESS = new Set(['get', 'head']);
@@ -22,10 +18,6 @@ const USER_PARAM = /^(user|username|userid|user_id|login)$/i;
 
 const PASSWD_PARAM = /^(passwd|password|pass|pwd)$/i;
 
-// Per character label widths read out of the editor itself, through the same
-// RED.view.calculateTextWidth the node renderer uses. Guessing at these from
-// character classes put short labels a whole grid cell out, which left the node
-// off the grid and closed up the gap in front of it.
 const GLYPH = {
     ' ': 3, '!': 4, '"': 5, '#': 8, '$': 8, '%': 12, '&': 9, "'": 3,
     '(': 5, ')': 5, '*': 5, '+': 8, ',': 4, '-': 5, '.': 4, '/': 4,
@@ -39,10 +31,6 @@ const GLYPH = {
     '{': 5, '|': 4, '}': 5, '~': 8
 };
 
-// The editor rounds a node out to the grid once it has added the chrome around
-// the label, and an input port costs another cell's worth of it. Both figures
-// come from measuring nodes of each kind across labels of two to twenty five
-// characters, not from guesswork.
 const PADDING_WITH_INPUT = 57;
 
 const PADDING_NO_INPUT = 48;
@@ -58,7 +46,6 @@ function quote(value) {
         .replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
         .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '`';
 }
-
 
 function literal(value, indent, schema, resolve) {
     indent = indent || 0;
@@ -131,10 +118,6 @@ function nodeWidth(label, hasInput) {
     return Math.max(100, 20 * Math.ceil((width + padding) / 20));
 }
 
-// --------------------------------------------------------------------
-// Reading a definition: yaml, json, and Bruno collections
-// --------------------------------------------------------------------
-
 function parseDocument(text) {
     if (/^\s*meta\s*\{/.test(String(text || ''))) {
         return parseCollection([{ path: 'request.bru', text: String(text) }]);
@@ -205,7 +188,6 @@ function normalizeRequest(nameHint, source) {
                 const found = pairs.find(pair => pair[0] === name);
                 return found ? found[1] : '';
             };
-            // No header: the retry node signs the challenge once it arrives.
             req.credentials = brunoCredentials(
                 { username: value('username'), password: value('password') }, 'digest');
         }
@@ -254,8 +236,6 @@ function normalizeRequest(nameHint, source) {
                 req.headers.push(['authorization', { __raw: '`Basic ${credentials}`' }]);
             } else if (auth.digest || kind === 'digest') {
                 const entry = auth.digest || auth;
-                // No header here: the retry node in the flow signs the
-                // challenge once the first pass has collected it.
                 req.credentials = brunoCredentials(entry, 'digest');
             } else if (auth.apikey || kind === 'apikey' || kind === 'api-key') {
                 const entry = auth.apikey || auth;
@@ -387,10 +367,6 @@ function toBruno(doc) {
     return bruno;
 }
 
-// --------------------------------------------------------------------
-// Authentication
-// --------------------------------------------------------------------
-
 function credentialsFrom(urlParams) {
     const pick = re => (urlParams || []).find(p => p.in === 'path' && re.test(p.name));
     const user = pick(USER_PARAM);
@@ -403,13 +379,7 @@ function credentialsFrom(urlParams) {
     };
 }
 
-// The retry node: it runs on the 401, reads the challenge out of the response
-// and rebuilds the same request with an Authorization header the server will
-// accept. The cookies matter as much as the nonce, because httpbin and its
-// successors hand one out with the challenge and refuse the retry without it.
 function brunoCredentials(entry, scheme) {
-    // Named trim rather than raw: the outer file has no raw() any more, and
-    // reusing the name here is what let a blanket rewrite damage this.
     const clean = value => String(value === undefined || value === null ? '' : value).trim();
     const read = (value, fallback) => {
         const text = clean(value);
@@ -428,10 +398,6 @@ function brunoCredentials(entry, scheme) {
     };
 }
 
-
-// Whether this operation is digest protected, and under what credential names.
-// The generator already worked this out while producing the code, so the answer
-// is taken from there rather than reasoning about the document a second time.
 function digestOf(doc, method, target) {
     let found = null;
     const seen = credentialsSink;
@@ -443,10 +409,6 @@ function digestOf(doc, method, target) {
 
 let credentialsSink = null;
 
-// A self contained MD5. The generated retry node runs inside a Node-RED
-// function node, which has no require, and the libs field is unavailable
-// wherever functionExternalModules is disabled. Verified against
-// crypto.createHash('md5') over 515 inputs by tests/test-digest.js.
 const MD5_SOURCE = [
     "function md5(input) {",
     "    const S = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,",
@@ -589,10 +551,6 @@ function digestRetryCode(pair, method) {
     ].join('\n');
 }
 
-// --------------------------------------------------------------------
-// Turning one operation into the text of a function node
-// --------------------------------------------------------------------
-
 function valuesFor(schema, param) {
     const out = [];
     const push = value => {
@@ -662,9 +620,6 @@ function assemble(parts) {
         : names.length === 2 ? names[0] + ' and ' + names[1]
         : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
     const typed = (label, type) => type ? label + ' (' + type + ')' : label;
-    // What the reader has to supply is the placeholder sitting in the value, so
-    // that is what gets named. A value the spec left empty has no placeholder to
-    // point at, and there the header's own name is the only thing to go on.
     const blank = pairs => {
         const named = [];
         const empty = [];
@@ -700,9 +655,6 @@ function assemble(parts) {
     if (credentialsSink && parts.credentials) { credentialsSink(parts.credentials); }
     if (parts.credentials && parts.credentials.scheme === 'digest') {
         lines.push('');
-        // Digest is a two pass exchange, and the two passes are two http
-        // request nodes rather than two edits to one. This first pass carries
-        // no credentials on purpose: it exists to collect the challenge.
         lines.push('// Digest auth answers this call with 401 and a challenge. The node');
         lines.push('// after the request reads that challenge and signs the retry, so no');
         lines.push('// credentials are sent here.');
@@ -763,9 +715,6 @@ function assemble(parts) {
         lines.push('msg.payload = ' +
             literal(parts.payload, 0, parts.payloadSchema, parts.resolve) + ';');
     } else if (!BODYLESS.has(String(parts.method || '').toLowerCase())) {
-        // A method that can carry a body but does not here would otherwise send
-        // whatever the inject node left in msg.payload. GET and HEAD never send
-        // a body at all, so there is nothing to clear and nothing to explain.
         lines.push('');
         lines.push('// This request carries no body, so drop whatever `msg.payload` held.');
         lines.push('delete msg.payload;');
@@ -860,8 +809,6 @@ function generateOpenApi3(doc, rawMethod, target) {
                     credentials.scheme = s;
                     if (s === 'digest') {
                         credentials.realm = String(scheme.realm || '');
-                        // No header on the first pass: it goes out to collect
-                        // the challenge, and the retry node signs the second.
                     } else {
                         headers.push(['authorization', { __raw: '`Basic ${credentials}`' }]);
                     }
@@ -1129,10 +1076,6 @@ function generateSwagger2(doc, rawMethod, target) {
     });
 }
 
-// --------------------------------------------------------------------
-// Listing what a definition contains
-// --------------------------------------------------------------------
-
 function listOperations(doc) {
     const format = detectFormat(doc);
     if (format === 'bruno') {
@@ -1174,10 +1117,6 @@ function formatList(result) {
     const width = rows.reduce((max, r) => Math.max(max, r.args.length), 0);
     return rows.map(r => r.args + ' '.repeat(width - r.args.length) + (r.note ? '  # ' + r.note : '')).join('\n');
 }
-
-// --------------------------------------------------------------------
-// The public entry points
-// --------------------------------------------------------------------
 
 function generate(doc, method, target) {
     const format = detectFormat(doc);
@@ -1250,9 +1189,6 @@ function buildFlow(doc, method, target, options) {
     }
     const name = String(method).toUpperCase() + ' ' + shown;
 
-    // Digest cannot be answered in one pass: the server replies 401 with a
-    // challenge, and only a second request carrying a signature built from it
-    // is accepted. The flow shows that shape rather than hiding it.
     const digest = digestOf(doc, method, target);
     const retryName = digest ? 'sign the digest challenge' : null;
     const labels = digest
@@ -1292,8 +1228,6 @@ function buildFlow(doc, method, target, options) {
             id: 'flowgen-request', type: 'http request', z: tab, name: '',
             method: 'use', ret: 'obj', paytoqs: 'ignore', url: '', tls: '',
             persist: false, proxy: '', insecureHTTPParser: false,
-            // A 401 is the expected answer to the first pass, so the node has
-            // to hand the response on instead of raising it as an error.
             authType: '', senderr: digest ? true : false, headers: [],
             x: xs[2], y: 100,
             wires: [[digest ? 'flowgen-digest' : 'flowgen-debug']]
@@ -1306,8 +1240,6 @@ function buildFlow(doc, method, target, options) {
             func: digestRetryCode(digest, String(method).toUpperCase()),
             outputs: 1, timeout: 0, noerr: 0,
             initialize: '', finalize: '',
-            // Deliberately empty: the retry code carries its own MD5 so the
-            // flow works where functionExternalModules is disabled.
             libs: [],
             x: xs[3], y: 100, wires: [['flowgen-retry']]
         });

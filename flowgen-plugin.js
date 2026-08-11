@@ -31,11 +31,6 @@ module.exports = function (RED) {
         }
     });
 
-    // A zip that is small on the wire can expand enormously: 200KB of deflate
-    // reaches 200MB in memory at a ratio around 1000x, which the upload limit
-    // alone cannot catch. The runtime shares a process with Node-RED, so
-    // exhausting the heap here stops every flow on the host. Three limits
-    // apply, and each is checked while reading rather than afterwards.
     const UNZIP_LIMITS = {
         totalBytes: 64 * 1024 * 1024,
         entryBytes: 16 * 1024 * 1024,
@@ -69,8 +64,6 @@ module.exports = function (RED) {
                     return fail(new Error('the archive holds more than ' +
                         UNZIP_LIMITS.entries + ' usable files'));
                 }
-                // The header states the size before a byte is read, so an
-                // oversized entry is refused without decompressing it.
                 if (entry.uncompressedSize > UNZIP_LIMITS.entryBytes) {
                     return fail(new Error(name + ' expands to ' +
                         entry.uncompressedSize + ' bytes, over the ' +
@@ -88,8 +81,6 @@ module.exports = function (RED) {
                         if (failed) { return; }
                         read += c.length;
                         total += c.length;
-                        // The header is attacker controlled, so the running
-                        // total is what actually stops a lying archive.
                         if (read > UNZIP_LIMITS.entryBytes ||
                                 total > UNZIP_LIMITS.totalBytes) {
                             stream.destroy();
@@ -112,11 +103,6 @@ module.exports = function (RED) {
 
     function gather(root) {
         const files = [];
-        // git clones symbolic links as links, so a repository can ship
-        // link.yaml -> /etc/passwd and have its contents read back. Links are
-        // skipped outright, and every path is resolved and checked to be
-        // inside the clone before it is opened, which also covers a link
-        // sitting on one of the parent directories.
         const base = fs.realpathSync(root);
         const inside = target => {
             const resolved = fs.realpathSync(target);
@@ -164,17 +150,6 @@ module.exports = function (RED) {
         request.on('error', done);
     }
 
-    // A private repository is reached with credentials in the url, which git
-    // accepts for http and https. git:// is also accepted as a spelling of the
-    // same thing and rewritten, because the protocol itself carries no
-    // authentication and would ignore the credentials silently.
-    //
-    // The credentials must never come back out. git usually redacts them, but
-    // not in every message, and the url is echoed in several places besides.
-    // Everything leaving this route goes through redact().
-    // Without these git will stop and ask for a password on a private
-    // repository whose credentials are wrong, and the request hangs until the
-    // timeout rather than failing with something the reader can act on.
     const CLONE_OPTIONS = {
         timeout: 60000,
         env: Object.assign({}, process.env, {
@@ -198,15 +173,8 @@ module.exports = function (RED) {
         if (!/^git:$/i.test(parsed.protocol)) {
             return /^https?:$/.test(parsed.protocol) ? url : null;
         }
-        // The git protocol carries no authentication, so credentials written
-        // against it would be dropped in silence. It is treated as a spelling
-        // of the http family instead. https unless the host is plainly local,
-        // where demanding TLS would fail against a server that does not speak
-        // it, and where the traffic is not leaving the machine anyway.
         const local = parsed.hostname === 'localhost' ||
             /^127\./.test(parsed.hostname) || parsed.hostname === '::1';
-        // Assigning parsed.protocol does not take for git:, which the URL
-        // parser treats as opaque, so the scheme is replaced in the text.
         return url.replace(/^git:/i, local ? 'http:' : 'https:');
     }
 
@@ -274,21 +242,8 @@ module.exports = function (RED) {
         });
     });
 
-    // Parsing and code generation happen here rather than in the editor. The
-    // browser previously downloaded flowgen.js and a build of js-yaml and ran
-    // them itself, which put a YAML parser and the whole generator on every
-    // supported browser. Keeping it server side removes that surface, and a
-    // large document no longer risks freezing the tab the editor lives in.
     const flowgen = require('./flowgen');
 
-    // The admin API already runs body-parser, so the stream is consumed before
-    // a route sees it and req.body holds the parsed value. Reading req directly
-    // here yields nothing, which is how this was first written and why the
-    // routes appeared to be missing.
-    //
-    // body-parser also enforces its own size limit, so the guard that belongs
-    // here is on what the parsed document costs to work with rather than on
-    // how many bytes arrived.
     const MAX_TEXT = 16 * 1024 * 1024;
 
     function tooLarge(body) {
