@@ -125,15 +125,23 @@ async function paste(page, text) {
 
 async function settled(page) {
     // The panel debounces before it asks the runtime, so a check that runs
-    // immediately sees the state from before the keystroke. Give the request a
-    // chance to start, then wait for it to finish.
-    await page.waitForTimeout(500);
+    // immediately sees the state from before the keystroke. Poll for the
+    // request to start rather than sleeping through the debounce every time:
+    // a fixed wait on every paste added up past the suite's own budget on the
+    // slower macOS runner, which is what made it time out.
+    const busy = () => page.evaluate(() => {
+        const status = document.getElementById('flowgen-status');
+        return /\.\.\.$/.test(String((status && status.textContent) || '').trim());
+    });
+    for (let waited = 0; waited < 1200; waited += 50) {
+        if (await busy()) { break; }
+        await page.waitForTimeout(50);
+    }
     await page.waitForFunction(() => {
         const status = document.getElementById('flowgen-status');
-        const text = status ? String(status.textContent || '') : '';
-        return !/\.\.\.$/.test(text.trim());
+        return !/\.\.\.$/.test(String((status && status.textContent) || '').trim());
     }, null, { timeout: 30000 }).catch(() => {});
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(100);
 }
 
 const nodeTypes = page => page.evaluate(() => {

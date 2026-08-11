@@ -37,7 +37,7 @@
     "test:nodered": "node --test tests/test-nodered.js",
     "test:plugin": "node --test tests/test-plugin.js",
     "test:all": "node --test tests/test.js tests/test-cli.js tests/test-bruno.js tests/test-ui.js tests/test-nodered.js tests/test-plugin.js",
-    "test:browser": "node --test --test-timeout 180000 tests/test-browser.js",
+    "test:browser": "node --test --test-timeout 600000 tests/test-browser.js",
     "test:live": "node tests/test-live.js",
     "coverage": "npx c8 --reporter=text --reporter=text-summary --reporter=lcov --reporter=html --include=flowgen.js --include=flowgen-plugin.js --report-dir=coverage node --test --test-timeout 300000 tests/test.js tests/test-cli.js tests/test-bruno.js tests/test-nodered.js tests/test-plugin.js tests/test-plugin-unit.js tests/test-wizard.js tests/test-converters.js tests/test-error-words.js tests/test-nrlint.js",
     "test:ollama": "node --test --test-timeout 900000 tests/test-ollama.js",
