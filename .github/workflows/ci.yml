@@ -279,6 +279,10 @@ jobs:
     # Records what the corpus jobs found and retires the definitions that
     # passed, so the next run spends its time on ones not yet proven.
     runs-on: ubuntu-latest
+    # The default token is read only for contents, and pushing without this
+    # fails with a bare exit code 128.
+    permissions:
+      contents: write
     needs: corpus
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
