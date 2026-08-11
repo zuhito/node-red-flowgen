@@ -47,7 +47,7 @@ function methodBreakdown(entry) {
     const methods = entry.methods || {};
     const parts = Object.keys(methods).sort()
         .map(name => name.toUpperCase() + ' ' + methods[name]);
-    return parts.length ? parts.join(', ') : 'unknown';
+    return parts.length ? parts.join(', ') : '不明';
 }
 
 // What makes this definition unlike the others, so a reader can tell at a
@@ -55,15 +55,15 @@ function methodBreakdown(entry) {
 function character(entry) {
     const traits = [];
     const methods = Object.keys(entry.methods || {});
-    if (methods.length > 3) { traits.push('many verbs'); }
-    else if (methods.length === 1) { traits.push('read only'); }
-    if (entry.endpoints > 100) { traits.push('large surface'); }
-    else if (entry.endpoints <= 3) { traits.push('tiny surface'); }
+    if (methods.length > 3) { traits.push('メソッドが多い'); }
+    else if (methods.length === 1) { traits.push('参照のみ'); }
+    if (entry.endpoints > 100) { traits.push('大規模'); }
+    else if (entry.endpoints <= 3) { traits.push('小規模'); }
     if (entry.callable !== undefined && entry.callable < entry.endpoints) {
-        traits.push(entry.callable + ' of ' + entry.endpoints + ' callable anonymously');
+        traits.push('認証なしで呼べるのは ' + entry.endpoints + ' 中 ' + entry.callable);
     }
-    if (/\.gov\//.test(entry.spec)) { traits.push('government'); }
-    return traits.length ? traits.join('; ') : 'plain';
+    if (/\.gov\//.test(entry.spec)) { traits.push('政府機関'); }
+    return traits.length ? traits.join('、') : '特記なし';
 }
 
 function main() {
@@ -86,15 +86,15 @@ function main() {
         const entry = byId.get(id);
         if (!entry) { continue; }
 
-        const status = job.conclusion === 'success' ? 'pass'
-            : job.conclusion === 'skipped' ? 'skipped' : 'fail';
-        if (status === 'pass') { passed.add(id); }
+        const status = job.conclusion === 'success' ? '成功'
+            : job.conclusion === 'skipped' ? '除外' : '失敗';
+        if (status === '成功') { passed.add(id); }
 
         rows.push({
             spec: entry.spec,
             status: status,
             endpoints: entry.endpoints,
-            format: entry.format || 'unknown',
+            format: entry.format || '不明',
             methods: methodBreakdown(entry),
             callable: entry.callable === undefined ? '?' : entry.callable,
             probe: entry.probe.method.toUpperCase() + ' ' + entry.probe.path,
@@ -105,26 +105,46 @@ function main() {
 
     rows.sort((a, b) => a.spec.localeCompare(b.spec));
 
-    const head = fs.existsSync(PROGRESS)
-        ? fs.readFileSync(PROGRESS, 'utf8').split('<!-- rows -->')[0]
-        : ['# Corpus progress', '',
-            'Public API definitions called for real, comparing curl against a',
-            'generated flow. A definition that passes is retired from the corpus',
-            'so the next run spends its time on ones not yet proven; a definition',
-            'that fails stays, because that is the reason to keep looking.', '',
-            '| Definition | Status | Format | Endpoints | By method | Called | Probed | flowgen | Character |',
-            '| --- | --- | --- | --- | --- | --- | --- | --- | --- |', ''].join('\n');
+    // The file is rebuilt from its own table rather than split on a marker.
+    // Splitting on "<!-- rows -->" matched the path /rest/v1/neo/browse, whose
+    // "browse" contains "rows", and tore the table in half.
+    const previous = [];
+    if (fs.existsSync(PROGRESS)) {
+        for (const line of fs.readFileSync(PROGRESS, 'utf8').split('\n')) {
+            if (/^\|\s*`/.test(line)) { previous.push(line); }
+        }
+    }
 
-    const existing = fs.existsSync(PROGRESS)
-        ? fs.readFileSync(PROGRESS, 'utf8').split('<!-- rows -->')[1] || ''
-        : '';
+    const seen = new Set(rows.map(r => r.spec));
+    const kept = previous.filter(line => {
+        const match = line.match(/^\|\s*`([^`]+)`/);
+        return match && !seen.has(match[1]);
+    });
 
     const lines = rows.map(r => '| `' + r.spec + '` | ' + r.status + ' | ' + r.format +
         ' | ' + r.endpoints + ' | ' + r.methods + ' | ' + r.callable +
         ' | `' + r.probe + '` | `' + r.sha + '` | ' + r.traits + ' |');
 
-    fs.writeFileSync(PROGRESS, head + '<!-- rows -->\n' +
-        existing.trim() + (existing.trim() ? '\n' : '') + lines.join('\n') + '\n');
+    const all = kept.concat(lines).sort();
+    const passes = all.filter(line => /\|\s*成功\s*\|/.test(line)).length;
+
+    fs.writeFileSync(PROGRESS, [
+        '# 実 API に対する検証の記録',
+        '',
+        '公開されている API 定義を実際に呼び出し、curl のレスポンスと、生成した',
+        'フローの debug ノードが受け取った内容が一致するかを確かめた記録です。',
+        '',
+        '成功した定義は対象から外します。同じものを繰り返し確かめるより、まだ',
+        '確かめていない定義に時間を使うためです。失敗した定義は残します。それが',
+        '調べ続ける理由だからです。',
+        '',
+        '検証済み **' + all.length + '** 定義（うち成功 ' + passes + '）。',
+        '',
+        '| 定義 | 結果 | 形式 | エンドポイント数 | メソッド内訳 | 実際に呼んだ数 | 到達確認に使った経路 | flowgen | この定義の特徴 |',
+        '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+        all.join('\n'),
+        ''
+    ].join('\n'));
 
     const left = corpus.definitions.filter(d => !passed.has(d.id));
     corpus.definitions = left;
