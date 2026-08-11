@@ -7,7 +7,7 @@
 確かめていない定義に時間を使うためです。失敗した定義は残します。それが
 調べ続ける理由だからです。
 
-検証済み **163** 定義（うち成功 158）。
+検証済み **163** 定義（うち成功 160）。
 
 | 定義 | 結果 | 形式 | エンドポイント数 | メソッド内訳 | 実際に呼んだ数 | 到達確認に使った経路 | flowgen | この定義の特徴 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -55,7 +55,7 @@
 | `corrently.io/2.0.0/openapi.yaml` | 成功 | openapi 3.0 | 26 | GET 16, POST 10 | 4 | `GET /alternative/ocpp/lastSessions` | `ce61d5ae` | 認証なしで呼べるのは 26 中 4 |
 | `cpy.re/peertube/5.1.0/openapi.yaml` | 成功 | openapi 3.0 | 185 | DELETE 27, GET 83, POST 59, PUT 16 | 10 | `GET /api/v1/config` | `ce61d5ae` | メソッドが多い、大規模、認証なしで呼べるのは 185 中 10 |
 | `crucible.local/1.0.0/swagger.yaml` | 成功 | swagger 2 | 79 | DELETE 7, GET 43, POST 28, PUT 1 | 2 | `GET /rest-service/projects-v1` | `ce61d5ae` | メソッドが多い、認証なしで呼べるのは 79 中 2 |
-| `cybertaxonomy.eu/1.0/swagger.yaml` | 失敗 | swagger 2 | 2 | GET 2 | 1 | `GET /capabilities` | `80668dce` | 参照のみ、小規模、認証なしで呼べるのは 2 中 1 |
+| `cybertaxonomy.eu/1.0/swagger.yaml` | 成功 | swagger 2 | 2 | GET 2 | 1 | `GET /capabilities` | `bff14f37` | 参照のみ、小規模、認証なしで呼べるのは 2 中 1 |
 | `dataatwork.org/1.0/swagger.yaml` | 成功 | swagger 2 | 13 | GET 13 | 1 | `GET /jobs/unusual_titles` | `80668dce` | 参照のみ、認証なしで呼べるのは 13 中 1 |
 | `deutschebahn.com/flinkster/v1/swagger.yaml` | 成功 | swagger 2 | 10 | GET 10 | 1 | `GET /index` | `ce61d5ae` | 参照のみ、認証なしで呼べるのは 10 中 1 |
 | `dev.to/1.0.0/openapi.yaml` | 成功 | openapi 3.0 | 40 | DELETE 1, GET 26, POST 6, PUT 7 | 7 | `GET /api/articles` | `ce61d5ae` | メソッドが多い、認証なしで呼べるのは 40 中 7 |
@@ -71,7 +71,7 @@
 | `exhibitday.com/v1/swagger.yaml` | 成功 | swagger 2 | 23 | DELETE 3, GET 14, PATCH 3, POST 3 | 1 | `GET /api/docs/Swagger` | `ce61d5ae` | メソッドが多い、認証なしで呼べるのは 23 中 1 |
 | `fecru.local/1.0.0/swagger.yaml` | 成功 | swagger 2 | 113 | DELETE 18, GET 43, POST 21, PUT 31 | 15 | `GET /rest-service-fecru/admin/repositories/~defaults/permissions` | `80668dce` | メソッドが多い、大規模、認証なしで呼べるのは 113 中 15 |
 | `figshare.com/2.0.0/openapi.yaml` | 成功 | openapi 3.0 | 136 | DELETE 17, GET 63, POST 40, PUT 16 | 2 | `GET /categories` | `ce61d5ae` | メソッドが多い、大規模、認証なしで呼べるのは 136 中 2 |
-| `firebrowse.org/1.1.38/swagger.yaml` | 失敗 | swagger 2 | 30 | GET 30 | 11 | `GET /Metadata/Centers` | `80668dce` | 参照のみ、認証なしで呼べるのは 30 中 11 |
+| `firebrowse.org/1.1.38/swagger.yaml` | 成功 | swagger 2 | 30 | GET 30 | 11 | `GET /Metadata/Centers` | `bff14f37` | 参照のみ、認証なしで呼べるのは 30 中 11 |
 | `fisheye.local/1.0.0/swagger.yaml` | 成功 | swagger 2 | 16 | GET 13, POST 3 | 1 | `GET /rest-service-fe/repositories-v1` | `ce61d5ae` | 認証なしで呼べるのは 16 中 1 |
 | `getpostman.com/1.20.0/openapi.yaml` | 成功 | openapi 3.0 | 57 | DELETE 8, GET 23, POST 17, PUT 9 | 7 | `GET /apis` | `ce61d5ae` | メソッドが多い、認証なしで呼べるのは 57 中 7 |
 | `gov.bc.ca/bcgnws/3.x.x/openapi.yaml` | 成功 | openapi 3.0 | 14 | GET 14 | 11 | `GET /featureCategories` | `ce61d5ae` | 参照のみ、認証なしで呼べるのは 14 中 11 |

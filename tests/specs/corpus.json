@@ -1,34 +1,5 @@
 {
   "source": "https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/",
   "maxEndpoints": 256,
-  "definitions": [
-    {
-      "id": "cybertaxonomy.eu-1.0-swagger",
-      "spec": "cybertaxonomy.eu/1.0/swagger.yaml",
-      "endpoints": 2,
-      "methods": {
-        "get": 2
-      },
-      "callable": 1,
-      "format": "swagger 2",
-      "probe": {
-        "method": "get",
-        "path": "/capabilities"
-      }
-    },
-    {
-      "id": "firebrowse.org-1.1.38-swagger",
-      "spec": "firebrowse.org/1.1.38/swagger.yaml",
-      "endpoints": 30,
-      "methods": {
-        "get": 30
-      },
-      "callable": 11,
-      "format": "swagger 2",
-      "probe": {
-        "method": "get",
-        "path": "/Metadata/Centers"
-      }
-    }
-  ]
+  "definitions": []
 }
