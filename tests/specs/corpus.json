@@ -1,5 +1,740 @@
 {
   "source": "https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/",
   "maxEndpoints": 256,
-  "definitions": []
+  "definitions": [
+    {
+      "id": "1password.local-connect-1.5.7-openapi",
+      "spec": "1password.local/connect/1.5.7/openapi.yaml",
+      "endpoints": 15,
+      "methods": {
+        "get": 11,
+        "post": 1,
+        "put": 1,
+        "delete": 1,
+        "patch": 1
+      },
+      "callable": 3,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/health"
+      }
+    },
+    {
+      "id": "airbyte.local-config-1.0.0-openapi",
+      "spec": "airbyte.local/config/1.0.0/openapi.yaml",
+      "endpoints": 102,
+      "methods": {
+        "post": 100,
+        "get": 2
+      },
+      "callable": 2,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/v1/health"
+      }
+    },
+    {
+      "id": "akeneo.com-1.0.0-swagger",
+      "spec": "akeneo.com/1.0.0/swagger.yaml",
+      "endpoints": 144,
+      "methods": {
+        "post": 23,
+        "get": 75,
+        "patch": 39,
+        "delete": 6,
+        "put": 1
+      },
+      "callable": 14,
+      "format": "swagger 2",
+      "probe": {
+        "method": "get",
+        "path": "/api/rest/v1"
+      }
+    },
+    {
+      "id": "apicurio.local-registry-1.3.2.Final-openapi",
+      "spec": "apicurio.local/registry/1.3.2.Final/openapi.yaml",
+      "endpoints": 33,
+      "methods": {
+        "get": 14,
+        "post": 5,
+        "put": 8,
+        "delete": 6
+      },
+      "callable": 2,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/artifacts"
+      }
+    },
+    {
+      "id": "apidapp.com-2019-02-14T164701Z-openapi",
+      "spec": "apidapp.com/2019-02-14T164701Z/openapi.yaml",
+      "endpoints": 54,
+      "methods": {
+        "options": 24,
+        "post": 12,
+        "get": 17,
+        "delete": 1
+      },
+      "callable": 4,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/erc20"
+      }
+    },
+    {
+      "id": "axesso.de-1.0.0-openapi",
+      "spec": "axesso.de/1.0.0/openapi.yaml",
+      "endpoints": 4,
+      "methods": {
+        "get": 4
+      },
+      "callable": 1,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/amz/sort-options"
+      }
+    },
+    {
+      "id": "bbci.co.uk-1.0-openapi",
+      "spec": "bbci.co.uk/1.0/openapi.yaml",
+      "endpoints": 30,
+      "methods": {
+        "get": 30
+      },
+      "callable": 5,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/categories"
+      }
+    },
+    {
+      "id": "bigoven.com-partner-openapi",
+      "spec": "bigoven.com/partner/openapi.yaml",
+      "endpoints": 66,
+      "methods": {
+        "get": 33,
+        "delete": 6,
+        "post": 17,
+        "put": 10
+      },
+      "callable": 7,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/grocerylist"
+      }
+    },
+    {
+      "id": "bungie.net-2.18.0-openapi",
+      "spec": "bungie.net/2.18.0/openapi.yaml",
+      "endpoints": 134,
+      "methods": {
+        "get": 88,
+        "post": 46
+      },
+      "callable": 13,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/App/FirstParty/"
+      }
+    },
+    {
+      "id": "chaingateway.io-1.0.0-openapi",
+      "spec": "chaingateway.io/1.0.0/openapi.yaml",
+      "endpoints": 119,
+      "methods": {
+        "get": 70,
+        "post": 40,
+        "delete": 9
+      },
+      "callable": 26,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/v2/bitcoin/blocks/number"
+      }
+    },
+    {
+      "id": "clearblade.com-3.0-swagger",
+      "spec": "clearblade.com/3.0/swagger.yaml",
+      "endpoints": 220,
+      "methods": {
+        "get": 94,
+        "post": 54,
+        "put": 38,
+        "delete": 34
+      },
+      "callable": 2,
+      "format": "swagger 2",
+      "probe": {
+        "method": "get",
+        "path": "/admin/database/status"
+      }
+    },
+    {
+      "id": "clicksend.com-1.0.0-openapi",
+      "spec": "clicksend.com/1.0.0/openapi.yaml",
+      "endpoints": 205,
+      "methods": {
+        "get": 93,
+        "put": 47,
+        "post": 50,
+        "delete": 15
+      },
+      "callable": 41,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/account"
+      }
+    },
+    {
+      "id": "clubhouseapi.com-1-openapi",
+      "spec": "clubhouseapi.com/1/openapi.yaml",
+      "endpoints": 41,
+      "methods": {
+        "post": 31,
+        "get": 10
+      },
+      "callable": 10,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/check_for_update"
+      }
+    },
+    {
+      "id": "cybertaxonomy.eu-1.0-swagger",
+      "spec": "cybertaxonomy.eu/1.0/swagger.yaml",
+      "endpoints": 2,
+      "methods": {
+        "get": 2
+      },
+      "callable": 1,
+      "format": "swagger 2",
+      "probe": {
+        "method": "get",
+        "path": "/capabilities"
+      }
+    },
+    {
+      "id": "dataatwork.org-1.0-swagger",
+      "spec": "dataatwork.org/1.0/swagger.yaml",
+      "endpoints": 13,
+      "methods": {
+        "get": 13
+      },
+      "callable": 1,
+      "format": "swagger 2",
+      "probe": {
+        "method": "get",
+        "path": "/jobs/unusual_titles"
+      }
+    },
+    {
+      "id": "dnd5eapi.co-0.1-openapi",
+      "spec": "dnd5eapi.co/0.1/openapi.yaml",
+      "endpoints": 47,
+      "methods": {
+        "get": 47
+      },
+      "callable": 1,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/api"
+      }
+    },
+    {
+      "id": "fecru.local-1.0.0-swagger",
+      "spec": "fecru.local/1.0.0/swagger.yaml",
+      "endpoints": 113,
+      "methods": {
+        "get": 43,
+        "post": 21,
+        "put": 31,
+        "delete": 18
+      },
+      "callable": 15,
+      "format": "swagger 2",
+      "probe": {
+        "method": "get",
+        "path": "/rest-service-fecru/admin/repositories/~defaults/permissions"
+      }
+    },
+    {
+      "id": "firebrowse.org-1.1.38-swagger",
+      "spec": "firebrowse.org/1.1.38/swagger.yaml",
+      "endpoints": 30,
+      "methods": {
+        "get": 30
+      },
+      "callable": 11,
+      "format": "swagger 2",
+      "probe": {
+        "method": "get",
+        "path": "/Metadata/Centers"
+      }
+    },
+    {
+      "id": "hackathonwatch.com-0.1-openapi",
+      "spec": "hackathonwatch.com/0.1/openapi.yaml",
+      "endpoints": 4,
+      "methods": {
+        "get": 4
+      },
+      "callable": 2,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/hackathons/coming.json"
+      }
+    },
+    {
+      "id": "just-eat.co.uk-1.0.0-openapi",
+      "spec": "just-eat.co.uk/1.0.0/openapi.yaml",
+      "endpoints": 97,
+      "methods": {
+        "post": 25,
+        "put": 38,
+        "get": 28,
+        "patch": 2,
+        "delete": 4
+      },
+      "callable": 1,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/delivery/pools"
+      }
+    },
+    {
+      "id": "learnifier.com-1.1.0-swagger",
+      "spec": "learnifier.com/1.1.0/swagger.yaml",
+      "endpoints": 34,
+      "methods": {
+        "get": 20,
+        "post": 8,
+        "patch": 3,
+        "delete": 3
+      },
+      "callable": 4,
+      "format": "swagger 2",
+      "probe": {
+        "method": "get",
+        "path": "/coursedesigns"
+      }
+    },
+    {
+      "id": "magick.nu-1.0-swagger",
+      "spec": "magick.nu/1.0/swagger.yaml",
+      "endpoints": 8,
+      "methods": {
+        "get": 4,
+        "post": 2,
+        "put": 2
+      },
+      "callable": 1,
+      "format": "swagger 2",
+      "probe": {
+        "method": "get",
+        "path": "/strategies/templates"
+      }
+    },
+    {
+      "id": "mastodon.local-1.0-openapi",
+      "spec": "mastodon.local/1.0/openapi.yaml",
+      "endpoints": 127,
+      "methods": {
+        "get": 59,
+        "post": 51,
+        "patch": 1,
+        "put": 5,
+        "delete": 11
+      },
+      "callable": 5,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/api/v1/custom_emojis"
+      }
+    },
+    {
+      "id": "mbus.local-0.3.5-openapi",
+      "spec": "mbus.local/0.3.5/openapi.yaml",
+      "endpoints": 7,
+      "methods": {
+        "get": 2,
+        "post": 5
+      },
+      "callable": 2,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/mbus/api"
+      }
+    },
+    {
+      "id": "meilisearch.com-1.0.0-openapi",
+      "spec": "meilisearch.com/1.0.0/openapi.yaml",
+      "endpoints": 66,
+      "methods": {
+        "post": 9,
+        "get": 25,
+        "delete": 17,
+        "patch": 6,
+        "put": 9
+      },
+      "callable": 24,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/health"
+      }
+    },
+    {
+      "id": "motaword.com-1.0-openapi",
+      "spec": "motaword.com/1.0/openapi.yaml",
+      "endpoints": 219,
+      "methods": {
+        "get": 105,
+        "delete": 13,
+        "post": 94,
+        "put": 7
+      },
+      "callable": 3,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/"
+      }
+    },
+    {
+      "id": "nasa.gov-asteroids-neows-3.4.0-openapi",
+      "spec": "nasa.gov/asteroids neows/3.4.0/openapi.yaml",
+      "endpoints": 3,
+      "methods": {
+        "get": 3
+      },
+      "callable": 1,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/api"
+      }
+    },
+    {
+      "id": "naviplancentral.com-factfinder-v1-swagger",
+      "spec": "naviplancentral.com/factfinder/v1/swagger.yaml",
+      "endpoints": 151,
+      "methods": {
+        "get": 79,
+        "post": 25,
+        "put": 25,
+        "delete": 22
+      },
+      "callable": 14,
+      "format": "swagger 2",
+      "probe": {
+        "method": "get",
+        "path": "/api/AccountTypes"
+      }
+    },
+    {
+      "id": "ndhm.gov.in-ndhm-cm-0.5-openapi",
+      "spec": "ndhm.gov.in/ndhm-cm/0.5/openapi.yaml",
+      "endpoints": 22,
+      "methods": {
+        "post": 21,
+        "get": 1
+      },
+      "callable": 1,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/v0.5/heartbeat"
+      }
+    },
+    {
+      "id": "nebl.io-1.3.0-openapi",
+      "spec": "nebl.io/1.3.0/openapi.yaml",
+      "endpoints": 50,
+      "methods": {
+        "post": 11,
+        "get": 39
+      },
+      "callable": 2,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/ins/sync"
+      }
+    },
+    {
+      "id": "nexmo.com-account-1.0.4-openapi",
+      "spec": "nexmo.com/account/1.0.4/openapi.yaml",
+      "endpoints": 8,
+      "methods": {
+        "get": 3,
+        "post": 4,
+        "delete": 1
+      },
+      "callable": 1,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/account/get-balance"
+      }
+    },
+    {
+      "id": "noosh.com-1.0-openapi",
+      "spec": "noosh.com/1.0/openapi.yaml",
+      "endpoints": 102,
+      "methods": {
+        "get": 77,
+        "post": 14,
+        "put": 8,
+        "delete": 2,
+        "patch": 1
+      },
+      "callable": 1,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/v1/countries"
+      }
+    },
+    {
+      "id": "nsidc.org-1.0.0-openapi",
+      "spec": "nsidc.org/1.0.0/openapi.yaml",
+      "endpoints": 4,
+      "methods": {
+        "get": 4
+      },
+      "callable": 1,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/OpenSearchDescription"
+      }
+    },
+    {
+      "id": "openaq.local-2.0.0-openapi",
+      "spec": "openaq.local/2.0.0/openapi.yaml",
+      "endpoints": 36,
+      "methods": {
+        "get": 36
+      },
+      "callable": 9,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/favicon.ico"
+      }
+    },
+    {
+      "id": "osf.io-2.0-openapi",
+      "spec": "osf.io/2.0/openapi.yaml",
+      "endpoints": 156,
+      "methods": {
+        "get": 116,
+        "post": 19,
+        "delete": 10,
+        "put": 1,
+        "patch": 10
+      },
+      "callable": 16,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/"
+      }
+    },
+    {
+      "id": "patrowl.local-1.0.0-openapi",
+      "spec": "patrowl.local/1.0.0/openapi.yaml",
+      "endpoints": 14,
+      "methods": {
+        "get": 13,
+        "post": 1
+      },
+      "callable": 9,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/"
+      }
+    },
+    {
+      "id": "pendo.io-1.0.0-swagger",
+      "spec": "pendo.io/1.0.0/swagger.yaml",
+      "endpoints": 31,
+      "methods": {
+        "get": 14,
+        "put": 2,
+        "delete": 5,
+        "post": 10
+      },
+      "callable": 1,
+      "format": "swagger 2",
+      "probe": {
+        "method": "get",
+        "path": "/health-check/ping"
+      }
+    },
+    {
+      "id": "peoplegeneratorapi.live-v0-openapi",
+      "spec": "peoplegeneratorapi.live/v0/openapi.yaml",
+      "endpoints": 46,
+      "methods": {
+        "get": 46
+      },
+      "callable": 44,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/api/address"
+      }
+    },
+    {
+      "id": "presalytics.io-ooxml-0.1.0-openapi",
+      "spec": "presalytics.io/ooxml/0.1.0/openapi.yaml",
+      "endpoints": 148,
+      "methods": {
+        "get": 132,
+        "put": 13,
+        "post": 2,
+        "delete": 1
+      },
+      "callable": 14,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/Charts/AxisDataTypes"
+      }
+    },
+    {
+      "id": "probely.com-1.2.0-openapi",
+      "spec": "probely.com/1.2.0/openapi.yaml",
+      "endpoints": 143,
+      "methods": {
+        "get": 71,
+        "post": 34,
+        "put": 14,
+        "patch": 15,
+        "delete": 9
+      },
+      "callable": 1,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/plans/"
+      }
+    },
+    {
+      "id": "reloadly.com-1.0.0-openapi",
+      "spec": "reloadly.com/1.0.0/openapi.yaml",
+      "endpoints": 2,
+      "methods": {
+        "get": 1,
+        "post": 1
+      },
+      "callable": 1,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/questions"
+      }
+    },
+    {
+      "id": "reverb.com-3.0-openapi",
+      "spec": "reverb.com/3.0/openapi.yaml",
+      "endpoints": 163,
+      "methods": {
+        "get": 101,
+        "post": 35,
+        "delete": 17,
+        "put": 10
+      },
+      "callable": 16,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/articles/categories"
+      }
+    },
+    {
+      "id": "rumble.run-2.15.0-openapi",
+      "spec": "rumble.run/2.15.0/openapi.yaml",
+      "endpoints": 116,
+      "methods": {
+        "get": 68,
+        "put": 12,
+        "delete": 14,
+        "post": 7,
+        "patch": 15
+      },
+      "callable": 3,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/releases/agent/version"
+      }
+    },
+    {
+      "id": "salesloft.com-v2-openapi",
+      "spec": "salesloft.com/v2/openapi.yaml",
+      "endpoints": 121,
+      "methods": {
+        "get": 74,
+        "post": 24,
+        "put": 14,
+        "delete": 9
+      },
+      "callable": 2,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/v2/me.json"
+      }
+    },
+    {
+      "id": "scrapewebsite.email-0.1-swagger",
+      "spec": "scrapewebsite.email/0.1/swagger.yaml",
+      "endpoints": 3,
+      "methods": {
+        "get": 3
+      },
+      "callable": 1,
+      "format": "swagger 2",
+      "probe": {
+        "method": "get",
+        "path": "/v1/ping.json"
+      }
+    },
+    {
+      "id": "shipstation.com-1.0.0-openapi",
+      "spec": "shipstation.com/1.0.0/openapi.yaml",
+      "endpoints": 2,
+      "methods": {
+        "get": 1,
+        "post": 1
+      },
+      "callable": 1,
+      "format": "openapi 3.0",
+      "probe": {
+        "method": "get",
+        "path": "/questions"
+      }
+    }
+  ]
 }

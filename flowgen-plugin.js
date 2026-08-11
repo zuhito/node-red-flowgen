@@ -103,6 +103,7 @@ module.exports = function (RED) {
 
     function gather(root) {
         const files = [];
+        let total = 0;
         const base = fs.realpathSync(root);
         const inside = target => {
             const resolved = fs.realpathSync(target);
@@ -117,16 +118,26 @@ module.exports = function (RED) {
                     if (inside(full)) { walk(full); }
                 } else if (entry.isFile() && /\.(bru|ya?ml|json)$/.test(entry.name)) {
                     if (!inside(full)) { continue; }
-                    files.push({
-                        path: path.relative(base, full),
-                        text: fs.readFileSync(full, 'utf8')
-                    });
+                    const text = fs.readFileSync(full, 'utf8');
+                    total += text.length;
+                    if (total > MAX_COLLECTION) {
+                        throw new Error('the repository holds more than ' +
+                            MAX_COLLECTION + ' bytes of definitions');
+                    }
+                    files.push({ path: path.relative(base, full), text: text });
                 }
             }
         };
         walk(base);
         return files;
     }
+
+    // Every route that brings bytes into this process needs a ceiling. The
+    // runtime shares a process with Node-RED, so a reply large enough to
+    // exhaust the heap stops every flow on the host, and none of these sources
+    // is under the operator's control.
+    const MAX_FETCH = 32 * 1024 * 1024;
+    const MAX_COLLECTION = 64 * 1024 * 1024;
 
     function fetchText(url, redirects, done) {
         let mod;
@@ -143,8 +154,23 @@ module.exports = function (RED) {
                 return done(new Error('HTTP ' + res.statusCode + ' from ' + url));
             }
             const chunks = [];
-            res.on('data', function (c) { chunks.push(c); });
-            res.on('end', function () { done(null, Buffer.concat(chunks).toString('utf8')); });
+            let size = 0;
+            let stopped = false;
+            res.on('data', function (c) {
+                if (stopped) { return; }
+                size += c.length;
+                if (size > MAX_FETCH) {
+                    stopped = true;
+                    res.destroy();
+                    return done(new Error(url + ' returned more than ' +
+                        MAX_FETCH + ' bytes'));
+                }
+                chunks.push(c);
+            });
+            res.on('end', function () {
+                if (stopped) { return; }
+                done(null, Buffer.concat(chunks).toString('utf8'));
+            });
         });
         request.on('timeout', function () { request.destroy(new Error('timed out')); });
         request.on('error', done);
@@ -198,6 +224,10 @@ module.exports = function (RED) {
                             redact(String(err).trim().split('\n')[0]) });
                     }
                     res.json({ files: gather(tmp) });
+                } catch (gatherErr) {
+                    // gather refuses an oversized repository by throwing, and
+                    // this route shares a process with every flow on the host.
+                    res.status(413).json({ error: redact(gatherErr.message) });
                 } finally {
                     fs.rm(tmp, {
                         recursive: true, force: true, maxRetries: 5, retryDelay: 100

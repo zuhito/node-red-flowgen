@@ -101,10 +101,23 @@ async function main() {
         .split('\n').map(line => line.trim())
         .filter(line => line && !line.startsWith('#'));
 
+    // Definitions already proven stay out. Rebuilding from the source list
+    // would otherwise put every retired one straight back in, and the run would
+    // spend its time reconfirming what tests/progress.md already records.
+    const proven = new Set();
+    const progress = path.join(__dirname, 'progress.md');
+    if (fs.existsSync(progress)) {
+        for (const line of fs.readFileSync(progress, 'utf8').split('\n')) {
+            const match = line.match(/^\|\s*`([^`]+)`\s*\|\s*pass\s*\|/);
+            if (match) { proven.add(match[1]); }
+        }
+    }
+
     const kept = [];
     const rejected = [];
 
     for (const relative of wanted) {
+        if (proven.has(relative)) { continue; }
         const url = RAW + relative;
         const text = await fetch(url);
         if (!text) { rejected.push([relative, 'could not be fetched']); continue; }

@@ -410,6 +410,38 @@ test('several awkward requests at once do not disturb each other', async () => {
     await stillAlive();
 });
 
+test('a url that answers with too many bytes is refused', async () => {
+    // No route may pull an unbounded reply into a process it shares with every
+    // flow on the host. The server here never stops sending.
+    let closed = false;
+    const flood = http.createServer((req, res) => {
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        const chunk = 'x'.repeat(64 * 1024);
+        const pump = () => {
+            if (closed || res.writableEnded) { return; }
+            if (res.write(chunk)) { setImmediate(pump); }
+            else { res.once('drain', pump); }
+        };
+        res.on('close', () => { closed = true; });
+        pump();
+    });
+    await new Promise(resolve => flood.listen(0, '127.0.0.1', resolve));
+    const url = 'http://127.0.0.1:' + flood.address().port + '/endless.yaml';
+
+    try {
+        const before = process.memoryUsage().heapUsed;
+        const res = await get('/flowgen/source?url=' + encodeURIComponent(url));
+        const grew = (process.memoryUsage().heapUsed - before) / (1024 * 1024);
+
+        assert.ok(res.status >= 400, 'an endless reply must not come back as success');
+        assert.match(JSON.parse(res.body).error, /more than \d+ bytes/);
+        assert.ok(grew < 128, 'the heap grew by ' + Math.round(grew) + 'MB');
+    } finally {
+        closed = true;
+        await new Promise(resolve => flood.close(resolve));
+    }
+});
+
 test('every route demands the flows.write permission', () => {
     const asked = [];
     const guard = function (req, res, next) { next(); };
