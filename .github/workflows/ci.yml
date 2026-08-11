@@ -153,7 +153,13 @@ jobs:
           echo "===== browser.log ====="
           cat browser.log || echo "no log produced"
           echo "===== end ====="
-          tail -40 browser.log | while read -r line; do
+          # The failures, not the tail: a passing test that happens to run last
+          # would otherwise be all the annotation shows.
+          (grep -E "^ *not ok" browser.log | head -20; \
+           echo '--- detail ---'; \
+           grep -A 14 -E "^ *not ok" browser.log | grep -E \
+             "error:|Expected|actual:|expected:|AssertionError|Timeout|at " | head -40) \
+          | while read -r line; do
             echo "::error::${{ matrix.browser }}: ${line}"
           done
           exit 1

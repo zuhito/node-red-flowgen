@@ -113,10 +113,27 @@ async function dblclick(page, selector) {
     await page.waitForTimeout(120);
 }
 
+// Parsing is a round trip to the runtime, so how long it takes depends on the
+// machine. A fixed wait passes on a fast runner and fails on a slow one, which
+// is what the macOS webkit job kept doing. Wait for the panel to settle
+// instead: the status line is cleared when the answer has been applied.
 async function paste(page, text) {
     await page.fill('#flowgen-spec-text', text);
     await page.dispatchEvent('#flowgen-spec-text', 'keyup');
-    await page.waitForTimeout(700);
+    await settled(page);
+}
+
+async function settled(page) {
+    // The panel debounces before it asks the runtime, so a check that runs
+    // immediately sees the state from before the keystroke. Give the request a
+    // chance to start, then wait for it to finish.
+    await page.waitForTimeout(500);
+    await page.waitForFunction(() => {
+        const status = document.getElementById('flowgen-status');
+        const text = status ? String(status.textContent || '') : '';
+        return !/\.\.\.$/.test(text.trim());
+    }, null, { timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(250);
 }
 
 const nodeTypes = page => page.evaluate(() => {
@@ -151,7 +168,6 @@ for (const engine of ENGINES) {
             const page = await browser.newPage();
             await openImport(page);
             await paste(page, ONE);
-            await page.waitForTimeout(800);
             await click(page, '#red-ui-clipboard-dialog-ok');
             await page.waitForTimeout(1500);
 
@@ -195,7 +211,6 @@ for (const engine of ENGINES) {
 
             await openImport(page);
             await paste(page, ONE);
-            await page.waitForTimeout(800);
             await click(page, '#red-ui-clipboard-dialog-ok');
             await page.waitForTimeout(1500);
 
@@ -656,7 +671,6 @@ for (const engine of ENGINES) {
             await openImport(page);
 
             await paste(page, SPEC);
-            await page.waitForTimeout(800);
             const first = await page.$$eval('#flowgen-op-list .flowgen-op',
                 els => els.map(el => el.textContent.trim()));
             assert.ok(first.length > 1);
@@ -702,11 +716,9 @@ for (const engine of ENGINES) {
             await openImport(page);
 
             await paste(page, ONE);
-            await page.waitForTimeout(900);
             assert.ok((await page.$$('#flowgen-op-list .flowgen-op')).length > 0);
 
             await paste(page, '');
-            await page.waitForTimeout(900);
             assert.strictEqual((await page.$$('#flowgen-op-list .flowgen-op')).length, 0,
                 'clearing the box must clear what it produced');
             await waitOk(page, true);
