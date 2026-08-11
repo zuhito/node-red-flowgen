@@ -394,7 +394,7 @@ function brunoCredentials(entry, scheme) {
         user: user.name, passwd: passwd.name,
         userType: null, passwdType: null,
         known: user.literal && passwd.literal,
-        scheme: scheme, realm: { __raw: String(entry.realm) }
+        scheme: scheme, realm: clean(entry.realm)
     };
 }
 
