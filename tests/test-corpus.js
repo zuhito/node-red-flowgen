@@ -62,12 +62,18 @@ function fetch(url, redirects) {
     });
 }
 
+// Node-RED's http request node identifies itself; curl identifies itself as
+// curl. Some hosts answer differently depending on which, and that says nothing
+// about the request the generator built. Both callers are made to look the same.
+const USER_AGENT = 'flowgen-corpus/1.0';
+
 function curl(method, url, headers) {
     // Node-RED's http request node follows redirects, so curl has to as well
     // or the two disagree on every host that has moved. Without this a 301
     // from curl was compared against whatever Node-RED found at the other end.
     const args = ['-sS', '-i', '--location', '--max-redirs', '5',
         '--globoff', '--max-time', '25',
+        '-A', USER_AGENT,
         '-X', String(method).toUpperCase(), url];
     for (const [name, value] of Object.entries(headers || {})) {
         args.push('-H', name + ': ' + value);
@@ -156,6 +162,11 @@ async function throughNodeRed(userDir, doc, op) {
     let probeId = null;
     for (const node of nodes) {
         if (node.type === 'inject') { node.once = true; node.onceDelay = 0.1; }
+        if (node.type === 'function' && node.func) {
+            node.func = node.func.replace(/\nreturn msg;\s*$/,
+                '\nmsg.headers = Object.assign({}, msg.headers, ' +
+                '{ "user-agent": ' + JSON.stringify(USER_AGENT) + ' });\nreturn msg;');
+        }
         if (node.type === 'http request') { node.ret = 'txt'; node.senderr = true; }
         if (node.type === 'debug') {
             probeId = node.id;
