@@ -281,6 +281,16 @@ async function main() {
             const left = comparable(viaCurl.body);
             const right = comparable(viaFlow.body);
             if (left !== null && right !== null && left !== right) {
+                // Some endpoints answer differently every time by design: a
+                // random quote, a live counter, a timestamped record. Asking
+                // curl twice tells the two apart. If curl disagrees with
+                // itself, the endpoint is the variable, not the generated code.
+                const again = await curl(op.method, built.url, built.headers);
+                if (comparable(again.body) !== left) {
+                    note('notice', label + ' -> the endpoint answers differently on ' +
+                        'every call, so the two cannot be compared');
+                    continue;
+                }
                 failures++;
                 note('error', label + ' -> the two responses differ');
                 dump(label, 'curl', viaCurl.body);

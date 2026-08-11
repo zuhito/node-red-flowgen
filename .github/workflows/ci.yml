@@ -275,6 +275,36 @@ jobs:
             exit 1
           }
 
+  corpus-progress:
+    # Records what the corpus jobs found and retires the definitions that
+    # passed, so the next run spends its time on ones not yet proven.
+    runs-on: ubuntu-latest
+    needs: corpus
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.x'
+
+      - name: Record the results
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tests/record-progress.js "${{ github.run_id }}"
+
+      - name: Commit the progress
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/progress.md tests/specs/corpus.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Record corpus progress [skip ci]"
+          git pull --rebase origin main || true
+          git push origin HEAD:main
+
   ollama:
     # An MLX build needs the Metal stack on Apple silicon, so the Gemma 4 run
     # goes to macOS. The hosted macOS runner only leaves Ollama around 4GB

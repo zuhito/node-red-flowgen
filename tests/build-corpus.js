@@ -67,6 +67,25 @@ function probeTarget(doc) {
     return null;
 }
 
+// How many endpoints this run will actually call: the ones needing no
+// credentials and no invented parameter.
+function probeCount(doc) {
+    let operations;
+    try { operations = flowgen.listOperations(doc).operations; }
+    catch (err) { return 0; }
+    let count = 0;
+    for (const op of operations) {
+        if (op.method !== 'get') { continue; }
+        if (/\{[A-Za-z_][\w.-]*\}/.test(op.path)) { continue; }
+        try {
+            if (!/\{[A-Za-z_][\w.-]*\}/.test(flowgen.generate(doc, op.method, op.path))) {
+                count++;
+            }
+        } catch (err) { /* not generatable, so not callable */ }
+    }
+    return count;
+}
+
 function curl(url) {
     return new Promise(resolve => {
         execFile('curl', ['-sS', '-o', '/dev/null', '-w', '%{http_code}', '--globoff',
@@ -113,10 +132,22 @@ async function main() {
             continue;
         }
 
+        // What the definition is made of, so the progress table can say how
+        // this one differed from the rest rather than only that it passed.
+        const byMethod = {};
+        for (const op of flowgen.listOperations(doc).operations) {
+            byMethod[op.method] = (byMethod[op.method] || 0) + 1;
+        }
+        const callable = probeCount(doc);
+
         const entry = {
             id: relative.replace(/[^\w.-]+/g, '-').replace(/\.(ya?ml|json)$/, ''),
             spec: relative,
             endpoints: count,
+            methods: byMethod,
+            callable: callable,
+            format: doc.swagger === '2.0' ? 'swagger 2'
+                : (doc.openapi ? 'openapi ' + String(doc.openapi).slice(0, 3) : 'unknown'),
             probe: { method: target.method, path: target.path }
         };
 
