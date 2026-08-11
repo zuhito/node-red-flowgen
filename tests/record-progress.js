@@ -17,6 +17,7 @@ const REPO = process.env.GITHUB_REPOSITORY || 'zuhito/node-red-flowgen';
 const TOKEN = process.env.GITHUB_TOKEN || '';
 const RUN = process.argv[2];
 const PROGRESS = path.join(__dirname, 'progress.md');
+const RAW = 'https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/';
 const CORPUS = path.join(__dirname, 'specs', 'corpus.json');
 
 function api(route) {
@@ -111,17 +112,20 @@ function main() {
     const previous = [];
     if (fs.existsSync(PROGRESS)) {
         for (const line of fs.readFileSync(PROGRESS, 'utf8').split('\n')) {
-            if (/^\|\s*`/.test(line)) { previous.push(line); }
+            if (/^\|\s*\[`/.test(line)) { previous.push(line); }
         }
     }
 
     const seen = new Set(rows.map(r => r.spec));
     const kept = previous.filter(line => {
-        const match = line.match(/^\|\s*`([^`]+)`/);
+        const match = line.match(/^\|\s*\[`([^`]+)`\]/);
         return match && !seen.has(match[1]);
     });
 
-    const lines = rows.map(r => '| `' + r.spec + '` | ' + r.status + ' | ' + r.format +
+    // The definition links to the file that was actually fetched, so a reader
+    // can open exactly what was tested rather than go looking for it.
+    const lines = rows.map(r => '| [`' + r.spec + '`](' + RAW + r.spec + ') | ' +
+        r.status + ' | ' + r.format +
         ' | ' + r.endpoints + ' | ' + r.methods + ' | ' + r.callable +
         ' | `' + r.probe + '` | `' + r.sha + '` | ' + r.traits + ' |');
 

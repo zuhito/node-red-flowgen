@@ -108,7 +108,9 @@ async function main() {
     const progress = path.join(__dirname, 'progress.md');
     if (fs.existsSync(progress)) {
         for (const line of fs.readFileSync(progress, 'utf8').split('\n')) {
-            const match = line.match(/^\|\s*`([^`]+)`\s*\|\s*pass\s*\|/);
+            // The row links to the file and the verdict is written in Japanese,
+            // so neither the backtick nor the word "pass" is enough on its own.
+            const match = line.match(/^\|\s*\[`([^`]+)`\][^|]*\|\s*成功\s*\|/);
             if (match) { proven.add(match[1]); }
         }
     }
