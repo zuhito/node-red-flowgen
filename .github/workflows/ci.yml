@@ -266,8 +266,10 @@ jobs:
         run: |
           set -o pipefail
           node tests/test-corpus.js 2>&1 | tee corpus.log || {
-            (grep -E "^FAIL" corpus.log | head -20; \
-             echo '--- detail ---'; tail -60 corpus.log) | while read -r line; do
+            # Only the verdict lines. A dump of an eight megabyte response
+            # would otherwise be the whole annotation, which is what happened
+            # with the apis.guru catalogue.
+            grep -E "^FAIL" corpus.log | head -20 | cut -c1-300 | while read -r line; do
               echo "::error::${{ matrix.definition.id }}: ${line}"
             done
             exit 1

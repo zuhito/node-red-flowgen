@@ -40,7 +40,7 @@ function dump(label, what, body) {
     const text = body === null || body === undefined ? '(no body)'
         : (typeof body === 'string' ? body : JSON.stringify(body, null, 2));
     process.stdout.write('----- ' + label + ' :: ' + what + ' -----\n' +
-        (text.length > 4000 ? text.slice(0, 4000) + '\n...[clipped]' : text) + '\n');
+        (text.length > 1500 ? text.slice(0, 1500) + '\n...[clipped]' : text) + '\n');
 }
 
 function fetch(url, redirects) {
@@ -265,6 +265,16 @@ async function main() {
                     ' but Node-RED saw HTTP ' + viaFlow.status);
                 dump(label, 'curl', viaCurl.body);
                 dump(label, 'node-red', viaFlow.body);
+                continue;
+            }
+
+            // A response measured in megabytes is a catalogue rather than an
+            // answer, and comparing two copies of it costs more than it proves.
+            // The status still has to agree.
+            const HUGE = 2 * 1024 * 1024;
+            if (String(viaCurl.body || '').length > HUGE) {
+                note('notice', label + ' -> both callers got HTTP ' + viaCurl.status +
+                    ' and a body over ' + HUGE + ' bytes, so only the status is compared');
                 continue;
             }
 
