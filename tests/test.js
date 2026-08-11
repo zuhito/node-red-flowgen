@@ -1324,14 +1324,31 @@ test('the full httpbingo definition covers the endpoints the tests need', () => 
         path.join(__dirname, 'specs', 'httpbingo-full.yaml'), 'utf8'));
     const paths = flowgen.listOperations(doc).operations.map(o => o.method + ' ' + o.path);
 
+    // The whole service, not a selection. This definition is what the
+    // generator is exercised against, and narrowing it narrows the coverage;
+    // which of these the live run actually calls is decided separately.
     for (const required of ['get /get', 'post /post', 'put /put', 'patch /patch',
         'delete /delete', 'get /bearer', 'get /basic-auth/{user}/{passwd}',
+        'get /hidden-basic-auth/{user}/{passwd}',
         'get /digest-auth/{qop}/{user}/{passwd}', 'get /status/{code}',
-        'get /xml', 'get /deny']) {
+        'get /xml', 'get /deny', 'get /headers', 'get /ip', 'get /user-agent',
+        'get /uuid', 'get /json', 'get /html', 'get /robots.txt',
+        'get /encoding/utf8', 'get /gzip', 'get /deflate', 'get /anything',
+        'get /response-headers', 'get /base64/{value}', 'get /bytes/{n}',
+        'get /delay/{delay}', 'get /cache', 'get /cache/{n}', 'get /etag/{etag}',
+        'get /cookies', 'get /cookies/set', 'get /cookies/delete',
+        'get /redirect/{n}', 'get /stream/{n}', 'get /drip']) {
         assert.ok(paths.indexOf(required) !== -1, 'missing ' + required);
     }
-    assert.ok(paths.length <= 12,
-        'endpoints that only repeat another call shape stay commented out');
+    assert.strictEqual(paths.length, 36, 'the definition covers the whole service');
+
+    // Every one of them has to compile, which is the point of keeping them.
+    for (const op of flowgen.listOperations(doc).operations) {
+        const code = flowgen.generate(doc, op.method, op.path);
+        assert.match(code, /^msg\.method = /, op.method + ' ' + op.path);
+        assert.doesNotThrow(() => new Function('msg', code).call(null, {}),
+            op.method + ' ' + op.path + ' does not run');
+    }
     assert.match(flowgen.generate(doc, 'post', '/post'), /"hello": "world"/);
 
     for (const target of ['/bearer', '/basic-auth/{user}/{passwd}']) {

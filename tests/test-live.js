@@ -196,14 +196,39 @@ const CASES = [
     { source: 'httpbingo-converted', method: 'put', path: '/put' },
     { source: 'httpbingo-converted', method: 'delete', path: '/delete' },
     { source: 'httpbingo-converted', method: 'get', path: '/status/{code}',
-        fill: { code: '204' }, expect: 204, strict: true }
+        fill: { code: '204' }, expect: 204, strict: true },
 
-    // skipped: only ever a GET, and /get already covers that shape
-    // { source: 'httpbingo', method: 'get', path: '/headers' },
-    // { source: 'httpbingo', method: 'get', path: '/deny' },
-    // { source: 'httpbingo', method: 'get', path: '/hidden-basic-auth/{user}/{passwd}',
-    //     fill: { user: 'u', passwd: 'p' },
-    //     addAuth: { authorization: 'Basic dTpw' }, expect: 200, strict: true },
+    // httpbingo exists to be called and holds no state that moves between the
+    // curl call and the Node-RED one, so more of it can be exercised without
+    // the run becoming a report on somebody else's uptime.
+    { source: 'httpbingo', method: 'get', path: '/headers' },
+    { source: 'httpbingo', method: 'get', path: '/deny', expect: 403 },
+    { source: 'httpbingo', method: 'get', path: '/hidden-basic-auth/{user}/{passwd}',
+        fill: { user: 'u', passwd: 'p' },
+        addAuth: { authorization: 'Basic dTpw' }, expect: 200, strict: true },
+    { source: 'httpbingo', method: 'get', path: '/json' },
+    { source: 'httpbingo', method: 'get', path: '/html' },
+    { source: 'httpbingo', method: 'get', path: '/robots.txt' },
+    { source: 'httpbingo', method: 'get', path: '/encoding/utf8' },
+    { source: 'httpbingo', method: 'get', path: '/gzip' },
+    { source: 'httpbingo', method: 'get', path: '/deflate' },
+    { source: 'httpbingo', method: 'get', path: '/anything' },
+    { source: 'httpbingo', method: 'get', path: '/base64/{value}',
+        fill: { value: 'SFRUUEJJTkdP' } },
+    { source: 'httpbingo', method: 'get', path: '/bytes/{n}', fill: { n: '16' } },
+    { source: 'httpbingo', method: 'get', path: '/cache' },
+    { source: 'httpbingo', method: 'get', path: '/etag/{etag}', fill: { etag: 'abc' } },
+    { source: 'httpbingo', method: 'get', path: '/cookies' },
+    { source: 'httpbingo', method: 'get', path: '/redirect/{n}', fill: { n: '2' } }
+
+    // skipped: these change on every call, so curl and Node-RED can never agree
+    // { source: 'httpbingo', method: 'get', path: '/ip' },
+    // { source: 'httpbingo', method: 'get', path: '/uuid' },
+    // { source: 'httpbingo', method: 'get', path: '/user-agent' },
+    // skipped: these are about timing rather than the request that was built
+    // { source: 'httpbingo', method: 'get', path: '/delay/{delay}', fill: { delay: '1' } },
+    // { source: 'httpbingo', method: 'get', path: '/stream/{n}', fill: { n: '3' } },
+    // { source: 'httpbingo', method: 'get', path: '/drip' },
 
     // skipped: the petstore is a demo anyone can write to, so its counters move
     // between the two calls, and every case it offered here was a GET

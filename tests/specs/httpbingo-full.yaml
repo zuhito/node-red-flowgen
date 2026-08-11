@@ -51,17 +51,16 @@ paths:
             application/json:
               schema:
                 type: object
-# (skipped: same request shape as a kept endpoint)
-#  /headers:
-#    get:
-#      summary: Echo the request headers
-#      responses:
-#        '200':
-#          description: Headers
-#          content:
-#            application/json:
-#              schema:
-#                type: object
+  /headers:
+    get:
+      summary: Echo the request headers
+      responses:
+        '200':
+          description: Headers
+          content:
+            application/json:
+              schema:
+                type: object
   /bearer:
     get:
       summary: Require a bearer token
@@ -101,32 +100,31 @@ paths:
                 type: object
         '401':
           description: Credentials were missing or wrong
-# (skipped: same request shape as a kept endpoint)
-#  /hidden-basic-auth/{user}/{passwd}:
-#    get:
-#      summary: Require basic authentication without a challenge
-#      security:
-#        - basicAuth: []
-#      parameters:
-#        - name: user
-#          in: path
-#          required: true
-#          schema:
-#            type: string
-#        - name: passwd
-#          in: path
-#          required: true
-#          schema:
-#            type: string
-#      responses:
-#        '200':
-#          description: Authenticated
-#          content:
-#            application/json:
-#              schema:
-#                type: object
-#        '404':
-#          description: Credentials were missing or wrong
+  /hidden-basic-auth/{user}/{passwd}:
+    get:
+      summary: Require basic authentication without a challenge
+      security:
+        - basicAuth: []
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: passwd
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Credentials were missing or wrong
   /status/{code}:
     get:
       summary: Return the given status code
@@ -139,97 +137,88 @@ paths:
       responses:
         '200':
           description: The requested status
-# (skipped: same request shape as a kept endpoint)
-#  /ip:
-#    get:
-#      summary: Return the caller IP address
-#      responses:
-#        '200':
-#          description: IP
-#          content:
-#            application/json:
-#              schema:
-#                type: object
-# (skipped: same request shape as a kept endpoint)
-#  /user-agent:
-#    get:
-#      summary: Return the caller user agent
-#      responses:
-#        '200':
-#          description: User agent
-#          content:
-#            application/json:
-#              schema:
-#                type: object
-# (skipped: same request shape as a kept endpoint)
-#  /uuid:
-#    get:
-#      summary: Return a UUID version 4
-#      responses:
-#        '200':
-#          description: UUID
-#          content:
-#            application/json:
-#              schema:
-#                type: object
-# (skipped: same request shape as a kept endpoint)
-#  /json:
-#    get:
-#      summary: Return a sample JSON document
-#      responses:
-#        '200':
-#          description: Sample document
-#          content:
-#            application/json:
-#              schema:
-#                type: object
+  /ip:
+    get:
+      summary: Return the caller IP address
+      responses:
+        '200':
+          description: IP
+          content:
+            application/json:
+              schema:
+                type: object
+  /user-agent:
+    get:
+      summary: Return the caller user agent
+      responses:
+        '200':
+          description: User agent
+          content:
+            application/json:
+              schema:
+                type: object
+  /uuid:
+    get:
+      summary: Return a UUID version 4
+      responses:
+        '200':
+          description: UUID
+          content:
+            application/json:
+              schema:
+                type: object
+  /json:
+    get:
+      summary: Return a sample JSON document
+      responses:
+        '200':
+          description: Sample document
+          content:
+            application/json:
+              schema:
+                type: object
   /xml:
     get:
       summary: Return a sample XML document
       responses:
         '200':
           description: Sample document
-# (skipped: same request shape as a kept endpoint)
-#  /html:
-#    get:
-#      summary: Return a sample HTML document
-#      responses:
-#        '200':
-#          description: Sample document
-# (skipped: same request shape as a kept endpoint)
-#  /robots.txt:
-#    get:
-#      summary: Return the robots exclusion rules
-#      responses:
-#        '200':
-#          description: Rules
+  /html:
+    get:
+      summary: Return a sample HTML document
+      responses:
+        '200':
+          description: Sample document
+  /robots.txt:
+    get:
+      summary: Return the robots exclusion rules
+      responses:
+        '200':
+          description: Rules
   /deny:
     get:
       summary: Return a page the robots rules deny
       responses:
         '200':
           description: Denied page
-# (skipped: same request shape as a kept endpoint)
-#  /encoding/utf8:
-#    get:
-#      summary: Return a UTF-8 encoded document
-#      responses:
-#        '200':
-#          description: Document
-# (skipped: same request shape as a kept endpoint)
-#  /gzip:
-#    get:
-#      summary: Return a gzip encoded response
-#      responses:
-#        '200':
-#          description: Encoded response
-# (skipped: same request shape as a kept endpoint)
-#  /deflate:
-#    get:
-#      summary: Return a deflate encoded response
-#      responses:
-#        '200':
-#          description: Encoded response
+  /encoding/utf8:
+    get:
+      summary: Return a UTF-8 encoded document
+      responses:
+        '200':
+          description: Document
+  /gzip:
+    get:
+      summary: Return a gzip encoded response
+      responses:
+        '200':
+          description: Encoded response
+  /deflate:
+    get:
+      summary: Return a deflate encoded response
+      responses:
+        '200':
+          description: Encoded response
   /put:
     put:
       summary: Echo a PUT request
@@ -272,175 +261,161 @@ paths:
       responses:
         '200':
           description: Request details
-# (skipped: same request shape as a kept endpoint)
-#  /anything:
-#    get:
-#      summary: Echo anything sent to this endpoint
-#      responses:
-#        '200':
-#          description: Request details
-# (skipped: same request shape as a kept endpoint)
-#  /response-headers:
-#    get:
-#      summary: Return the given query parameters as response headers
-#      parameters:
-#        - name: freeform
-#          in: query
-#          schema:
-#            type: string
-#            example: value
-#      responses:
-#        '200':
-#          description: Headers
-# (skipped: same request shape as a kept endpoint)
-#  /base64/{value}:
-#    get:
-#      summary: Decode a base64 encoded value
-#      parameters:
-#        - name: value
-#          in: path
-#          required: true
-#          schema:
-#            type: string
-#      responses:
-#        '200':
-#          description: Decoded value
-# (skipped: same request shape as a kept endpoint)
-#  /bytes/{n}:
-#    get:
-#      summary: Return the given number of random bytes
-#      parameters:
-#        - name: n
-#          in: path
-#          required: true
-#          schema:
-#            type: integer
-#      responses:
-#        '200':
-#          description: Random bytes
-# (skipped: same request shape as a kept endpoint)
-#  /delay/{delay}:
-#    get:
-#      summary: Delay the response by the given number of seconds
-#      parameters:
-#        - name: delay
-#          in: path
-#          required: true
-#          schema:
-#            type: integer
-#      responses:
-#        '200':
-#          description: Delayed response
-# (skipped: same request shape as a kept endpoint)
-#  /cache:
-#    get:
-#      summary: Return a cacheable response
-#      responses:
-#        '200':
-#          description: Cacheable response
-# (skipped: same request shape as a kept endpoint)
-#  /cache/{n}:
-#    get:
-#      summary: Set a cache control header for the given number of seconds
-#      parameters:
-#        - name: n
-#          in: path
-#          required: true
-#          schema:
-#            type: integer
-#      responses:
-#        '200':
-#          description: Cacheable response
-# (skipped: same request shape as a kept endpoint)
-#  /etag/{etag}:
-#    get:
-#      summary: Return a response with the given etag
-#      parameters:
-#        - name: etag
-#          in: path
-#          required: true
-#          schema:
-#            type: string
-#      responses:
-#        '200':
-#          description: Tagged response
-# (skipped: same request shape as a kept endpoint)
-#  /cookies:
-#    get:
-#      summary: Return the cookies that were sent
-#      responses:
-#        '200':
-#          description: Cookies
-# (skipped: same request shape as a kept endpoint)
-#  /cookies/set:
-#    get:
-#      summary: Set the cookies given as query parameters
-#      parameters:
-#        - name: name
-#          in: query
-#          schema:
-#            type: string
-#            example: value
-#      responses:
-#        '200':
-#          description: Cookies set
-# (skipped: same request shape as a kept endpoint)
-#  /cookies/delete:
-#    get:
-#      summary: Delete the cookies named in the query parameters
-#      parameters:
-#        - name: name
-#          in: query
-#          schema:
-#            type: string
-#            example: ''
-#      responses:
-#        '200':
-#          description: Cookies deleted
-# (skipped: same request shape as a kept endpoint)
-#  /redirect/{n}:
-#    get:
-#      summary: Redirect the given number of times
-#      parameters:
-#        - name: n
-#          in: path
-#          required: true
-#          schema:
-#            type: integer
-#      responses:
-#        '302':
-#          description: Redirect
-# (skipped: same request shape as a kept endpoint)
-#  /stream/{n}:
-#    get:
-#      summary: Stream the given number of JSON lines
-#      parameters:
-#        - name: n
-#          in: path
-#          required: true
-#          schema:
-#            type: integer
-#      responses:
-#        '200':
-#          description: Streamed lines
-# (skipped: same request shape as a kept endpoint)
-#  /drip:
-#    get:
-#      summary: Drip data over the given duration
-#      parameters:
-#        - name: duration
-#          in: query
-#          schema:
-#            type: integer
-#            example: 1
-#        - name: numbytes
-#          in: query
-#          schema:
-#            type: integer
-#            example: 10
-#      responses:
-#        '200':
-#          description: Dripped data
+  /anything:
+    get:
+      summary: Echo anything sent to this endpoint
+      responses:
+        '200':
+          description: Request details
+  /response-headers:
+    get:
+      summary: Return the given query parameters as response headers
+      parameters:
+        - name: freeform
+          in: query
+          schema:
+            type: string
+            example: value
+      responses:
+        '200':
+          description: Headers
+  /base64/{value}:
+    get:
+      summary: Decode a base64 encoded value
+      parameters:
+        - name: value
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Decoded value
+  /bytes/{n}:
+    get:
+      summary: Return the given number of random bytes
+      parameters:
+        - name: n
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Random bytes
+  /delay/{delay}:
+    get:
+      summary: Delay the response by the given number of seconds
+      parameters:
+        - name: delay
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Delayed response
+  /cache:
+    get:
+      summary: Return a cacheable response
+      responses:
+        '200':
+          description: Cacheable response
+  /cache/{n}:
+    get:
+      summary: Set a cache control header for the given number of seconds
+      parameters:
+        - name: n
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Cacheable response
+  /etag/{etag}:
+    get:
+      summary: Return a response with the given etag
+      parameters:
+        - name: etag
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tagged response
+  /cookies:
+    get:
+      summary: Return the cookies that were sent
+      responses:
+        '200':
+          description: Cookies
+  /cookies/set:
+    get:
+      summary: Set the cookies given as query parameters
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+            example: value
+      responses:
+        '200':
+          description: Cookies set
+  /cookies/delete:
+    get:
+      summary: Delete the cookies named in the query parameters
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+            example: ''
+      responses:
+        '200':
+          description: Cookies deleted
+  /redirect/{n}:
+    get:
+      summary: Redirect the given number of times
+      parameters:
+        - name: n
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '302':
+          description: Redirect
+  /stream/{n}:
+    get:
+      summary: Stream the given number of JSON lines
+      parameters:
+        - name: n
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Streamed lines
+  /drip:
+    get:
+      summary: Drip data over the given duration
+      parameters:
+        - name: duration
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: numbytes
+          in: query
+          schema:
+            type: integer
+            example: 10
+      responses:
+        '200':
+          description: Dripped data
   /digest-auth/{qop}/{user}/{passwd}:
     get:
       summary: Require digest authentication
