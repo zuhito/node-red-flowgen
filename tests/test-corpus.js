@@ -63,7 +63,11 @@ function fetch(url, redirects) {
 }
 
 function curl(method, url, headers) {
-    const args = ['-sS', '-i', '--globoff', '--max-time', '25',
+    // Node-RED's http request node follows redirects, so curl has to as well
+    // or the two disagree on every host that has moved. Without this a 301
+    // from curl was compared against whatever Node-RED found at the other end.
+    const args = ['-sS', '-i', '--location', '--max-redirs', '5',
+        '--globoff', '--max-time', '25',
         '-X', String(method).toUpperCase(), url];
     for (const [name, value] of Object.entries(headers || {})) {
         args.push('-H', name + ': ' + value);
@@ -72,11 +76,20 @@ function curl(method, url, headers) {
         execFile('curl', args, { timeout: 30000, maxBuffer: 8 * 1024 * 1024 },
             (err, stdout) => {
                 if (err && !stdout) { return resolve({ status: null, body: null }); }
+                // Following redirects means one header block per hop. The
+                // last one describes the response that was actually received.
                 const text = String(stdout);
-                const split = text.indexOf('\r\n\r\n');
-                const head = split === -1 ? text : text.slice(0, split);
-                const body = split === -1 ? '' : text.slice(split + 4);
-                const status = (head.match(/^HTTP\/[\d.]+ (\d+)/) || [])[1];
+                let rest = text;
+                let head = '';
+                let body = '';
+                for (;;) {
+                    const split = rest.indexOf('\r\n\r\n');
+                    if (split === -1) { body = rest; break; }
+                    head = rest.slice(0, split);
+                    rest = rest.slice(split + 4);
+                    if (!/^HTTP\/[\d.]+ /.test(rest)) { body = rest; break; }
+                }
+                const status = (head.match(/HTTP\/[\d.]+ (\d+)/) || [])[1];
                 resolve({ status: status ? Number(status) : null, body: body });
             });
     });
