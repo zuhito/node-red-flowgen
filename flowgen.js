@@ -9,15 +9,10 @@
 'use strict';
 
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
-
 const BODYLESS = new Set(['get', 'head']);
-
 const SAMPLE_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAACklEQVR42mNgAAAAAgAB5Sfe/AAAAABJRU5ErkJggg==';
-
 const USER_PARAM = /^(user|username|userid|user_id|login)$/i;
-
 const PASSWD_PARAM = /^(passwd|password|pass|pwd)$/i;
-
 const GLYPH = {
     ' ': 3, '!': 4, '"': 5, '#': 8, '$': 8, '%': 12, '&': 9, "'": 3,
     '(': 5, ')': 5, '*': 5, '+': 8, ',': 4, '-': 5, '.': 4, '/': 4,
@@ -30,9 +25,7 @@ const GLYPH = {
     n: 8, o: 8, p: 8, q: 8, r: 5, s: 7, t: 4, u: 8, v: 7, w: 10, x: 7, y: 7, z: 7,
     '{': 5, '|': 4, '}': 5, '~': 8
 };
-
 const PADDING_WITH_INPUT = 57;
-
 const PADDING_NO_INPUT = 48;
 
 function quote(value) {
