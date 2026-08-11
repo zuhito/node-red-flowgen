@@ -51,6 +51,8 @@
     "test:digest": "RUN_DIGEST_TESTS=1 node --test tests/test-digest.js",
     "test:errorwords": "node --test tests/test-error-words.js",
     "check:bruno-guide": "node tests/check-bruno-guide.js",
+    "test:corpus": "node tests/test-corpus.js",
+    "build:corpus": "node tests/build-corpus.js",
     "test:formats": "node --test tests/test-formats.js",
     "generate:formats": "node tests/generate-formats.js",
     "test:converters": "node --test tests/test-converters.js",

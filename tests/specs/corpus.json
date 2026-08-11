@@ -1,0 +1,186 @@
+{
+  "source": "https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/",
+  "maxEndpoints": 256,
+  "definitions": [
+    {
+      "id": "balldontlie.io-1.0.0-openapi",
+      "spec": "balldontlie.io/1.0.0/openapi.yaml",
+      "endpoints": 7,
+      "probe": {
+        "method": "get",
+        "path": "/api/v1/games"
+      }
+    },
+    {
+      "id": "bigdatacloud.net-1.0.0-openapi",
+      "spec": "bigdatacloud.net/1.0.0/openapi.yaml",
+      "endpoints": 2,
+      "probe": {
+        "method": "get",
+        "path": "/data/ip-geolocation-full"
+      }
+    },
+    {
+      "id": "canada-holidays.ca-1.8.0-openapi",
+      "spec": "canada-holidays.ca/1.8.0/openapi.yaml",
+      "endpoints": 6,
+      "probe": {
+        "method": "get",
+        "path": "/api/v1/spec"
+      }
+    },
+    {
+      "id": "gov.bc.ca-bcgnws-3.x.x-openapi",
+      "spec": "gov.bc.ca/bcgnws/3.x.x/openapi.yaml",
+      "endpoints": 14,
+      "probe": {
+        "method": "get",
+        "path": "/featureCategories"
+      }
+    },
+    {
+      "id": "greip.io-1.0.0-openapi",
+      "spec": "greip.io/1.0.0/openapi.yaml",
+      "endpoints": 9,
+      "probe": {
+        "method": "get",
+        "path": "/ASNLookup"
+      }
+    },
+    {
+      "id": "groundhog-day.com-1.2.1-openapi",
+      "spec": "groundhog-day.com/1.2.1/openapi.yaml",
+      "endpoints": 5,
+      "probe": {
+        "method": "get",
+        "path": "/api/v1/spec"
+      }
+    },
+    {
+      "id": "gsa.gov-0.1-swagger",
+      "spec": "gsa.gov/0.1/swagger.yaml",
+      "endpoints": 5,
+      "probe": {
+        "method": "get",
+        "path": "/api/metadata/"
+      }
+    },
+    {
+      "id": "handwrytten.com-1.0.0-swagger",
+      "spec": "handwrytten.com/1.0.0/swagger.yaml",
+      "endpoints": 30,
+      "probe": {
+        "method": "get",
+        "path": "/countries/list"
+      }
+    },
+    {
+      "id": "json2video.com-2.0.0-openapi",
+      "spec": "json2video.com/2.0.0/openapi.yaml",
+      "endpoints": 2,
+      "probe": {
+        "method": "get",
+        "path": "/movies"
+      }
+    },
+    {
+      "id": "mermade.org.uk-openapi-converter-1.0.0-openapi",
+      "spec": "mermade.org.uk/openapi-converter/1.0.0/openapi.yaml",
+      "endpoints": 6,
+      "probe": {
+        "method": "get",
+        "path": "/badge"
+      }
+    },
+    {
+      "id": "nowpayments.io-1.0.0-openapi",
+      "spec": "nowpayments.io/1.0.0/openapi.yaml",
+      "endpoints": 16,
+      "probe": {
+        "method": "get",
+        "path": "/v1/sub-partner"
+      }
+    },
+    {
+      "id": "oceandrivers.com-1.0-openapi",
+      "spec": "oceandrivers.com/1.0/openapi.yaml",
+      "endpoints": 10,
+      "probe": {
+        "method": "get",
+        "path": "/v1.0/getWebCams/"
+      }
+    },
+    {
+      "id": "parliament.uk-bills-v1-openapi",
+      "spec": "parliament.uk/bills/v1/openapi.yaml",
+      "endpoints": 19,
+      "probe": {
+        "method": "get",
+        "path": "/api/v1/Rss/allbills.rss"
+      }
+    },
+    {
+      "id": "sheetlabs.com-rig-veda-1.2-swagger",
+      "spec": "sheetlabs.com/rig-veda/1.2/swagger.yaml",
+      "endpoints": 1,
+      "probe": {
+        "method": "get",
+        "path": "/resources"
+      }
+    },
+    {
+      "id": "swagger.io-generator-2.4.31-swagger",
+      "spec": "swagger.io/generator/2.4.31/swagger.yaml",
+      "endpoints": 7,
+      "probe": {
+        "method": "get",
+        "path": "/gen/clients"
+      }
+    },
+    {
+      "id": "truanon.com-1.0.0-openapi",
+      "spec": "truanon.com/1.0.0/openapi.yaml",
+      "endpoints": 2,
+      "probe": {
+        "method": "get",
+        "path": "/api/get_profile"
+      }
+    },
+    {
+      "id": "visualcrossing.com-weather-4.6-openapi",
+      "spec": "visualcrossing.com/weather/4.6/openapi.yaml",
+      "endpoints": 5,
+      "probe": {
+        "method": "get",
+        "path": "/VisualCrossingWebServices/rest/services/weatherdata/forecast"
+      }
+    },
+    {
+      "id": "vtex.local-Session-Manager-API-1.0-openapi",
+      "spec": "vtex.local/Session-Manager-API/1.0/openapi.yaml",
+      "endpoints": 4,
+      "probe": {
+        "method": "get",
+        "path": "/segments"
+      }
+    },
+    {
+      "id": "wellknown.ai-1.0.0-openapi",
+      "spec": "wellknown.ai/1.0.0/openapi.yaml",
+      "endpoints": 2,
+      "probe": {
+        "method": "get",
+        "path": "/api/plugins"
+      }
+    },
+    {
+      "id": "wikipathways.org-1.0-openapi",
+      "spec": "wikipathways.org/1.0/openapi.yaml",
+      "endpoints": 27,
+      "probe": {
+        "method": "get",
+        "path": "/listOrganisms"
+      }
+    }
+  ]
+}

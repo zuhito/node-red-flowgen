@@ -225,6 +225,54 @@ jobs:
           RED_VERSION: 4.1.13
         run: npm run check:node-floor
 
+  corpus-matrix:
+    # One job per definition. A public API that is down or rate limiting should
+    # cost one red square, not the whole build, and twenty of them in sequence
+    # would take longer than everything else combined.
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      definitions: ${{ steps.read.outputs.definitions }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: read
+        run: |
+          echo "definitions=$(node -e "
+            const c = require('./tests/specs/corpus.json');
+            process.stdout.write(JSON.stringify(c.definitions.map(d => (
+              { id: d.id, spec: d.spec }))));
+          ")" >> "$GITHUB_OUTPUT"
+
+  corpus:
+    runs-on: ubuntu-latest
+    needs: corpus-matrix
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        definition: ${{ fromJson(needs.corpus-matrix.outputs.definitions) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.x'
+      - run: npm install
+
+      - name: Call ${{ matrix.definition.spec }} for real
+        shell: bash
+        env:
+          SPEC: ${{ matrix.definition.spec }}
+        run: |
+          set -o pipefail
+          node tests/test-corpus.js 2>&1 | tee corpus.log || {
+            (grep -E "^FAIL" corpus.log | head -20; \
+             echo '--- detail ---'; tail -60 corpus.log) | while read -r line; do
+              echo "::error::${{ matrix.definition.id }}: ${line}"
+            done
+            exit 1
+          }
+
   ollama:
     # An MLX build needs the Metal stack on Apple silicon, so the Gemma 4 run
     # goes to macOS. The hosted macOS runner only leaves Ollama around 4GB
