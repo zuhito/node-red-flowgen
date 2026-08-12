@@ -269,9 +269,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         return $('<div>').text(String(text === undefined ? '' : text)).html();
     }
 
-    // Swagger UI reads this straight out of the definition, and so does this.
-    // The document is already here, so nothing is asked of the runtime and
-    // nothing is generated just to describe a call.
     function detailMarkup(detail) {
         var rows = [];
         rows.push('<div class="flowgen-tip-head"><span class="flowgen-tip-method flowgen-'
@@ -331,8 +328,6 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     }
 
     function attachDetails(row, op) {
-        // A tooltip is a convenience. If this editor build has no popovers, or
-        // the document cannot describe the call, the list still works.
         if (!RED.popover || !op.detail) { return; }
         try {
             RED.popover({
