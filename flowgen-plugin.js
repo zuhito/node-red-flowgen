@@ -132,10 +132,6 @@ module.exports = function (RED) {
         return files;
     }
 
-    // Every route that brings bytes into this process needs a ceiling. The
-    // runtime shares a process with Node-RED, so a reply large enough to
-    // exhaust the heap stops every flow on the host, and none of these sources
-    // is under the operator's control.
     const MAX_FETCH = 32 * 1024 * 1024;
     const MAX_COLLECTION = 64 * 1024 * 1024;
 
@@ -225,8 +221,6 @@ module.exports = function (RED) {
                     }
                     res.json({ files: gather(tmp) });
                 } catch (gatherErr) {
-                    // gather refuses an oversized repository by throwing, and
-                    // this route shares a process with every flow on the host.
                     res.status(413).json({ error: redact(gatherErr.message) });
                 } finally {
                     fs.rm(tmp, {
@@ -301,9 +295,6 @@ module.exports = function (RED) {
                 ? flowgen.parseCollection(body.files)
                 : flowgen.parseDocument(String(body.text === undefined ? '' : body.text));
             const listed = flowgen.listOperations(doc);
-            // The editor shows each call's parameters, auth and body on hover.
-            // That is read from the definition here, alongside the list itself,
-            // so the panel needs no second request and no generated code.
             const operations = listed.operations.map(op => {
                 try {
                     return Object.assign({}, op,
