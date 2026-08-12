@@ -88,6 +88,14 @@ function main() {
         process.exit(2);
     }
 
+    // The corpus jobs are skipped when an earlier job fails, and the file is
+    // built by tests/build-corpus.js rather than committed. Without it there is
+    // nothing to record, and failing here only hides the job that actually
+    // broke.
+    if (!fs.existsSync(CORPUS)) {
+        process.stdout.write('::notice::no corpus to record, nothing was run\n');
+        return;
+    }
     const corpus = JSON.parse(fs.readFileSync(CORPUS, 'utf8'));
     const byId = new Map(corpus.definitions.map(d => [d.id, d]));
 
