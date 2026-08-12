@@ -119,8 +119,17 @@ async function boot() {
                         ? flowgen.parseCollection(body.files)
                         : flowgen.parseDocument(String(body.text === undefined ? '' : body.text));
                     const listed = flowgen.listOperations(doc);
+                    const operations = listed.operations.map(op => {
+                        try {
+                            return Object.assign({}, op, {
+                                detail: flowgen.describeOperation(doc, op.method, op.path)
+                            });
+                        } catch (err) {
+                            return op;
+                        }
+                    });
                     return deferred.resolve({
-                        doc: doc, count: listed.count, operations: listed.operations
+                        doc: doc, count: listed.count, operations: operations
                     });
                 }
                 if (/\/flows$/.test(options.url)) {

@@ -832,6 +832,26 @@ for (const engine of ENGINES) {
             await page.close();
         });
 
+        test('hovering an endpoint describes it from the definition', async () => {
+            const page = await browser.newPage();
+            await openImport(page);
+            await paste(page, SPEC);
+            await click(page, '#flowgen-select-btn');
+            await page.waitForSelector('#flowgen-op-list .flowgen-op');
+
+            await page.$eval('#flowgen-op-list .flowgen-op:nth-of-type(2)', el => {
+                el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+                el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+            });
+            await page.waitForSelector('.red-ui-popover .flowgen-tip', { timeout: 20000 });
+
+            const text = await page.$eval('.red-ui-popover .flowgen-tip', el => el.textContent);
+            assert.match(text, /DELETE/);
+            assert.match(text, /petId/);
+            assert.match(text, /path/, 'the parameter location is shown');
+            await page.close();
+        });
+
         test('a spec URL is fetched through the runtime, not the browser', async () => {
             const page = await browser.newPage();
             const direct = [];

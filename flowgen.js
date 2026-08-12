@@ -1288,8 +1288,171 @@ function buildFlows(doc, targets, options) {
     return [tab].concat(nodes);
 }
 
+function describeOperation(doc, rawMethod, target) {
+    const method = String(rawMethod).toLowerCase();
+    const format = detectFormat(doc);
+
+    const resolve = (node, seen) => {
+        seen = seen || new Set();
+        while (node && typeof node === 'object' && typeof node.$ref === 'string') {
+            const ref = node.$ref;
+            if (!ref.startsWith('#/') || seen.has(ref)) return {};
+            seen.add(ref);
+            node = ref.slice(2).split('/').reduce((acc, key) =>
+                (acc == null ? acc : acc[key.replace(/~1/g, '/').replace(/~0/g, '~')]), doc);
+        }
+        return node || {};
+    };
+
+    if (format === 'bruno') {
+        const bruno = toBruno(doc);
+        const wanted = String(target).replace(/^\//, '');
+        const found = bruno.requests.find(req =>
+            req.method === method && String(req._path).replace(/^\//, '') === wanted);
+        if (!found) throw new Error('not found: ' + method + ' ' + target);
+        return {
+            method: method.toUpperCase(),
+            path: found._path,
+            summary: found.name || '',
+            description: '',
+            parameters: [],
+            security: found.headers
+                .filter(h => /^(authorization|.*api[_-]?key)$/i.test(h[0]))
+                .map(h => ({ name: h[0], type: 'header', scheme: '', location: 'header' })),
+            requestBody: found.hasBody
+                ? { contentType: found.multipart
+                    ? 'multipart/form-data' : 'application/json', fields: [] }
+                : null,
+            responses: []
+        };
+    }
+
+    const paths = doc.paths || {};
+    const wanted = String(target).replace(/^\//, '');
+    let found = null;
+    for (const rawPath of Object.keys(paths)) {
+        const item = resolve(paths[rawPath]);
+        if (item[method] && !item[method].deprecated &&
+                rawPath.replace(/^\//, '') === wanted) {
+            found = { path: rawPath, item: item, op: item[method] };
+        }
+    }
+    if (!found) throw new Error('not found: ' + method + ' ' + target);
+    const item = found.item, op = found.op;
+
+    const parameters = [];
+    for (const raw of [].concat(op.parameters || [], item.parameters || [])) {
+        const p = resolve(raw);
+        if (!p.name || !p.in) continue;
+        if (parameters.some(q => q.name === p.name && q.in === p.in)) continue;
+        const schema = format === 'openapi3' ? resolve(p.schema || {}) : p;
+        parameters.push({
+            name: p.name,
+            in: p.in,
+            required: !!p.required,
+            type: typeOf(schema) || '',
+            description: p.description || '',
+            enum: Array.isArray(schema.enum) ? schema.enum.slice(0, 8) : [],
+            example: schema.example !== undefined ? schema.example
+                : (schema.default !== undefined ? schema.default : undefined)
+        });
+    }
+
+    const schemes = format === 'openapi3'
+        ? ((doc.components || {}).securitySchemes || {})
+        : (doc.securityDefinitions || {});
+    const applied = op.security !== undefined ? op.security : (doc.security || []);
+    const security = [];
+    for (const entry of applied || []) {
+        for (const name of Object.keys(entry || {})) {
+            const scheme = resolve(schemes[name] || {});
+            if (!scheme.type || security.some(s => s.name === name)) continue;
+            security.push({
+                name: name,
+                type: String(scheme.type),
+                scheme: String(scheme.scheme || scheme.flow || ''),
+                location: scheme.in ? String(scheme.in) : 'header',
+                parameter: scheme.name || ''
+            });
+        }
+    }
+
+    let requestBody = null;
+    if (format === 'openapi3' && op.requestBody) {
+        const content = resolve(op.requestBody).content || {};
+        const contentType = Object.keys(content)
+            .find(t => /^application\/(\w+\+)?json$/.test(t)) || Object.keys(content)[0];
+        if (contentType) {
+            const schema = resolve((content[contentType] || {}).schema || {});
+            requestBody = {
+                contentType: contentType,
+                required: !!resolve(op.requestBody).required,
+                fields: bodyFields(schema, resolve)
+            };
+        }
+    } else if (format === 'swagger2') {
+        const body = (op.parameters || []).map(p => resolve(p))
+            .find(p => p.in === 'body');
+        const form = (op.parameters || []).map(p => resolve(p))
+            .filter(p => p.in === 'formData');
+        if (body) {
+            requestBody = {
+                contentType: (op.consumes || ['application/json'])[0],
+                required: !!body.required,
+                fields: bodyFields(resolve(body.schema || {}), resolve)
+            };
+        } else if (form.length) {
+            requestBody = {
+                contentType: (op.consumes || ['application/x-www-form-urlencoded'])[0],
+                required: form.some(p => p.required),
+                fields: form.map(p => ({
+                    name: p.name, type: typeOf(p) || '', required: !!p.required,
+                    description: p.description || ''
+                }))
+            };
+        }
+    }
+
+    const responses = Object.keys(op.responses || {}).slice(0, 8).map(code => ({
+        code: code,
+        description: (resolve(op.responses[code]) || {}).description || ''
+    }));
+
+    return {
+        method: method.toUpperCase(),
+        path: found.path,
+        summary: op.summary || '',
+        description: op.description || '',
+        parameters: parameters,
+        security: security,
+        requestBody: requestBody,
+        responses: responses
+    };
+}
+
+function bodyFields(schema, resolve) {
+    const merged = {};
+    const required = [];
+    const collect = node => {
+        const s = resolve(node);
+        if (Array.isArray(s.allOf)) { s.allOf.forEach(collect); }
+        if (Array.isArray(s.required)) { required.push.apply(required, s.required); }
+        for (const key of Object.keys(s.properties || {})) {
+            if (!(key in merged)) merged[key] = resolve(s.properties[key]);
+        }
+        if (s.items) { collect(s.items); }
+    };
+    collect(schema);
+    return Object.keys(merged).slice(0, 20).map(name => ({
+        name: name,
+        type: typeOf(merged[name]) || '',
+        required: required.indexOf(name) !== -1,
+        description: merged[name].description || ''
+    }));
+}
+
 return {
-    parseDocument, detectFormat, generate, generateOpenApi3, generateSwagger2,
+    parseDocument, detectFormat, generate, describeOperation, generateOpenApi3, generateSwagger2,
     listOperations, buildFlow, buildFlows, formatList, nodeWidth, parseCollection
 };
 }));

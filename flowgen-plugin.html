@@ -79,6 +79,41 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
     -ms-user-select: none;
     user-select: none;
 }
+.flowgen-tip { font-family: var(--red-ui-primary-font, sans-serif); font-size: 12px; }
+.flowgen-tip-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.flowgen-tip-method {
+    flex: 0 0 auto;
+    padding: 2px 8px;
+    border-radius: 3px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+}
+.flowgen-tip-method.flowgen-get { background: #9cc2e7; }
+.flowgen-tip-method.flowgen-post { background: #92cab1; }
+.flowgen-tip-method.flowgen-put { background: #e3be90; }
+.flowgen-tip-method.flowgen-delete { background: #e49a9a; }
+.flowgen-tip-method.flowgen-patch { background: #a0dbcd; }
+.flowgen-tip-method.flowgen-trace { background: #af78df; }
+.flowgen-tip-path { font-weight: 600; word-break: break-all; }
+.flowgen-tip-summary {
+    margin-bottom: 6px;
+    color: var(--red-ui-secondary-text-color, #777);
+}
+.flowgen-tip-row { display: flex; gap: 8px; margin-top: 4px; line-height: 1.6; }
+.flowgen-tip-row b {
+    flex: 0 0 74px;
+    color: var(--red-ui-secondary-text-color, #777);
+    font-weight: 600;
+}
+.flowgen-tip-row span { word-break: break-word; }
+.flowgen-tip-row code {
+    padding: 0 3px;
+    border-radius: 2px;
+    background: var(--red-ui-secondary-background, #f3f3f3);
+}
+.flowgen-tip-row i { color: var(--red-ui-secondary-text-color, #777); font-style: normal; }
+.flowgen-tip-row em { color: var(--red-ui-text-color-error, #a33); font-style: normal; }
 #flowgen-op-list .flowgen-op .flowgen-method {
     flex: 0 0 auto;
     min-width: 80px;
@@ -230,6 +265,96 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
         $('#flowgen-status').text(text || '').toggleClass('flowgen-error', !!isError);
     }
 
+    function escapeHtml(text) {
+        return $('<div>').text(String(text === undefined ? '' : text)).html();
+    }
+
+    // Swagger UI reads this straight out of the definition, and so does this.
+    // The document is already here, so nothing is asked of the runtime and
+    // nothing is generated just to describe a call.
+    function detailMarkup(detail) {
+        var rows = [];
+        rows.push('<div class="flowgen-tip-head"><span class="flowgen-tip-method flowgen-'
+            + escapeHtml(detail.method.toLowerCase()) + '">' + escapeHtml(detail.method)
+            + '</span><span class="flowgen-tip-path">' + escapeHtml(detail.path)
+            + '</span></div>');
+        if (detail.summary) {
+            rows.push('<div class="flowgen-tip-summary">'
+                + escapeHtml(detail.summary) + '</div>');
+        }
+
+        var byPlace = {};
+        detail.parameters.forEach(function (p) {
+            (byPlace[p.in] = byPlace[p.in] || []).push(p);
+        });
+        ['path', 'query', 'header', 'cookie'].forEach(function (place) {
+            if (!byPlace[place]) { return; }
+            rows.push('<div class="flowgen-tip-row"><b>' + place + '</b><span>'
+                + byPlace[place].map(function (p) {
+                    return '<code>' + escapeHtml(p.name) + '</code>'
+                        + (p.type ? ' <i>' + escapeHtml(p.type) + '</i>' : '')
+                        + (p.required ? ' <em>required</em>' : '')
+                        + (p.enum && p.enum.length
+                            ? ' = ' + p.enum.map(escapeHtml).join(' | ') : '');
+                }).join('<br>') + '</span></div>');
+        });
+
+        if (detail.security.length) {
+            rows.push('<div class="flowgen-tip-row"><b>auth</b><span>'
+                + detail.security.map(function (s) {
+                    return escapeHtml(s.name) + ' <i>' + escapeHtml(s.type)
+                        + (s.scheme ? ' ' + escapeHtml(s.scheme) : '') + '</i>';
+                }).join('<br>') + '</span></div>');
+        }
+
+        if (detail.requestBody) {
+            rows.push('<div class="flowgen-tip-row"><b>body</b><span>'
+                + '<i>' + escapeHtml(detail.requestBody.contentType) + '</i>'
+                + (detail.requestBody.fields.length
+                    ? '<br>' + detail.requestBody.fields.map(function (f) {
+                        return '<code>' + escapeHtml(f.name) + '</code>'
+                            + (f.type ? ' <i>' + escapeHtml(f.type) + '</i>' : '')
+                            + (f.required ? ' <em>required</em>' : '');
+                    }).join('<br>')
+                    : '') + '</span></div>');
+        }
+
+        if (detail.responses.length) {
+            rows.push('<div class="flowgen-tip-row"><b>responses</b><span>'
+                + detail.responses.map(function (r) {
+                    return escapeHtml(r.code)
+                        + (r.description ? ' ' + escapeHtml(r.description) : '');
+                }).join('<br>') + '</span></div>');
+        }
+
+        return '<div class="flowgen-tip">' + rows.join('') + '</div>';
+    }
+
+    function attachDetails(row, op) {
+        // A tooltip is a convenience. If this editor build has no popovers, or
+        // the document cannot describe the call, the list still works.
+        if (!RED.popover || !op.detail) { return; }
+        try {
+            RED.popover({
+                target: row,
+                trigger: 'hover',
+                direction: 'left',
+                maxWidth: 440,
+                delay: { show: 350, hide: 60 },
+                content: function () {
+                    try {
+                        return $(detailMarkup(op.detail));
+                    } catch (err) {
+                        return $('<div class="flowgen-tip">')
+                            .text('this call could not be described');
+                    }
+                }
+            });
+        } catch (err) {
+            // the row simply has no tooltip
+        }
+    }
+
     function render() {
         var list = $('#flowgen-op-list').empty();
         selected = null;
@@ -255,6 +380,7 @@ a#flowgen-select-btn.red-ui-button i, a#flowgen-select-btn.red-ui-button span {
                     importSelected();
                 })
                 .data('flowgen-op', op)
+                .each(function () { attachDetails($(this), op); })
                 .appendTo(list);
         });
 

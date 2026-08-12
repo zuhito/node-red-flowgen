@@ -301,7 +301,18 @@ module.exports = function (RED) {
                 ? flowgen.parseCollection(body.files)
                 : flowgen.parseDocument(String(body.text === undefined ? '' : body.text));
             const listed = flowgen.listOperations(doc);
-            res.json({ doc: doc, count: listed.count, operations: listed.operations });
+            // The editor shows each call's parameters, auth and body on hover.
+            // That is read from the definition here, alongside the list itself,
+            // so the panel needs no second request and no generated code.
+            const operations = listed.operations.map(op => {
+                try {
+                    return Object.assign({}, op,
+                        { detail: flowgen.describeOperation(doc, op.method, op.path) });
+                } catch (err) {
+                    return op;
+                }
+            });
+            res.json({ doc: doc, count: listed.count, operations: operations });
         } catch (err) {
             res.status(400).json({ error: err.message });
         }
