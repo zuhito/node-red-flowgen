@@ -229,9 +229,6 @@ jobs:
         run: npm run check:node-floor
 
   corpus-matrix:
-    # One job per definition. A public API that is down or rate limiting should
-    # cost one red square, not the whole build, and twenty of them in sequence
-    # would take longer than everything else combined.
     runs-on: ubuntu-latest
     needs: test
     outputs:
@@ -279,11 +276,7 @@ jobs:
           }
 
   corpus-progress:
-    # Records what the corpus jobs found and retires the definitions that
-    # passed, so the next run spends its time on ones not yet proven.
     runs-on: ubuntu-latest
-    # The default token is read only for contents, and pushing without this
-    # fails with a bare exit code 128.
     permissions:
       contents: write
     needs: corpus
@@ -318,20 +311,11 @@ jobs:
           git push origin HEAD:main
 
   ollama:
-    # An MLX build needs the Metal stack on Apple silicon, so the Gemma 4 run
-    # goes to macOS. The hosted macOS runner only leaves Ollama around 4GB
-    # though, and gemma4:e2b-mlx asks for 6GB, so that path is opt in and the
-    # everyday run stays on Linux with a model that fits.
     runs-on: ${{ inputs.ollama_mlx && 'macos-latest' || 'ubuntu-latest' }}
     needs: test
-    # A multi gigabyte pull plus local inference, so far longer than a unit
-    # test run.
     timeout-minutes: 60
     env:
       OLLAMA_MODEL: ${{ inputs.ollama_mlx && 'gemma4:e2b-mlx' || 'gemma3:4b' }}
-      # A 4b model answering a vision prompt on a shared CPU runner passed 300s
-      # and the whole job was reported as broken. The job itself allows 60
-      # minutes, so a single call can afford to wait longer than that default.
       OLLAMA_TIMEOUT_MS: '600000'
     steps:
       - uses: actions/checkout@v7
