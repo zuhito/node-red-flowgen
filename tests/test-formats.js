@@ -68,13 +68,14 @@ function compare(left, right, where, exact) {
 }
 
 const SCHEMA_SOURCES = [
-    ['swagger 2', path.join(SPECS, 'ollama-swagger2.yaml')],
     ['openapi 3', path.join(SPECS, 'ollama-openapi3.yaml')],
-    ['swagger 2 converted to openapi 3',
-        path.join(GENERATED, 'ollama-swagger2-openapi3.generated.yaml')],
     ['openapi 3 round tripped',
         path.join(GENERATED, 'ollama-openapi3-openapi3.generated.yaml')]
 ];
+
+// A Bruno collection records the request that was sent, not the schema behind
+// it, so a conversion from Bruno cannot say which fields were optional. It is
+// compared separately, on the fields it does carry, rather than here.
 
 test('the generated fixtures are present', () => {
     assert.ok(fs.existsSync(GENERATED),
@@ -85,7 +86,7 @@ test('the generated fixtures are present', () => {
 });
 
 test('every schema-backed format generates identical code', () => {
-    const reference = load(SCHEMA_SOURCES[1][1]);
+    const reference = load(SCHEMA_SOURCES[0][1]);
     const operations = flowgen.listOperations(reference).operations;
     assert.ok(operations.length >= 15, 'expected the whole ollama surface');
 

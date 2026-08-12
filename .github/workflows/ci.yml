@@ -90,6 +90,9 @@ jobs:
       - name: Bruno conversion equivalence tests
         run: npm run test:converters
 
+      - name: Build the cross format fixtures
+        run: npm run generate:formats
+
       - name: Cross format equivalence tests
         run: npm run test:formats
 
