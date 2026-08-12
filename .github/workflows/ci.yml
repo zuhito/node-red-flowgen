@@ -306,7 +306,12 @@ jobs:
           set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tests/progress.md tests/specs/corpus.json
+          # corpus.json is built by the corpus jobs, so it is absent whenever
+          # they were skipped. Naming it unconditionally made git add fail and
+          # reported the progress job as broken when nothing had gone wrong.
+          for file in tests/progress.md tests/specs/corpus.json; do
+            if [ -f "$file" ]; then git add "$file"; fi
+          done
           git diff --cached --quiet && exit 0
           git commit -m "Record corpus progress [skip ci]"
           git pull --rebase origin main || true
