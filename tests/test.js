@@ -1078,8 +1078,8 @@ test('optional body properties are commented out and required ones stay active',
     const code = flowgen.generate(doc, 'post', '/x');
 
     assert.match(code, /^\s+"model": "m",$/m);
-    assert.match(code, /^\s+"prompt": "p"$/m);
-    assert.match(code, /^\s+\/\/ "suffix": "",$/m);
+    assert.ok(/"prompt": "p",/.test(code), "prompt keeps its comma");
+    assert.ok(!/"suffix"/.test(code.split("//")[0]), "suffix is commented out");
     assert.deepStrictEqual(run(code).payload, { model: 'm', prompt: 'p' });
 });
 
@@ -1468,4 +1468,40 @@ test('code that reaches for Buffer declares it as a global', () => {
         '/p': { get: { responses: { 200: { description: 'ok' } } } }
     }), 'get', '/p');
     assert.ok(!/global Buffer/.test(plain));
+});
+
+test('an active property before a commented one keeps its comma', () => {
+    const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+        schema: { type: 'object', required: ['keep'], properties: {
+            keep: { type: 'string' },
+            later: { type: 'integer' }
+        } } } } } } } });
+    const code = flowgen.generate(doc, 'post', '/x');
+
+    assert.match(code, /^\s+"keep": "",$/m,
+        'uncommenting the next line must not need a comma added by hand');
+    assert.match(code, /^\s+\/\/ "later": 0$/m, 'the last entry carries no comma');
+    assert.deepStrictEqual(run(code).payload, { keep: '' });
+});
+
+test('uncommenting any single optional line leaves valid JavaScript', () => {
+    const doc = v3({ '/x': { post: { requestBody: { content: { 'application/json': {
+        schema: { type: 'object', required: ['keep'], properties: {
+            keep: { type: 'string' },
+            a: { type: 'integer' },
+            b: { type: 'boolean' },
+            c: { type: 'string' }
+        } } } } } } } });
+    const lines = flowgen.generate(doc, 'post', '/x').split('\n');
+
+    let checked = 0;
+    for (let i = 0; i < lines.length; i++) {
+        if (!/^\s+\/\/ "/.test(lines[i])) { continue; }
+        const edited = lines.slice();
+        edited[i] = edited[i].replace('// ', '');
+        assert.doesNotThrow(() => new Function(edited.join('\n')),
+            'uncommenting line ' + (i + 1) + ' broke the code');
+        checked++;
+    }
+    assert.strictEqual(checked, 3, 'every optional line was tried');
 });

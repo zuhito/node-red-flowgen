@@ -79,7 +79,7 @@ async function main() {
     fs.mkdirSync(OUT, { recursive: true });
     const summary = [];
 
-    for (const name of ['ollama-openapi3', 'ollama-swagger2']) {
+    for (const name of ['ollama-openapi3', 'httpbingo-openapi3']) {
         const file = path.join(__dirname, 'specs', name + '.yaml');
         writeSource(name, flowgen.parseDocument(fs.readFileSync(file, 'utf8')), summary);
     }

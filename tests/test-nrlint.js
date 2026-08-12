@@ -68,7 +68,7 @@ test('a multi endpoint import stays on the grid and apart', () => {
 });
 
 test('every node coordinate is a multiple of the grid', () => {
-        const doc = loadSpec('ollama-swagger2.yaml');
+        const doc = loadSpec('httpbingo-openapi3.yaml');
         for (const op of flowgen.listOperations(doc).operations) {
                 for (const node of flowgen.buildFlow(doc, op.method, op.path)) {
                         if (node.type === 'tab') continue;
@@ -96,7 +96,7 @@ const LABEL = {
 };
 
 test('every node left edge lands on the grid, which is what the editor checks', () => {
-        for (const name of ['ollama-swagger2.yaml', 'ollama-openapi3.yaml',
+        for (const name of ['httpbingo-openapi3.yaml', 'ollama-openapi3.yaml',
                 'httpbingo-openapi3.yaml']) {
                 const doc = loadSpec(name);
                 for (const op of flowgen.listOperations(doc).operations) {

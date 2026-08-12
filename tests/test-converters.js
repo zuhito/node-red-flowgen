@@ -49,7 +49,7 @@ function payloadAgrees(direct, bruno) {
     return direct.payloadKeys.every(key => bruno.payloadKeys.indexOf(key) !== -1);
 }
 
-const CASES = ['httpbingo-openapi3.yaml', 'ollama-openapi3.yaml', 'ollama-swagger2.yaml'];
+const CASES = ['httpbingo-openapi3.yaml', 'ollama-openapi3.yaml', 'httpbingo-full.yaml'];
 
 for (const name of CASES) {
     test(name + ' generates the same requests through Bruno as it does directly', () => {

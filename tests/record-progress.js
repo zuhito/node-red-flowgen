@@ -47,6 +47,18 @@ function allJobs(runId) {
 // The verbs actually requested, not the ones the definition declares. Saying
 // the run covered POST and DELETE when it only ever issued GETs would overstate
 // what was proven.
+// The column shows the command that was actually run, not a summary of it, so
+// the reader can paste it and see the same answer the test saw. These flags
+// mirror tests/test-corpus.js: without --location a moved host answers 301 to
+// curl while Node-RED follows and reports 200, and the two disagree for a
+// reason that has nothing to do with the generated request.
+function curlCommand(probe) {
+    const method = String(probe.method || 'get').toUpperCase();
+    const url = probe.url || probe.path;
+    return 'curl -sS -i --location --max-redirs 5 --globoff --max-time 25' +
+        " -A 'flowgen-corpus/1.0' -X " + method + " '" + url + "'";
+}
+
 function methodBreakdown(entry) {
     const methods = entry.methods || {};
     const parts = Object.keys(methods).sort()
@@ -101,7 +113,7 @@ function main() {
             format: entry.format || '不明',
             methods: methodBreakdown(entry),
             callable: entry.callable === undefined ? '?' : entry.callable,
-            probe: entry.probe.method.toUpperCase() + ' ' + entry.probe.path,
+            probe: curlCommand(entry.probe),
             sha: sha.slice(0, 8),
             traits: character(entry)
         });

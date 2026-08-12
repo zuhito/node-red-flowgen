@@ -68,10 +68,8 @@ function literal(value, indent, schema, resolve) {
                     '": ' + literal(value[key], indent + 1, child, resolve)
             };
         });
-        let lastActive = -1;
-        entries.forEach((entry, i) => { if (!entry.optional) lastActive = i; });
         const lines = entries.map((entry, i) => {
-            const body = entry.body + (i === lastActive ? '' : ',');
+            const body = entry.body + (i === entries.length - 1 ? '' : ',');
             return entry.optional
                 ? body.split('\n').map(line => inner + '// ' + line.slice(inner.length)).join('\n')
                 : body;
