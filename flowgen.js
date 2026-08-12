@@ -468,14 +468,10 @@ function digestRetryCode(pair, method) {
     const user = pair.known ? JSON.stringify(pair.user) : '`{' + pair.user + '}`';
     const passwd = pair.known ? JSON.stringify(pair.passwd) : '`{' + pair.passwd + '}`';
     return [
-        '// MD5 is written out in full rather than taken from crypto. A function',
-        '// node has no require, and the libs field only works where',
-        '// functionExternalModules is enabled, which many deployments turn off.',
         MD5_SOURCE,
         '',
         'const challenge = String((msg.headers || {})["www-authenticate"] || "");',
         'if (!/^Digest/i.test(challenge)) {',
-        '    // Already authenticated, or the server never asked. Pass it through.',
         '    return msg;',
         '}',
         '',
@@ -490,19 +486,11 @@ function digestRetryCode(pair, method) {
         'const nonce = field("nonce");',
         'const opaque = field("opaque");',
         'const qop = (field("qop").split(",")[0] || "").trim();',
-        '// RFC 2617 requires nc to increase for a given nonce, and a server that',
-        '// keeps one nonce alive will reject a repeated count as a replay. The',
-        '// count is therefore kept per nonce in the node\'s own context, so a',
-        '// flow that runs more than once still authenticates.',
         'const counters = context.get("digestNonceCounts") || {};',
         'const count = (counters[nonce] || 0) + 1;',
-        '// Only the nonce in play is remembered; the rest are spent.',
         'context.set("digestNonceCounts", { [nonce]: count });',
         'const nc = count.toString(16).padStart(8, "0");',
         '',
-        '// The client nonce only has to be unpredictable to the server for the',
-        '// life of one exchange, so Math.random with a timestamp is adequate',
-        '// here. It is not a secret and it is never reused.',
         'const cnonce = (Date.now().toString(16) +',
         '    Math.floor(Math.random() * 0x100000000).toString(16)).slice(-16);',
         'const uri = new URL(msg.url).pathname;',
@@ -526,7 +514,6 @@ function digestRetryCode(pair, method) {
         '    opaque ? `opaque="${opaque}"` : null',
         '].filter(Boolean).join(", ");',
         '',
-        '// The challenge came with cookies, and the retry is refused without them.',
         'const setCookie = (msg.headers || {})["set-cookie"];',
         'const cookies = [].concat(setCookie || [])',
         '    .map(entry => String(entry).split(";")[0])',
@@ -646,9 +633,6 @@ function assemble(parts) {
     if (credentialsSink && parts.credentials) { credentialsSink(parts.credentials); }
     if (parts.credentials && parts.credentials.scheme === 'digest') {
         lines.push('');
-        lines.push('// Digest auth answers this call with 401 and a challenge. The node');
-        lines.push('// after the request reads that challenge and signs the retry, so no');
-        lines.push('// credentials are sent here.');
     }
     for (const [key, pairs] of [['headers', parts.headers], ['cookies', parts.cookies]]) {
         if (!pairs.length) continue;
