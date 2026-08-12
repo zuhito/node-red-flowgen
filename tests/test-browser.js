@@ -839,11 +839,19 @@ for (const engine of ENGINES) {
             await click(page, '#flowgen-select-btn');
             await page.waitForSelector('#flowgen-op-list .flowgen-op');
 
-            await page.$eval('#flowgen-op-list .flowgen-op:nth-of-type(2)', el => {
-                el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
-                el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-            });
-            await page.waitForSelector('.red-ui-popover .flowgen-tip', { timeout: 20000 });
+            // The popover opens on a delay, and a row that has been scrolled out
+            // of the list never receives the pointer. Bring it into view, then
+            // keep signalling until the tooltip appears rather than assuming a
+            // single event lands.
+            await page.$eval('#flowgen-op-list .flowgen-op:nth-of-type(2)',
+                el => el.scrollIntoView({ block: 'center' }));
+            await page.waitForFunction(() => {
+                const row = document.querySelectorAll('#flowgen-op-list .flowgen-op')[1];
+                if (!row) { return false; }
+                row.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+                row.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+                return !!document.querySelector('.red-ui-popover .flowgen-tip');
+            }, null, { timeout: 30000, polling: 250 });
 
             const text = await page.$eval('.red-ui-popover .flowgen-tip', el => el.textContent);
             assert.match(text, /DELETE/);
