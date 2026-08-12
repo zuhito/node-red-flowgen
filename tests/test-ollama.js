@@ -54,8 +54,6 @@ function collectionFiles(dir) {
 const DOCS = {
     openapi3: () => flowgen.parseDocument(
         fs.readFileSync(path.join(SPECS, 'ollama-openapi3.yaml'), 'utf8')),
-    swagger2: () => flowgen.parseDocument(
-        fs.readFileSync(path.join(SPECS, 'ollama-swagger2.yaml'), 'utf8')),
     bruno: () => flowgen.parseCollection(collectionFiles(path.join(SPECS, 'ollama-bruno')))
 };
 

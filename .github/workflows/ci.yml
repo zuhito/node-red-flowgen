@@ -329,6 +329,10 @@ jobs:
     timeout-minutes: 60
     env:
       OLLAMA_MODEL: ${{ inputs.ollama_mlx && 'gemma4:e2b-mlx' || 'gemma3:4b' }}
+      # A 4b model answering a vision prompt on a shared CPU runner passed 300s
+      # and the whole job was reported as broken. The job itself allows 60
+      # minutes, so a single call can afford to wait longer than that default.
+      OLLAMA_TIMEOUT_MS: '600000'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
