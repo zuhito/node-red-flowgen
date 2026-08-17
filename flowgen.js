@@ -632,7 +632,10 @@ function assemble(parts) {
         lines.push((i ? '// ' : '') + 'msg.url = ' + quote(url) + ';'));
     if (credentialsSink && parts.credentials) { credentialsSink(parts.credentials); }
     if (parts.credentials && parts.credentials.scheme === 'digest') {
-        lines.push('');
+        lines.push('',
+            '// This first request carries no credentials on purpose: the server ' +
+            'answers this call with 401 and a challenge, and the digest header has ' +
+            'to be built from that challenge before a second request can succeed.');
     }
     for (const [key, pairs] of [['headers', parts.headers], ['cookies', parts.cookies]]) {
         if (!pairs.length) continue;
